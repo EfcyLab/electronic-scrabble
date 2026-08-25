@@ -92,7 +92,6 @@ flowchart TB
     P2 <-->|Local Wi-Fi| Pi
     P3 <-->|Local Wi-Fi| Pi
     P4 <-->|Local Wi-Fi| Pi
-```      P4
 ```
 
 The Raspberry Pi could eventually create its own Wi-Fi network, making Electronic Scrabble a completely autonomous game console.
