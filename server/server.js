@@ -1,22 +1,29 @@
 /**
  * Electronic Scrabble WebSocket Server
  *
- * Manages game sessions, player connections, shared screens,
- * administrators, and real-time lobby synchronization.
+ * Manages game sessions, lobby synchronization, player reconnection,
+ * game startup, the French tile bag, and private player racks.
  *
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 0.2.0
+ * @version 0.3.0
  */
 
 const WebSocket = require('ws');
 const { randomInt, randomUUID } = require('node:crypto');
+const {
+    RACK_SIZE,
+    createFrenchTileBag,
+    drawTiles
+} = require('./game/french-tiles');
 
 const PORT = 8080;
-
+const MIN_PLAYERS = 2;
+const MAX_PLAYERS = 4;
 const GAME_CODE_LENGTH = 4;
 const GAME_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const LOBBY_RECONNECT_GRACE_MS = 30000;
 
 const games = new Map();
 
@@ -61,7 +68,7 @@ function sendError(socket, code, message) {
 }
 
 /**
- * Generates a unique game code.
+ * Generates a unique public game code.
  *
  * @returns {string} Generated game code.
  */
@@ -72,12 +79,7 @@ function generateGameCode() {
         code = '';
 
         for (let index = 0; index < GAME_CODE_LENGTH; index += 1) {
-            const characterIndex = randomInt(
-                0,
-                GAME_CODE_ALPHABET.length
-            );
-
-            code += GAME_CODE_ALPHABET[characterIndex];
+            code += GAME_CODE_ALPHABET[randomInt(GAME_CODE_ALPHABET.length)];
         }
     } while (games.has(code));
 
@@ -87,7 +89,7 @@ function generateGameCode() {
 /**
  * Returns a game using its public code.
  *
- * @param {string} gameCode Game code.
+ * @param {string} gameCode Public game code.
  *
  * @returns {Object|null} Game instance or null when not found.
  */
@@ -102,7 +104,7 @@ function getGame(gameCode) {
 /**
  * Returns the public representation of a game.
  *
- * Private player information must never be returned here.
+ * Private racks and player authentication tokens are intentionally excluded.
  *
  * @param {Object} game Game instance.
  *
@@ -112,9 +114,13 @@ function getPublicGameState(game) {
     return {
         code: game.code,
         status: game.status,
+        bagRemaining: game.status === 'playing' ? game.bag.length : null,
         players: Array.from(game.players.values()).map((player) => ({
             id: player.id,
-            name: player.name
+            name: player.name,
+            score: player.score,
+            rackCount: player.rack.length,
+            connected: player.socket !== null
         }))
     };
 }
@@ -147,7 +153,7 @@ function getGameSockets(game) {
 }
 
 /**
- * Broadcasts the public game state to every game participant.
+ * Broadcasts the public game state to every connected participant.
  *
  * @param {Object} game Game instance.
  *
@@ -164,10 +170,78 @@ function broadcastGameState(game) {
 }
 
 /**
- * Detaches a socket from its current game session.
+ * Sends a player's private state only to that player's active socket.
  *
- * Players are removed when disconnecting while the game is still
- * in the lobby.
+ * @param {Object} game Game instance.
+ * @param {Object} player Player instance.
+ *
+ * @returns {void}
+ */
+function sendPrivatePlayerState(game, player) {
+    if (player.socket === null) {
+        return;
+    }
+
+    send(player.socket, 'player-state', {
+        gameCode: game.code,
+        player: {
+            id: player.id,
+            name: player.name,
+            score: player.score,
+            rack: player.rack
+        }
+    });
+}
+
+/**
+ * Cancels a pending lobby removal timer for a player.
+ *
+ * @param {Object} player Player instance.
+ *
+ * @returns {void}
+ */
+function cancelPlayerRemoval(player) {
+    if (player.removalTimer === null) {
+        return;
+    }
+
+    clearTimeout(player.removalTimer);
+    player.removalTimer = null;
+}
+
+/**
+ * Schedules removal of a disconnected lobby player.
+ *
+ * Players are retained during active games so they can reconnect later.
+ *
+ * @param {Object} game Game instance.
+ * @param {Object} player Player instance.
+ *
+ * @returns {void}
+ */
+function schedulePlayerRemoval(game, player) {
+    cancelPlayerRemoval(player);
+
+    if (game.status !== 'lobby') {
+        return;
+    }
+
+    player.removalTimer = setTimeout(() => {
+        if (player.socket !== null || game.status !== 'lobby') {
+            return;
+        }
+
+        game.players.delete(player.id);
+        broadcastGameState(game);
+
+        console.log(
+            `Player "${player.name}" removed from lobby ${game.code} after disconnect timeout.`
+        );
+    }, LOBBY_RECONNECT_GRACE_MS);
+}
+
+/**
+ * Detaches a socket from its current game session.
  *
  * @param {WebSocket} socket WebSocket connection.
  *
@@ -196,7 +270,12 @@ function detachSocket(socket) {
     }
 
     if (session.role === 'player' && session.playerId) {
-        game.players.delete(session.playerId);
+        const player = game.players.get(session.playerId);
+
+        if (player && player.socket === socket) {
+            player.socket = null;
+            schedulePlayerRemoval(game, player);
+        }
     }
 
     socket.session = null;
@@ -219,13 +298,13 @@ function createGame(socket) {
     const game = {
         code: gameCode,
         status: 'lobby',
+        bag: [],
         players: new Map(),
         adminSockets: new Set(),
         screenSockets: new Set()
     };
 
     game.adminSockets.add(socket);
-
     games.set(gameCode, game);
 
     socket.session = {
@@ -282,7 +361,7 @@ function watchGame(socket, message) {
 }
 
 /**
- * Registers a player in a game.
+ * Registers a new player in a lobby.
  *
  * @param {WebSocket} socket Player WebSocket connection.
  * @param {Object} message Received protocol message.
@@ -293,22 +372,17 @@ function joinGame(socket, message) {
     const game = getGame(message.gameCode);
 
     if (!game) {
-        sendError(
-            socket,
-            'GAME_NOT_FOUND',
-            'The requested game does not exist.'
-        );
-
+        sendError(socket, 'GAME_NOT_FOUND', 'The requested game does not exist.');
         return;
     }
 
     if (game.status !== 'lobby') {
-        sendError(
-            socket,
-            'GAME_ALREADY_STARTED',
-            'The game has already started.'
-        );
+        sendError(socket, 'GAME_ALREADY_STARTED', 'The game has already started.');
+        return;
+    }
 
+    if (game.players.size >= MAX_PLAYERS) {
+        sendError(socket, 'GAME_FULL', `The game already has ${MAX_PLAYERS} players.`);
         return;
     }
 
@@ -322,7 +396,6 @@ function joinGame(socket, message) {
             'INVALID_PLAYER_NAME',
             'The player name must contain between 1 and 30 characters.'
         );
-
         return;
     }
 
@@ -336,7 +409,6 @@ function joinGame(socket, message) {
             'PLAYER_NAME_ALREADY_USED',
             'This player name is already used in the game.'
         );
-
         return;
     }
 
@@ -344,8 +416,12 @@ function joinGame(socket, message) {
 
     const player = {
         id: randomUUID(),
+        token: randomUUID(),
         name: playerName,
-        socket
+        score: 0,
+        rack: [],
+        socket,
+        removalTimer: null
     };
 
     game.players.set(player.id, player);
@@ -359,13 +435,155 @@ function joinGame(socket, message) {
     send(socket, 'game-joined', {
         gameCode: game.code,
         playerId: player.id,
+        playerToken: player.token,
         playerName: player.name
     });
 
     broadcastGameState(game);
 
+    console.log(`Player "${player.name}" joined game ${game.code}`);
+}
+
+/**
+ * Restores a previously authenticated player session.
+ *
+ * @param {WebSocket} socket Player WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function resumeGame(socket, message) {
+    const game = getGame(message.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The requested game does not exist.');
+        return;
+    }
+
+    const playerToken = typeof message.playerToken === 'string'
+        ? message.playerToken.trim()
+        : '';
+
+    const player = Array.from(game.players.values()).find(
+        (candidate) => candidate.token === playerToken
+    );
+
+    if (!player) {
+        sendError(
+            socket,
+            'PLAYER_SESSION_NOT_FOUND',
+            'The saved player session is no longer available.'
+        );
+        return;
+    }
+
+    detachSocket(socket);
+    cancelPlayerRemoval(player);
+
+    if (player.socket !== null && player.socket !== socket) {
+        const previousSocket = player.socket;
+
+        send(previousSocket, 'session-replaced', {
+            message: 'This player session was resumed on another connection.'
+        });
+
+        previousSocket.session = null;
+        previousSocket.close(4001, 'Session resumed elsewhere');
+    }
+
+    player.socket = socket;
+
+    socket.session = {
+        role: 'player',
+        gameCode: game.code,
+        playerId: player.id
+    };
+
+    send(socket, 'session-resumed', {
+        gameCode: game.code,
+        playerId: player.id,
+        playerName: player.name
+    });
+
+    sendPrivatePlayerState(game, player);
+    broadcastGameState(game);
+
+    console.log(`Player "${player.name}" resumed game ${game.code}`);
+}
+
+/**
+ * Starts a game and deals seven private tiles to every player.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ *
+ * @returns {void}
+ */
+function startGame(socket) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'admin' || !session.gameCode) {
+        sendError(socket, 'NOT_AUTHORIZED', 'Only a game administrator can start the game.');
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The game does not exist.');
+        return;
+    }
+
+    if (game.status !== 'lobby') {
+        sendError(socket, 'GAME_ALREADY_STARTED', 'The game has already started.');
+        return;
+    }
+
+    if (game.players.size < MIN_PLAYERS) {
+        sendError(
+            socket,
+            'NOT_ENOUGH_PLAYERS',
+            `At least ${MIN_PLAYERS} players are required to start.`
+        );
+        return;
+    }
+
+    const disconnectedPlayers = Array.from(game.players.values()).filter(
+        (player) => player.socket === null
+    );
+
+    if (disconnectedPlayers.length > 0) {
+        sendError(
+            socket,
+            'PLAYER_DISCONNECTED',
+            'All players must be connected before starting the game.'
+        );
+        return;
+    }
+
+    game.bag = createFrenchTileBag();
+
+    game.players.forEach((player) => {
+        cancelPlayerRemoval(player);
+        player.score = 0;
+        player.rack = drawTiles(game.bag, RACK_SIZE);
+    });
+
+    game.status = 'playing';
+
+    getGameSockets(game).forEach((participantSocket) => {
+        send(participantSocket, 'game-started', {
+            gameCode: game.code
+        });
+    });
+
+    game.players.forEach((player) => {
+        sendPrivatePlayerState(game, player);
+    });
+
+    broadcastGameState(game);
+
     console.log(
-        `Player "${player.name}" joined game ${game.code}`
+        `Game ${game.code} started with ${game.players.size} players and ${game.bag.length} tiles remaining.`
     );
 }
 
@@ -373,18 +591,13 @@ function joinGame(socket, message) {
  * Handles an incoming protocol message.
  *
  * @param {WebSocket} socket Client WebSocket connection.
- * @param {Object} message Parsed message.
+ * @param {Object} message Parsed protocol message.
  *
  * @returns {void}
  */
 function handleMessage(socket, message) {
     if (!message || typeof message.type !== 'string') {
-        sendError(
-            socket,
-            'INVALID_MESSAGE',
-            'The message type is missing.'
-        );
-
+        sendError(socket, 'INVALID_MESSAGE', 'The message type is missing.');
         return;
     }
 
@@ -401,6 +614,14 @@ function handleMessage(socket, message) {
             joinGame(socket, message);
             break;
 
+        case 'resume-game':
+            resumeGame(socket, message);
+            break;
+
+        case 'start-game':
+            startGame(socket);
+            break;
+
         default:
             sendError(
                 socket,
@@ -411,7 +632,7 @@ function handleMessage(socket, message) {
 }
 
 /**
- * Marks a WebSocket connection as alive.
+ * Marks a WebSocket connection as alive after a pong response.
  *
  * @returns {void}
  */
@@ -425,25 +646,28 @@ server.on('connection', (socket, request) => {
 
     socket.on('pong', heartbeat);
 
-    console.log(
-        `Client connected: ${request.socket.remoteAddress}`
-    );
+    console.log(`Client connected: ${request.socket.remoteAddress}`);
 
     send(socket, 'connected', {
         message: 'Connected to Electronic Scrabble server.'
     });
 
     socket.on('message', (data) => {
-        try {
-            const message = JSON.parse(data.toString());
+        let message;
 
+        try {
+            message = JSON.parse(data.toString());
+        } catch (error) {
+            console.error('Invalid JSON message:', error);
+            sendError(socket, 'INVALID_JSON', 'The received message is not valid JSON.');
+            return;
+        }
+
+        try {
             handleMessage(socket, message);
         } catch (error) {
-            sendError(
-                socket,
-                'INVALID_JSON',
-                'The received message is not valid JSON.'
-            );
+            console.error('Unable to process message:', error);
+            sendError(socket, 'INTERNAL_SERVER_ERROR', 'The server could not process the request.');
         }
     });
 
@@ -453,7 +677,6 @@ server.on('connection', (socket, request) => {
 
     socket.on('close', () => {
         detachSocket(socket);
-
         console.log('Client disconnected');
     });
 });
@@ -474,6 +697,4 @@ server.on('close', () => {
     clearInterval(heartbeatInterval);
 });
 
-console.log(
-    `Electronic Scrabble WebSocket server listening on port ${PORT}`
-);
+console.log(`Electronic Scrabble WebSocket server listening on port ${PORT}`);

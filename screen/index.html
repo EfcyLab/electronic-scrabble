@@ -3,25 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Electronic Scrabble - Shared Screen</title>
 </head>
-
 <body>
     <main>
         <h1>Electronic Scrabble</h1>
 
-        <p id="connection-status">
-            Connecting...
-        </p>
+        <p id="connection-status">Connecting...</p>
 
         <section>
-            <h2>
-                Game <span id="game-code">----</span>
-            </h2>
+            <h2>Game <span id="game-code">----</span></h2>
+
+            <p>
+                Status:
+                <strong id="game-status">Lobby</strong>
+            </p>
+
+            <p id="bag-information" hidden>
+                Tiles remaining:
+                <strong id="bag-remaining">0</strong>
+            </p>
 
             <h3>Players</h3>
-
             <ul id="player-list"></ul>
         </section>
     </main>
@@ -30,50 +33,57 @@
         /**
          * Electronic Scrabble Shared Screen Client
          *
-         * Displays the public state of a game session.
+         * Displays the public game state without exposing private racks.
          *
-         * @version 0.2.0
+         * @version 0.3.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
 
-        const parameters = new URLSearchParams(
-            window.location.search
-        );
-
+        const parameters = new URLSearchParams(window.location.search);
         const gameCode = parameters.get('game')?.toUpperCase() ?? '';
 
-        const connectionStatus = document.getElementById(
-            'connection-status'
-        );
-
-        const gameCodeElement = document.getElementById(
-            'game-code'
-        );
-
+        const connectionStatus = document.getElementById('connection-status');
+        const gameCodeElement = document.getElementById('game-code');
+        const gameStatusElement = document.getElementById('game-status');
+        const bagInformation = document.getElementById('bag-information');
+        const bagRemainingElement = document.getElementById('bag-remaining');
         const playerList = document.getElementById('player-list');
 
         gameCodeElement.textContent = gameCode || '----';
 
-        const socket = new WebSocket(
-            `ws://${SERVER_HOST}:${SERVER_PORT}`
-        );
+        const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
         /**
-         * Updates the displayed player list.
+         * Updates the public game state on the shared display.
          *
-         * @param {Array<Object>} players Public player list.
+         * @param {Object} game Public game state.
          *
          * @returns {void}
          */
-        function updatePlayerList(players) {
+        function updateGameState(game) {
+            gameStatusElement.textContent = game.status;
             playerList.replaceChildren();
 
-            players.forEach((player) => {
-                const item = document.createElement('li');
+            if (game.bagRemaining !== null) {
+                bagInformation.hidden = false;
+                bagRemainingElement.textContent = game.bagRemaining;
+            } else {
+                bagInformation.hidden = true;
+            }
 
-                item.textContent = player.name;
+            game.players.forEach((player) => {
+                const item = document.createElement('li');
+                const connectionLabel = player.connected ? '' : ' — disconnected';
+
+                if (game.status === 'playing') {
+                    item.textContent =
+                        `${player.name} — ${player.score} pts — ` +
+                        `${player.rackCount} tiles${connectionLabel}`;
+                } else {
+                    item.textContent = `${player.name}${connectionLabel}`;
+                }
 
                 playerList.appendChild(item);
             });
@@ -108,8 +118,7 @@
                 data.type === 'game-state' &&
                 data.game.code === gameCode
             ) {
-                updatePlayerList(data.game.players);
-
+                updateGameState(data.game);
                 return;
             }
 

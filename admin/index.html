@@ -3,17 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Electronic Scrabble - Administration</title>
 </head>
-
 <body>
     <main>
         <h1>Electronic Scrabble</h1>
 
-        <p id="connection-status">
-            Connecting...
-        </p>
+        <p id="connection-status">Connecting...</p>
 
         <button id="create-game" type="button" disabled>
             Create Game
@@ -21,6 +17,11 @@
 
         <section id="game-information" hidden>
             <h2>Game <span id="game-code"></span></h2>
+
+            <p>
+                Status:
+                <strong id="game-status">Lobby</strong>
+            </p>
 
             <p>
                 Shared screen:
@@ -33,8 +34,15 @@
             </p>
 
             <h3>Players</h3>
-
             <ul id="player-list"></ul>
+
+            <button id="start-game" type="button" disabled>
+                Start Game
+            </button>
+
+            <p id="start-help">
+                At least two connected players are required.
+            </p>
         </section>
     </main>
 
@@ -42,57 +50,82 @@
         /**
          * Electronic Scrabble Administration Client
          *
-         * Creates game sessions and displays the current lobby state.
+         * Creates game sessions, displays the lobby state,
+         * and starts a game when all players are ready.
          *
-         * @version 0.2.0
+         * @version 0.3.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
+        const MIN_PLAYERS = 2;
+        const MAX_PLAYERS = 4;
 
-        const connectionStatus = document.getElementById(
-            'connection-status'
-        );
-
-        const createGameButton = document.getElementById(
-            'create-game'
-        );
-
-        const gameInformation = document.getElementById(
-            'game-information'
-        );
-
-        const gameCodeElement = document.getElementById(
-            'game-code'
-        );
-
+        const connectionStatus = document.getElementById('connection-status');
+        const createGameButton = document.getElementById('create-game');
+        const startGameButton = document.getElementById('start-game');
+        const startHelp = document.getElementById('start-help');
+        const gameInformation = document.getElementById('game-information');
+        const gameCodeElement = document.getElementById('game-code');
+        const gameStatusElement = document.getElementById('game-status');
         const screenLink = document.getElementById('screen-link');
         const playerLink = document.getElementById('player-link');
         const playerList = document.getElementById('player-list');
 
-        const socket = new WebSocket(
-            `ws://${SERVER_HOST}:${SERVER_PORT}`
-        );
+        const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
         let currentGameCode = null;
 
         /**
-         * Updates the displayed player list.
+         * Updates the displayed lobby state.
          *
-         * @param {Array<Object>} players Public player list.
+         * @param {Object} game Public game state.
          *
          * @returns {void}
          */
-        function updatePlayerList(players) {
+        function updateGameState(game) {
+            gameStatusElement.textContent = game.status;
             playerList.replaceChildren();
 
-            players.forEach((player) => {
+            game.players.forEach((player) => {
                 const item = document.createElement('li');
+                const connectionLabel = player.connected ? 'connected' : 'disconnected';
 
-                item.textContent = player.name;
-
+                item.textContent = `${player.name} — ${connectionLabel}`;
                 playerList.appendChild(item);
             });
+
+            const playerCountIsValid =
+                game.players.length >= MIN_PLAYERS &&
+                game.players.length <= MAX_PLAYERS;
+
+            const allPlayersConnected = game.players.every(
+                (player) => player.connected
+            );
+
+            const canStart =
+                game.status === 'lobby' &&
+                playerCountIsValid &&
+                allPlayersConnected;
+
+            startGameButton.disabled = !canStart;
+
+            if (game.status !== 'lobby') {
+                startHelp.textContent = 'Game started.';
+                return;
+            }
+
+            if (game.players.length < MIN_PLAYERS) {
+                startHelp.textContent = 'At least two connected players are required.';
+                return;
+            }
+
+            if (!allPlayersConnected) {
+                startHelp.textContent = 'All players must be connected before starting.';
+                return;
+            }
+
+            startHelp.textContent = 'Ready to start.';
         }
 
         socket.addEventListener('open', () => {
@@ -103,6 +136,7 @@
         socket.addEventListener('close', () => {
             connectionStatus.textContent = 'Disconnected';
             createGameButton.disabled = true;
+            startGameButton.disabled = true;
         });
 
         socket.addEventListener('error', () => {
@@ -115,6 +149,12 @@
             }));
         });
 
+        startGameButton.addEventListener('click', () => {
+            socket.send(JSON.stringify({
+                type: 'start-game'
+            }));
+        });
+
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
 
@@ -122,23 +162,21 @@
                 currentGameCode = data.gameCode;
 
                 const screenUrl =
-                    `${window.location.origin}/screen/` +
-                    `?game=${encodeURIComponent(currentGameCode)}`;
+                    `${window.location.origin}/screen/?game=` +
+                    encodeURIComponent(currentGameCode);
 
                 const playerUrl =
-                    `${window.location.origin}/player/` +
-                    `?game=${encodeURIComponent(currentGameCode)}`;
+                    `${window.location.origin}/player/?game=` +
+                    encodeURIComponent(currentGameCode);
 
                 gameCodeElement.textContent = currentGameCode;
-
                 screenLink.href = screenUrl;
                 screenLink.textContent = screenUrl;
-
                 playerLink.href = playerUrl;
                 playerLink.textContent = playerUrl;
 
+                createGameButton.disabled = true;
                 gameInformation.hidden = false;
-
                 return;
             }
 
@@ -146,8 +184,7 @@
                 data.type === 'game-state' &&
                 data.game.code === currentGameCode
             ) {
-                updatePlayerList(data.game.players);
-
+                updateGameState(data.game);
                 return;
             }
 

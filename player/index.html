@@ -3,40 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Electronic Scrabble - Player</title>
-</head>
+    <style>
+        #rack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0;
+            list-style: none;
+        }
 
+        .tile {
+            min-width: 3rem;
+            min-height: 3rem;
+            display: grid;
+            place-items: center;
+            border: 1px solid currentColor;
+            border-radius: 0.25rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .tile-value {
+            font-size: 0.75rem;
+            font-weight: normal;
+        }
+    </style>
+</head>
 <body>
     <main>
         <h1>Electronic Scrabble</h1>
 
-        <p id="connection-status">
-            Connecting...
-        </p>
+        <p id="connection-status">Connecting...</p>
 
         <form id="join-form">
-            <label for="game-code">
-                Game code
-            </label>
+            <label for="game-code">Game code</label>
+            <input id="game-code" type="text" maxlength="4" required>
 
-            <input
-                id="game-code"
-                type="text"
-                maxlength="4"
-                required
-            >
-
-            <label for="player-name">
-                Player name
-            </label>
-
-            <input
-                id="player-name"
-                type="text"
-                maxlength="30"
-                required
-            >
+            <label for="player-name">Player name</label>
+            <input id="player-name" type="text" maxlength="30" required>
 
             <button id="join-button" type="submit" disabled>
                 Join Game
@@ -44,17 +49,29 @@
         </form>
 
         <section id="game-information" hidden>
-            <h2>
-                Game <span id="current-game-code"></span>
-            </h2>
+            <h2>Game <span id="current-game-code"></span></h2>
 
             <p>
-                Welcome,
+                Player:
                 <strong id="current-player-name"></strong>
             </p>
 
-            <h3>Players</h3>
+            <p>
+                Status:
+                <strong id="game-status">Lobby</strong>
+            </p>
 
+            <p>
+                Score:
+                <strong id="player-score">0</strong>
+            </p>
+
+            <section id="rack-section" hidden>
+                <h3>Your rack</h3>
+                <ul id="rack"></ul>
+            </section>
+
+            <h3>Players</h3>
             <ul id="player-list"></ul>
         </section>
     </main>
@@ -63,56 +80,112 @@
         /**
          * Electronic Scrabble Player Client
          *
-         * Allows a player to join a game and displays
-         * the synchronized lobby state.
+         * Joins or resumes a game session and displays the player's
+         * private tile rack without exposing it to other clients.
          *
-         * @version 0.2.0
+         * @version 0.3.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
+        const STORAGE_PREFIX = 'electronicScrabble.player.';
 
-        const parameters = new URLSearchParams(
-            window.location.search
-        );
+        const parameters = new URLSearchParams(window.location.search);
+        const initialGameCode = parameters.get('game')?.toUpperCase() ?? '';
 
-        const initialGameCode =
-            parameters.get('game')?.toUpperCase() ?? '';
-
-        const connectionStatus = document.getElementById(
-            'connection-status'
-        );
-
+        const connectionStatus = document.getElementById('connection-status');
         const joinForm = document.getElementById('join-form');
         const joinButton = document.getElementById('join-button');
-
         const gameCodeInput = document.getElementById('game-code');
         const playerNameInput = document.getElementById('player-name');
-
-        const gameInformation = document.getElementById(
-            'game-information'
-        );
-
-        const currentGameCodeElement = document.getElementById(
-            'current-game-code'
-        );
-
-        const currentPlayerNameElement = document.getElementById(
-            'current-player-name'
-        );
-
+        const gameInformation = document.getElementById('game-information');
+        const currentGameCodeElement = document.getElementById('current-game-code');
+        const currentPlayerNameElement = document.getElementById('current-player-name');
+        const gameStatusElement = document.getElementById('game-status');
+        const playerScoreElement = document.getElementById('player-score');
+        const rackSection = document.getElementById('rack-section');
+        const rackElement = document.getElementById('rack');
         const playerList = document.getElementById('player-list');
 
         gameCodeInput.value = initialGameCode;
 
-        const socket = new WebSocket(
-            `ws://${SERVER_HOST}:${SERVER_PORT}`
-        );
+        const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
         let currentGameCode = null;
 
         /**
-         * Updates the synchronized player list.
+         * Returns the local storage key for a game session.
+         *
+         * @param {string} gameCode Public game code.
+         *
+         * @returns {string} Storage key.
+         */
+        function getSessionStorageKey(gameCode) {
+            return `${STORAGE_PREFIX}${gameCode}`;
+        }
+
+        /**
+         * Saves a private player reconnection token locally.
+         *
+         * @param {string} gameCode Public game code.
+         * @param {string} playerToken Private player token.
+         * @param {string} playerName Player name.
+         *
+         * @returns {void}
+         */
+        function savePlayerSession(gameCode, playerToken, playerName) {
+            localStorage.setItem(
+                getSessionStorageKey(gameCode),
+                JSON.stringify({
+                    playerToken,
+                    playerName
+                })
+            );
+        }
+
+        /**
+         * Loads a saved private player session.
+         *
+         * @param {string} gameCode Public game code.
+         *
+         * @returns {Object|null} Saved session or null.
+         */
+        function loadPlayerSession(gameCode) {
+            const rawSession = localStorage.getItem(
+                getSessionStorageKey(gameCode)
+            );
+
+            if (!rawSession) {
+                return null;
+            }
+
+            try {
+                return JSON.parse(rawSession);
+            } catch (error) {
+                console.error('Invalid saved player session:', error);
+                localStorage.removeItem(getSessionStorageKey(gameCode));
+                return null;
+            }
+        }
+
+        /**
+         * Displays the authenticated player interface.
+         *
+         * @param {string} gameCode Public game code.
+         * @param {string} playerName Player name.
+         *
+         * @returns {void}
+         */
+        function showPlayerInterface(gameCode, playerName) {
+            currentGameCode = gameCode;
+            currentGameCodeElement.textContent = gameCode;
+            currentPlayerNameElement.textContent = playerName;
+            joinForm.hidden = true;
+            gameInformation.hidden = false;
+        }
+
+        /**
+         * Updates the public player list.
          *
          * @param {Array<Object>} players Public player list.
          *
@@ -123,15 +196,59 @@
 
             players.forEach((player) => {
                 const item = document.createElement('li');
+                const connectionLabel = player.connected ? '' : ' — disconnected';
 
-                item.textContent = player.name;
-
+                item.textContent = `${player.name}${connectionLabel}`;
                 playerList.appendChild(item);
             });
         }
 
+        /**
+         * Displays the player's private tile rack.
+         *
+         * @param {Array<Object>} rack Private tile rack.
+         *
+         * @returns {void}
+         */
+        function updateRack(rack) {
+            rackElement.replaceChildren();
+
+            rack.forEach((tile) => {
+                const item = document.createElement('li');
+                const letter = document.createElement('span');
+                const value = document.createElement('span');
+
+                item.className = 'tile';
+                letter.textContent = tile.isBlank ? '★' : tile.letter;
+                value.className = 'tile-value';
+                value.textContent = tile.value;
+
+                item.append(letter, value);
+                rackElement.appendChild(item);
+            });
+
+            rackSection.hidden = false;
+        }
+
         socket.addEventListener('open', () => {
             connectionStatus.textContent = 'Connected';
+
+            if (initialGameCode) {
+                const savedSession = loadPlayerSession(initialGameCode);
+
+                if (savedSession?.playerToken) {
+                    connectionStatus.textContent = 'Restoring player session...';
+
+                    socket.send(JSON.stringify({
+                        type: 'resume-game',
+                        gameCode: initialGameCode,
+                        playerToken: savedSession.playerToken
+                    }));
+
+                    return;
+                }
+            }
+
             joinButton.disabled = false;
         });
 
@@ -147,6 +264,8 @@
         joinForm.addEventListener('submit', (event) => {
             event.preventDefault();
 
+            joinButton.disabled = true;
+
             socket.send(JSON.stringify({
                 type: 'join-game',
                 gameCode: gameCodeInput.value.trim().toUpperCase(),
@@ -158,17 +277,20 @@
             const data = JSON.parse(event.data);
 
             if (data.type === 'game-joined') {
-                currentGameCode = data.gameCode;
+                savePlayerSession(
+                    data.gameCode,
+                    data.playerToken,
+                    data.playerName
+                );
 
-                currentGameCodeElement.textContent =
-                    data.gameCode;
+                connectionStatus.textContent = 'Connected';
+                showPlayerInterface(data.gameCode, data.playerName);
+                return;
+            }
 
-                currentPlayerNameElement.textContent =
-                    data.playerName;
-
-                joinForm.hidden = true;
-                gameInformation.hidden = false;
-
+            if (data.type === 'session-resumed') {
+                connectionStatus.textContent = 'Connected';
+                showPlayerInterface(data.gameCode, data.playerName);
                 return;
             }
 
@@ -176,12 +298,41 @@
                 data.type === 'game-state' &&
                 data.game.code === currentGameCode
             ) {
+                gameStatusElement.textContent = data.game.status;
                 updatePlayerList(data.game.players);
+                return;
+            }
 
+            if (
+                data.type === 'player-state' &&
+                data.gameCode === currentGameCode
+            ) {
+                playerScoreElement.textContent = data.player.score;
+                updateRack(data.player.rack);
+                return;
+            }
+
+            if (data.type === 'session-replaced') {
+                connectionStatus.textContent = 'Session opened on another device';
                 return;
             }
 
             if (data.type === 'error') {
+                if (
+                    data.code === 'PLAYER_SESSION_NOT_FOUND' &&
+                    initialGameCode
+                ) {
+                    localStorage.removeItem(
+                        getSessionStorageKey(initialGameCode)
+                    );
+
+                    connectionStatus.textContent = 'Connected';
+                    joinButton.disabled = false;
+                    joinForm.hidden = false;
+                    return;
+                }
+
+                joinButton.disabled = false;
                 alert(data.message);
             }
         });
