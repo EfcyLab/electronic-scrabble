@@ -45,6 +45,8 @@
 
                 <p>Status: <strong id="game-status">Lobby</strong></p>
 
+                <p>Word validation: <strong id="word-validation-status">Waiting</strong></p>
+
                 <p id="turn-information" hidden>
                     Turn <strong id="turn-number">0</strong> — <strong id="turn-player">Waiting</strong>
                 </p>
@@ -86,7 +88,7 @@
          * Creates game sessions, displays the lobby state,
          * and starts a game when all players are ready.
          *
-         * @version 0.7.0
+         * @version 0.9.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -101,6 +103,7 @@
         const gameInformation = document.getElementById('game-information');
         const gameCodeElement = document.getElementById('game-code');
         const gameStatusElement = document.getElementById('game-status');
+        const wordValidationStatus = document.getElementById('word-validation-status');
         const turnInformation = document.getElementById('turn-information');
         const turnNumberElement = document.getElementById('turn-number');
         const turnPlayerElement = document.getElementById('turn-player');
@@ -179,6 +182,14 @@
          */
         function updateGameState(game) {
             gameStatusElement.textContent = game.status;
+
+            if (game.wordValidation?.enabled) {
+                wordValidationStatus.textContent =
+                    `${game.wordValidation.dictionaryName} (${game.wordValidation.wordCount} words)`;
+            } else {
+                wordValidationStatus.textContent = 'Disabled — structural validation only';
+            }
+
             playerList.replaceChildren();
 
             if (game.status === 'playing') {

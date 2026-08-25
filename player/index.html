@@ -142,8 +142,8 @@
                     </button>
                 </div>
 
-                <p class="validation-note">
-                    This milestone validates placement and scoring rules. Dictionary validation is not enabled yet.
+                <p id="word-validation-note" class="validation-note">
+                    Word validation status is loading.
                 </p>
 
                 <p id="move-feedback" class="move-feedback" aria-live="polite"></p>
@@ -246,6 +246,7 @@
         const currentGameCodeElement = document.getElementById('current-game-code');
         const currentPlayerNameElement = document.getElementById('current-player-name');
         const playerScoreElement = document.getElementById('player-score');
+        const wordValidationNote = document.getElementById('word-validation-note');
         const turnStatus = document.getElementById('turn-status');
         const rackSection = document.getElementById('rack-section');
         const rackElement = document.getElementById('rack');
@@ -291,6 +292,7 @@
         let currentBoard = [];
         let currentTurnPlayerId = null;
         let currentBagRemaining = null;
+        let currentWordValidation = null;
         let gameStatus = 'lobby';
         let selectedTileId = null;
         let pendingPlacements = new Map();
@@ -593,6 +595,22 @@
                 item.append(name, metadata);
                 playerList.appendChild(item);
             });
+        }
+
+        /**
+         * Updates the visible word-validation status.
+         *
+         * @returns {void}
+         */
+        function updateWordValidationStatus() {
+            if (currentWordValidation?.enabled) {
+                wordValidationNote.textContent =
+                    `Words are checked with ${currentWordValidation.dictionaryName}.`;
+                return;
+            }
+
+            wordValidationNote.textContent =
+                'Dictionary validation is disabled. Only placement and scoring rules are checked.';
         }
 
         /**
@@ -1509,7 +1527,9 @@
                 currentBoard = data.game.board;
                 currentTurnPlayerId = data.game.currentPlayerId;
                 currentBagRemaining = data.game.bagRemaining;
+                currentWordValidation = data.game.wordValidation ?? null;
 
+                updateWordValidationStatus();
                 updatePlayerList(data.game.players);
                 renderFinalResult(data.game.finalResult);
                 updateTurnState();

@@ -366,3 +366,37 @@ WebSocket connection.
 Milestone 0.7.0 does not check whether generated letter sequences are valid
 French words. A structurally valid sequence is accepted regardless of its
 lexical validity. Dictionary integration is a separate milestone.
+
+## Word Validation
+
+The public `game-state` now includes safe validator information:
+
+```json
+{
+    "wordValidation": {
+        "enabled": true,
+        "mode": "required",
+        "dictionaryName": "Development fixture",
+        "wordCount": 11
+    }
+}
+```
+
+The local dictionary file path and dictionary contents are never exposed.
+
+When a submitted move forms a word that is absent from the configured word
+list, the server rejects the complete move:
+
+```json
+{
+    "type": "error",
+    "code": "INVALID_WORD",
+    "message": "Invalid word: XYZ.",
+    "invalidWords": [
+        "XYZ"
+    ]
+}
+```
+
+No board, rack, bag, score, or turn state is changed when word validation
+fails.

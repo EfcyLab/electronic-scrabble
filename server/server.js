@@ -7,7 +7,7 @@
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 0.7.0
+ * @version 0.9.0
  */
 
 const WebSocket = require('ws');
@@ -37,6 +37,12 @@ const {
     shouldEndAfterConsecutivePasses,
     shouldEndAfterRackEmptied
 } = require('./game/end-game');
+const {
+    WordValidationError,
+    getPublicWordValidationState,
+    loadConfiguredWordValidator,
+    validateMoveWords
+} = require('./game/word-validator');
 
 const PORT = 8080;
 const MIN_PLAYERS = 2;
@@ -45,6 +51,8 @@ const GAME_CODE_LENGTH = 4;
 const GAME_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const LOBBY_RECONNECT_GRACE_MS = 30000;
 
+const wordValidator = loadConfiguredWordValidator();
+const publicWordValidationState = getPublicWordValidationState(wordValidator);
 const games = new Map();
 
 const server = new WebSocket.WebSocketServer({
@@ -80,10 +88,11 @@ function send(socket, type, payload = {}) {
  *
  * @returns {void}
  */
-function sendError(socket, code, message) {
+function sendError(socket, code, message, details = {}) {
     send(socket, 'error', {
         code,
-        message
+        message,
+        ...details
     });
 }
 
@@ -141,6 +150,7 @@ function getPublicGameState(game) {
         lastMove: game.lastMove,
         lastAction: game.lastAction,
         finalResult: game.finalResult,
+        wordValidation: publicWordValidationState,
         players: Array.from(game.players.values()).map((player) => ({
             id: player.id,
             name: player.name,
@@ -699,7 +709,7 @@ function finalizeAndBroadcastGame(game, reason, finishingPlayerId = null) {
 /**
  * Validates and applies a player's proposed board move.
  *
- * Dictionary validation is intentionally not performed in milestone 0.5.
+ * Every formed word is validated when a configured dictionary is enabled.
  *
  * @param {WebSocket} socket Player WebSocket connection.
  * @param {Object} message Received protocol message.
@@ -753,6 +763,24 @@ function submitMove(socket, message) {
     } catch (error) {
         if (error instanceof MoveValidationError) {
             sendError(socket, error.code, error.message);
+            return;
+        }
+
+        throw error;
+    }
+
+    try {
+        validateMoveWords(move.words, wordValidator);
+    } catch (error) {
+        if (error instanceof WordValidationError) {
+            sendError(
+                socket,
+                error.code,
+                error.message,
+                {
+                    invalidWords: error.invalidWords
+                }
+            );
             return;
         }
 
@@ -1107,5 +1135,15 @@ const heartbeatInterval = setInterval(() => {
 server.on('close', () => {
     clearInterval(heartbeatInterval);
 });
+
+if (wordValidator.enabled) {
+    console.log(
+        `Word validation enabled: ${wordValidator.name} (${wordValidator.wordCount} words).`
+    );
+} else {
+    console.warn(
+        'Word validation disabled: no local dictionary is configured.'
+    );
+}
 
 console.log(`Electronic Scrabble WebSocket server listening on port ${PORT}`);

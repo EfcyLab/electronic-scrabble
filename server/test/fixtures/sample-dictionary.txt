@@ -1,0 +1,12 @@
+# Minimal test-only dictionary. This is not an ODS word list.
+ARBRE
+BAR
+CHAT
+CHATS
+ET
+TEST
+TESTS
+MOT
+MOTS
+JEU
+JEUX
