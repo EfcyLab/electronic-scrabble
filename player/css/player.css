@@ -4,7 +4,7 @@
  * Provides a touch-oriented private rack and an interactive board preview.
  *
  * @author Electronic Scrabble Project
- * @version 0.6.0
+ * @version 0.7.0
  */
 
 main {
@@ -339,4 +339,36 @@ main {
     .exchange-actions {
         grid-template-columns: 1fr;
     }
+}
+
+/*
+ * Final game result.
+ */
+
+.final-result {
+    border-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+}
+
+.final-result[hidden] {
+    display: none;
+}
+
+.final-winner {
+    margin: 0;
+    color: var(--color-primary-strong);
+    font-size: 1.2rem;
+    font-weight: 900;
+}
+
+.final-ranking {
+    display: grid;
+    gap: 0.55rem;
+    padding-left: 1.3rem;
+    margin: 0;
+}
+
+.final-ranking li::marker {
+    color: var(--color-primary-strong);
+    font-weight: 900;
 }

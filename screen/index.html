@@ -66,6 +66,13 @@
                     </p>
                 </section>
 
+                <section id="final-result-card" class="screen-card final-result-card" hidden>
+                    <h2 class="card__title">Final result</h2>
+                    <p id="final-winner" class="final-winner"></p>
+                    <p id="end-reason" class="last-move-words"></p>
+                    <ol id="final-ranking" class="final-ranking"></ol>
+                </section>
+
                 <section class="screen-card">
                     <h2 class="card__title">Players</h2>
                     <ul id="player-list"></ul>
@@ -82,7 +89,7 @@
          * and the standard board without receiving private player racks.
          *
          * @author Electronic Scrabble Project
-         * @version 0.6.0
+         * @version 0.7.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -111,6 +118,10 @@
         const lastActionSummary = document.getElementById('last-action-summary');
         const lastActionScore = document.getElementById('last-action-score');
         const lastActionScoreValue = document.getElementById('last-action-score-value');
+        const finalResultCard = document.getElementById('final-result-card');
+        const finalWinner = document.getElementById('final-winner');
+        const endReasonElement = document.getElementById('end-reason');
+        const finalRanking = document.getElementById('final-ranking');
         const playerList = document.getElementById('player-list');
         const boardElement = document.getElementById('board');
 
@@ -259,6 +270,66 @@
         }
 
         /**
+         * Returns a human-readable end-game reason.
+         *
+         * @param {string} reason End-game reason code.
+         *
+         * @returns {string} End-game reason label.
+         */
+        function getEndReasonLabel(reason) {
+            if (reason === 'rack-emptied') {
+                return 'A player emptied their rack after the tile bag became empty.';
+            }
+
+            if (reason === 'consecutive-passes') {
+                return 'The game ended after three complete rounds of consecutive passes.';
+            }
+
+            return 'The game has ended.';
+        }
+
+        /**
+         * Renders the public final score table.
+         *
+         * @param {Object|null} finalResult Public final result.
+         *
+         * @returns {void}
+         */
+        function renderFinalResult(finalResult) {
+            finalRanking.replaceChildren();
+
+            if (finalResult === null) {
+                finalResultCard.hidden = true;
+                return;
+            }
+
+            const winners = finalResult.rankings.filter(
+                (ranking) => finalResult.winnerIds.includes(ranking.playerId)
+            );
+
+            finalWinner.textContent = winners.length === 1
+                ? `Winner: ${winners[0].playerName}`
+                : `Winners: ${winners.map((winner) => winner.playerName).join(', ')}`;
+
+            endReasonElement.textContent = getEndReasonLabel(finalResult.reason);
+
+            finalResult.rankings.forEach((ranking) => {
+                const item = document.createElement('li');
+                const adjustment = ranking.adjustment >= 0
+                    ? `+${ranking.adjustment}`
+                    : String(ranking.adjustment);
+
+                item.textContent =
+                    `${ranking.playerName} — ${ranking.finalScore} pts ` +
+                    `(${adjustment})`;
+
+                finalRanking.appendChild(item);
+            });
+
+            finalResultCard.hidden = false;
+        }
+
+        /**
          * Updates the public game state on the shared display.
          *
          * @param {Object} game Public game state.
@@ -295,6 +366,7 @@
             }
 
             renderLastAction(game.lastAction);
+            renderFinalResult(game.finalResult);
 
             game.players.forEach((player) => {
                 const item = document.createElement('li');
@@ -307,6 +379,8 @@
 
                 if (game.status === 'playing') {
                     metadata.textContent = `${player.score} pts · ${player.rackCount} tiles`;
+                } else if (game.status === 'finished') {
+                    metadata.textContent = `${player.score} pts · final`;
                 } else {
                     metadata.textContent = player.connected ? 'connected' : 'disconnected';
                 }

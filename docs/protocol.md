@@ -1,12 +1,12 @@
 # Electronic Scrabble WebSocket Protocol
 
-## Version 0.6.0
+## Version 0.7.0
 
 This document describes the WebSocket messages used for game creation,
 player sessions, game startup, private racks, validated board moves, passing,
-and tile exchanges.
+tile exchanges, and final score calculation.
 
-Dictionary validation is **not enabled in milestone 0.6.0**. The server
+Dictionary validation is **not enabled in milestone 0.7.0**. The server
 validates tile ownership, board geometry, connectivity, premium scoring,
 blank assignments, turn ownership, and exchange eligibility.
 
@@ -27,9 +27,15 @@ flowchart TD
     I -->|Yes| J[Draw replacements]
     J --> K[Return discarded tiles to bag]
     B -->|Pass| L[pass-turn]
-    F --> M[Advance turn]
-    K --> M
-    L --> M
+    F --> P{Rack empty and bag empty?}
+    P -->|Yes| Q[Finalize scores]
+    P -->|No| M[Advance turn]
+    K --> R[Reset consecutive pass count]
+    R --> M
+    L --> S{Three pass rounds and exchange unavailable?}
+    S -->|Yes| Q
+    S -->|No| M
+    Q --> N[Broadcast finished game state]
     M --> N[Broadcast public state]
     N --> O[Send private rack states]
 ```
@@ -87,6 +93,33 @@ The server enforces these rules:
 - Replacement tiles are drawn before discarded tiles are returned to the bag.
 - The discarded tiles are then returned and the bag is reshuffled.
 - Public clients receive only the number of exchanged tiles, never their letters or identifiers.
+
+
+## End-Game Rules
+
+The server supports two classic end-game conditions:
+
+- A player empties their rack after the tile bag is empty.
+- Fewer than seven tiles remain in the bag and every player passes three
+  consecutive turns, equivalent to three complete rounds of uninterrupted
+  passes.
+
+When a player empties their rack, every other player's remaining rack value is
+deducted from that player's score and the combined amount is added to the
+finishing player's score.
+
+When the game ends because of consecutive passes, each player deducts only the
+value of their own remaining rack.
+
+A move or tile exchange resets the uninterrupted pass counter.
+
+The public final result exposes rack **values**, score adjustments, and final
+scores, but never the remaining rack letters or private tile identifiers.
+
+Verified rule references:
+
+- FISF, “Formules de jeu – Classique”: https://fisf.net/scrabble/decouverte/formules-de-jeu-classique/
+- FISF, International Classic Rules 2020, sections 4.2 and 7: https://classement.fisf.net/documents/FISF_ReglementInternationalClassique2020.pdf
 
 ## Client Messages
 
@@ -213,6 +246,7 @@ Rack contents, rack tile identifiers, and player tokens are never included.
             "playerName": "Alice",
             "exchangedCount": 2
         },
+        "finalResult": null,
         "players": [
             {
                 "id": "PLAYER-1-UUID",
@@ -289,6 +323,37 @@ The response intentionally contains only the number of exchanged tiles.
 }
 ```
 
+## Game Finished
+
+The server broadcasts this message when final score adjustments have been
+calculated. The same `finalResult` object is also included in subsequent public
+`game-state` messages while the game status is `finished`.
+
+```json
+{
+    "type": "game-finished",
+    "gameCode": "ABCD",
+    "finalResult": {
+        "reason": "rack-emptied",
+        "finishingPlayerId": "PLAYER-1-UUID",
+        "winnerIds": [
+            "PLAYER-1-UUID"
+        ],
+        "rankings": [
+            {
+                "playerId": "PLAYER-1-UUID",
+                "playerName": "Alice",
+                "scoreBeforeAdjustment": 250,
+                "rackValue": 0,
+                "adjustment": 12,
+                "finalScore": 262,
+                "position": 1
+            }
+        ]
+    }
+}
+```
+
 ## Privacy Rule
 
 The server is authoritative. Public messages expose only public board and game
@@ -298,6 +363,6 @@ WebSocket connection.
 
 ## Current Limitation
 
-Milestone 0.6.0 does not check whether generated letter sequences are valid
+Milestone 0.7.0 does not check whether generated letter sequences are valid
 French words. A structurally valid sequence is accepted regardless of its
 lexical validity. Dictionary integration is a separate milestone.

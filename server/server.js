@@ -7,7 +7,7 @@
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 0.6.0
+ * @version 0.7.0
  */
 
 const WebSocket = require('ws');
@@ -30,6 +30,13 @@ const {
     TurnActionError,
     exchangeTiles
 } = require('./game/turn-actions');
+const {
+    END_REASON_CONSECUTIVE_PASSES,
+    END_REASON_RACK_EMPTIED,
+    finishGame,
+    shouldEndAfterConsecutivePasses,
+    shouldEndAfterRackEmptied
+} = require('./game/end-game');
 
 const PORT = 8080;
 const MIN_PLAYERS = 2;
@@ -127,12 +134,13 @@ function getPublicGameState(game) {
     return {
         code: game.code,
         status: game.status,
-        bagRemaining: game.status === 'playing' ? game.bag.length : null,
+        bagRemaining: game.status === 'lobby' ? null : game.bag.length,
         board: getPublicBoardState(game.board),
         currentPlayerId: game.currentPlayerId,
         turnNumber: game.turnNumber,
         lastMove: game.lastMove,
         lastAction: game.lastAction,
+        finalResult: game.finalResult,
         players: Array.from(game.players.values()).map((player) => ({
             id: player.id,
             name: player.name,
@@ -338,6 +346,8 @@ function createGame(socket) {
         turnNumber: 0,
         lastMove: null,
         lastAction: null,
+        finalResult: null,
+        consecutivePasses: 0,
         adminSockets: new Set(),
         screenSockets: new Set()
     };
@@ -608,6 +618,8 @@ function startGame(socket) {
     game.turnNumber = 1;
     game.lastMove = null;
     game.lastAction = null;
+    game.finalResult = null;
+    game.consecutivePasses = 0;
 
     game.players.forEach((player) => {
         cancelPlayerRemoval(player);
@@ -651,6 +663,37 @@ function advanceTurn(game) {
 
     game.currentPlayerId = game.turnOrder[nextIndex];
     game.turnNumber += 1;
+}
+
+/**
+ * Finalizes a game and broadcasts the resulting public and private states.
+ *
+ * @param {Object} game Mutable game instance.
+ * @param {string} reason End-game reason.
+ * @param {string|null} finishingPlayerId Rack-empty finishing player ID.
+ *
+ * @returns {void}
+ */
+function finalizeAndBroadcastGame(game, reason, finishingPlayerId = null) {
+    const finalResult = finishGame(
+        game,
+        reason,
+        finishingPlayerId
+    );
+
+    getGameSockets(game).forEach((participantSocket) => {
+        send(participantSocket, 'game-finished', {
+            gameCode: game.code,
+            finalResult
+        });
+    });
+
+    sendAllPrivatePlayerStates(game);
+    broadcastGameState(game);
+
+    console.log(
+        `Game ${game.code} finished: ${reason}.`
+    );
 }
 
 /**
@@ -727,6 +770,7 @@ function submitMove(socket, message) {
     );
 
     player.score += move.score;
+    game.consecutivePasses = 0;
 
     const replacementTiles = drawTiles(
         game.bag,
@@ -764,6 +808,15 @@ function submitMove(socket, message) {
         bingoBonus: move.bingoBonus,
         words: game.lastMove.words
     });
+
+    if (shouldEndAfterRackEmptied(game.bag, player.rack)) {
+        finalizeAndBroadcastGame(
+            game,
+            END_REASON_RACK_EMPTIED,
+            player.id
+        );
+        return;
+    }
 
     advanceTurn(game);
     sendAllPrivatePlayerStates(game);
@@ -840,6 +893,8 @@ function passTurn(socket) {
 
     const { game, player } = context;
 
+    game.consecutivePasses += 1;
+
     game.lastAction = {
         type: 'pass',
         playerId: player.id,
@@ -849,6 +904,18 @@ function passTurn(socket) {
     send(socket, 'turn-passed', {
         gameCode: game.code
     });
+
+    if (shouldEndAfterConsecutivePasses(
+        game.bag.length,
+        game.consecutivePasses,
+        game.players.size
+    )) {
+        finalizeAndBroadcastGame(
+            game,
+            END_REASON_CONSECUTIVE_PASSES
+        );
+        return;
+    }
 
     advanceTurn(game);
     sendAllPrivatePlayerStates(game);
@@ -896,6 +963,7 @@ function exchangePlayerTiles(socket, message) {
     }
 
     player.rack = exchangeResult.rack;
+    game.consecutivePasses = 0;
 
     game.lastAction = {
         type: 'exchange',

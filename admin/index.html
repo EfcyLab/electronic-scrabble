@@ -67,6 +67,12 @@
                 <h3>Players</h3>
                 <ul id="player-list"></ul>
 
+                <section id="final-result" class="final-result" hidden>
+                    <h3>Final result</h3>
+                    <p id="end-reason" class="muted"></p>
+                    <ol id="final-ranking" class="final-ranking"></ol>
+                </section>
+
                 <button id="start-game" type="button" disabled>Start Game</button>
                 <p id="start-help" class="muted">At least two connected players are required.</p>
             </section>
@@ -80,7 +86,7 @@
          * Creates game sessions, displays the lobby state,
          * and starts a game when all players are ready.
          *
-         * @version 0.6.0
+         * @version 0.7.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -104,10 +110,65 @@
         const screenLink = document.getElementById('screen-link');
         const playerLink = document.getElementById('player-link');
         const playerList = document.getElementById('player-list');
+        const finalResultSection = document.getElementById('final-result');
+        const endReasonElement = document.getElementById('end-reason');
+        const finalRanking = document.getElementById('final-ranking');
 
         const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
         let currentGameCode = null;
+
+        /**
+         * Returns a human-readable end-game reason.
+         *
+         * @param {string} reason End-game reason code.
+         *
+         * @returns {string} End-game reason label.
+         */
+        function getEndReasonLabel(reason) {
+            if (reason === 'rack-emptied') {
+                return 'A player emptied their rack after the tile bag became empty.';
+            }
+
+            if (reason === 'consecutive-passes') {
+                return 'The game ended after three complete rounds of consecutive passes with fewer than seven tiles remaining.';
+            }
+
+            return 'The game has ended.';
+        }
+
+        /**
+         * Renders the public final ranking.
+         *
+         * @param {Object|null} finalResult Public final result.
+         *
+         * @returns {void}
+         */
+        function renderFinalResult(finalResult) {
+            finalRanking.replaceChildren();
+
+            if (finalResult === null) {
+                finalResultSection.hidden = true;
+                return;
+            }
+
+            endReasonElement.textContent = getEndReasonLabel(finalResult.reason);
+
+            finalResult.rankings.forEach((ranking) => {
+                const item = document.createElement('li');
+                const adjustment = ranking.adjustment >= 0
+                    ? `+${ranking.adjustment}`
+                    : String(ranking.adjustment);
+
+                item.textContent =
+                    `${ranking.playerName}: ${ranking.finalScore} pts ` +
+                    `(${adjustment} final adjustment)`;
+
+                finalRanking.appendChild(item);
+            });
+
+            finalResultSection.hidden = false;
+        }
 
         /**
          * Updates the displayed lobby state.
@@ -160,11 +221,15 @@
                 lastActionInformation.hidden = true;
             }
 
+            renderFinalResult(game.finalResult);
+
             game.players.forEach((player) => {
                 const item = document.createElement('li');
                 const connectionLabel = player.connected ? 'connected' : 'disconnected';
 
-                item.textContent = `${player.name} — ${connectionLabel}`;
+                item.textContent = game.status === 'finished'
+                    ? `${player.name} — ${player.score} pts`
+                    : `${player.name} — ${connectionLabel}`;
                 playerList.appendChild(item);
             });
 
@@ -182,6 +247,11 @@
                 allPlayersConnected;
 
             startGameButton.disabled = !canStart;
+
+            if (game.status === 'finished') {
+                startHelp.textContent = 'Game finished.';
+                return;
+            }
 
             if (game.status !== 'lobby') {
                 startHelp.textContent = 'Game started.';

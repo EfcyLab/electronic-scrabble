@@ -2,7 +2,7 @@
  * Electronic Scrabble shared screen styles.
  *
  * @author Electronic Scrabble Project
- * @version 0.5.0
+ * @version 0.7.0
  */
 
 .screen-layout {
@@ -147,4 +147,31 @@
     .screen-layout {
         grid-template-columns: 1fr;
     }
+}
+
+/*
+ * Final game result.
+ */
+
+.final-result-card {
+    border-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+}
+
+.final-winner {
+    color: var(--color-primary-strong);
+    font-size: 1.25rem;
+    font-weight: 900;
+}
+
+.final-ranking {
+    display: grid;
+    gap: 0.5rem;
+    padding-left: 1.25rem;
+    margin: var(--spacing-medium) 0 0;
+}
+
+.final-ranking li::marker {
+    color: var(--color-primary-strong);
+    font-weight: 900;
 }

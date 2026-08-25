@@ -174,6 +174,13 @@
                 </div>
             </section>
 
+            <section id="final-result-section" class="player-panel final-result" hidden>
+                <h3 class="card__title">Final result</h3>
+                <p id="final-winner" class="final-winner"></p>
+                <p id="end-reason" class="muted panel-help"></p>
+                <ol id="final-ranking" class="final-ranking"></ol>
+            </section>
+
             <section class="player-panel">
                 <h3 class="card__title">Players</h3>
                 <ul id="player-list"></ul>
@@ -190,7 +197,7 @@
          * authoritative game server.
          *
          * @author Electronic Scrabble Project
-         * @version 0.6.0
+         * @version 0.7.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -242,6 +249,10 @@
         const exchangeCount = document.getElementById('exchange-count');
         const cancelExchangeButton = document.getElementById('cancel-exchange');
         const confirmExchangeButton = document.getElementById('confirm-exchange');
+        const finalResultSection = document.getElementById('final-result-section');
+        const finalWinner = document.getElementById('final-winner');
+        const endReasonElement = document.getElementById('end-reason');
+        const finalRanking = document.getElementById('final-ranking');
         const playerList = document.getElementById('player-list');
 
         gameCodeInput.value = initialGameCode;
@@ -379,6 +390,67 @@
         }
 
         /**
+         * Returns a human-readable end-game reason.
+         *
+         * @param {string} reason End-game reason code.
+         *
+         * @returns {string} End-game reason label.
+         */
+        function getEndReasonLabel(reason) {
+            if (reason === 'rack-emptied') {
+                return 'A player emptied their rack after the tile bag became empty.';
+            }
+
+            if (reason === 'consecutive-passes') {
+                return 'The game ended after three complete rounds of consecutive passes.';
+            }
+
+            return 'The game has ended.';
+        }
+
+        /**
+         * Renders the public final ranking.
+         *
+         * @param {Object|null} finalResult Public final result.
+         *
+         * @returns {void}
+         */
+        function renderFinalResult(finalResult) {
+            finalRanking.replaceChildren();
+
+            if (finalResult === null) {
+                finalResultSection.hidden = true;
+                return;
+            }
+
+            const winners = finalResult.rankings.filter(
+                (ranking) => finalResult.winnerIds.includes(ranking.playerId)
+            );
+
+            finalWinner.textContent = winners.length === 1
+                ? `Winner: ${winners[0].playerName}`
+                : `Winners: ${winners.map((winner) => winner.playerName).join(', ')}`;
+
+            endReasonElement.textContent = getEndReasonLabel(finalResult.reason);
+
+            finalResult.rankings.forEach((ranking) => {
+                const item = document.createElement('li');
+                const adjustment = ranking.adjustment >= 0
+                    ? `+${ranking.adjustment}`
+                    : String(ranking.adjustment);
+                const isLocalPlayer = ranking.playerId === currentPlayerId;
+
+                item.textContent =
+                    `${ranking.playerName}${isLocalPlayer ? ' (you)' : ''} — ` +
+                    `${ranking.finalScore} pts (${adjustment})`;
+
+                finalRanking.appendChild(item);
+            });
+
+            finalResultSection.hidden = false;
+        }
+
+        /**
          * Updates the public player list and current-turn indicator.
          *
          * @param {Array<Object>} players Public player list.
@@ -399,6 +471,8 @@
 
                 if (gameStatus === 'playing') {
                     metadata.textContent = `${player.score} pts${isCurrent ? ' · turn' : ''}`;
+                } else if (gameStatus === 'finished') {
+                    metadata.textContent = `${player.score} pts · final`;
                 } else {
                     metadata.textContent = player.connected ? 'connected' : 'disconnected';
                 }
@@ -433,13 +507,15 @@
         function updateTurnState() {
             const isTurn = canPlay();
 
-            turnStatus.textContent = isTurn
-                ? 'Your turn'
-                : (gameStatus === 'playing' ? 'Waiting' : 'Lobby');
+            turnStatus.textContent = gameStatus === 'finished'
+                ? 'Game finished'
+                : (isTurn
+                    ? 'Your turn'
+                    : (gameStatus === 'playing' ? 'Waiting' : 'Lobby'));
 
-            turnStatus.className = isTurn
-                ? 'status status--success'
-                : 'status';
+            turnStatus.className = gameStatus === 'finished'
+                ? 'status status--warning'
+                : (isTurn ? 'status status--success' : 'status');
 
             moveSection.hidden = gameStatus !== 'playing';
             turnActionsSection.hidden = gameStatus !== 'playing';
@@ -1073,6 +1149,7 @@
                 currentBagRemaining = data.game.bagRemaining;
 
                 updatePlayerList(data.game.players);
+                renderFinalResult(data.game.finalResult);
                 updateTurnState();
                 return;
             }
@@ -1140,6 +1217,11 @@
                 updateTurnActionControls();
                 showMoveFeedback('Turn passed.', 'success');
 
+                return;
+            }
+
+            if (data.type === 'game-finished') {
+                showMoveFeedback('Game finished. Final scores have been calculated.', 'success');
                 return;
             }
 
