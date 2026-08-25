@@ -4,7 +4,7 @@
  * Provides a touch-oriented private rack and an interactive board preview.
  *
  * @author Electronic Scrabble Project
- * @version 0.7.0
+ * @version 0.8.0
  */
 
 main {
@@ -107,7 +107,8 @@ main {
     background: var(--tile-background);
     color: var(--tile-text);
     box-shadow: 0 5px 0 color-mix(in srgb, var(--tile-border) 72%, #000);
-    cursor: pointer;
+    cursor: grab;
+    touch-action: pan-y;
     font-size: clamp(1.3rem, 5vw, 2.05rem);
     font-weight: 900;
     transition:
@@ -124,6 +125,30 @@ main {
 .rack-tile:disabled {
     cursor: not-allowed;
     opacity: 0.58;
+}
+
+.rack-tile--dragging {
+    z-index: 3;
+    cursor: grabbing;
+    opacity: 0.88;
+    transform: translateY(-7px) scale(1.04);
+}
+
+.rack--dragging .rack-tile:not(.rack-tile--dragging) {
+    transition: transform var(--transition-fast);
+}
+
+.rack-arrangement {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-small);
+}
+
+.rack-arrangement-status {
+    min-height: 1.3rem;
+    margin: 0;
+    text-align: center;
+    font-size: 0.84rem;
 }
 
 .rack-tile__value {
@@ -305,6 +330,12 @@ main {
 
     #coordinate-place {
         grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 520px) {
+    .rack-arrangement {
+        grid-template-columns: 1fr;
     }
 }
 

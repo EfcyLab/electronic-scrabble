@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="./css/player.css">
 
     <script src="../shared/js/theme-manager.js" defer></script>
+    <script src="./js/rack-order.js"></script>
 </head>
 <body>
     <main class="app-shell">
@@ -69,7 +70,7 @@
                 <div class="row row--between">
                     <div>
                         <h3 class="card__title">Your rack</h3>
-                        <p class="muted panel-help">Select a tile, then choose a board square.</p>
+                        <p class="muted panel-help">Drag tiles to rearrange your rack, or select one before placing it.</p>
                     </div>
 
                     <label id="blank-letter-field" class="field blank-letter-field" hidden>
@@ -79,6 +80,24 @@
                 </div>
 
                 <div id="rack" class="rack" aria-label="Private tile rack"></div>
+
+                <div class="rack-arrangement" aria-label="Rack arrangement controls">
+                    <button id="move-rack-left" class="button button--secondary" type="button" disabled>
+                        Move Left
+                    </button>
+
+                    <button id="shuffle-rack" class="button button--secondary" type="button" disabled>
+                        Shuffle Rack
+                    </button>
+
+                    <button id="move-rack-right" class="button button--secondary" type="button" disabled>
+                        Move Right
+                    </button>
+                </div>
+
+                <p id="rack-arrangement-status" class="muted rack-arrangement-status" aria-live="polite">
+                    Drag a tile, or select it and use the arrangement buttons.
+                </p>
             </section>
 
             <section id="move-section" class="player-panel" hidden>
@@ -197,14 +216,16 @@
          * authoritative game server.
          *
          * @author Electronic Scrabble Project
-         * @version 0.7.0
+         * @version 0.8.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
         const STORAGE_PREFIX = 'electronicScrabble.player.';
+        const RACK_ORDER_STORAGE_PREFIX = 'electronicScrabble.rackOrder.';
         const BOARD_SIZE = 15;
         const COLUMN_LABELS = 'ABCDEFGHIJKLMNO'.split('');
+        const RackOrder = window.ElectronicScrabbleRackOrder;
 
         const PREMIUM_LABELS = Object.freeze({
             DL: { label: 'DL', className: 'player-board-cell--dl' },
@@ -228,6 +249,10 @@
         const turnStatus = document.getElementById('turn-status');
         const rackSection = document.getElementById('rack-section');
         const rackElement = document.getElementById('rack');
+        const moveRackLeftButton = document.getElementById('move-rack-left');
+        const shuffleRackButton = document.getElementById('shuffle-rack');
+        const moveRackRightButton = document.getElementById('move-rack-right');
+        const rackArrangementStatus = document.getElementById('rack-arrangement-status');
         const blankLetterField = document.getElementById('blank-letter-field');
         const blankLetterSelect = document.getElementById('blank-letter');
         const moveSection = document.getElementById('move-section');
@@ -271,6 +296,90 @@
         let pendingPlacements = new Map();
         let exchangeMode = false;
         let exchangeTileIds = new Set();
+        let rackDragState = null;
+        let suppressRackClickUntil = 0;
+
+        /**
+         * Returns the local storage key for a player's rack order.
+         *
+         * @param {string} gameCode Public game code.
+         * @param {string} playerId Player identifier.
+         *
+         * @returns {string} Storage key.
+         */
+        function getRackOrderStorageKey(gameCode, playerId) {
+            return `${RACK_ORDER_STORAGE_PREFIX}${gameCode}.${playerId}`;
+        }
+
+        /**
+         * Saves the current local rack order.
+         *
+         * @returns {void}
+         */
+        function saveRackOrder() {
+            if (!currentGameCode || !currentPlayerId) {
+                return;
+            }
+
+            localStorage.setItem(
+                getRackOrderStorageKey(currentGameCode, currentPlayerId),
+                JSON.stringify(currentRack.map((tile) => tile.id))
+            );
+        }
+
+        /**
+         * Loads a previously stored local rack order.
+         *
+         * @returns {Array<string>} Stored tile identifiers.
+         */
+        function loadRackOrder() {
+            if (!currentGameCode || !currentPlayerId) {
+                return [];
+            }
+
+            const rawOrder = localStorage.getItem(
+                getRackOrderStorageKey(currentGameCode, currentPlayerId)
+            );
+
+            if (!rawOrder) {
+                return [];
+            }
+
+            try {
+                const storedOrder = JSON.parse(rawOrder);
+                return Array.isArray(storedOrder) ? storedOrder : [];
+            } catch (error) {
+                console.error('Invalid saved rack order:', error);
+                return [];
+            }
+        }
+
+        /**
+         * Reconciles a server-provided rack with the local visual order.
+         *
+         * Existing tiles keep their local positions. Newly drawn tiles are
+         * appended after the preserved tiles.
+         *
+         * @param {Array<Object>} serverRack Authoritative private rack.
+         *
+         * @returns {Array<Object>} Locally ordered rack.
+         */
+        function reconcilePrivateRack(serverRack) {
+            const orderedRack = RackOrder.reconcileRackOrder(
+                serverRack,
+                loadRackOrder()
+            );
+
+            currentRack = orderedRack;
+
+            if (selectedTileId !== null && getRackTile(selectedTileId) === null) {
+                selectedTileId = null;
+            }
+
+            saveRackOrder();
+
+            return orderedRack;
+        }
 
         /**
          * Returns the local storage key for a game session.
@@ -521,10 +630,13 @@
             turnActionsSection.hidden = gameStatus !== 'playing';
 
             if (!isTurn) {
-                selectedTileId = null;
                 pendingPlacements.clear();
                 exchangeMode = false;
                 exchangeTileIds.clear();
+            }
+
+            if (gameStatus !== 'playing') {
+                selectedTileId = null;
             }
 
             renderRack();
@@ -558,6 +670,232 @@
         }
 
         /**
+         * Returns whether the rack can currently be rearranged locally.
+         *
+         * Rack arrangement is purely visual and is allowed while waiting for
+         * another player, but not while tiles are provisionally on the board
+         * or while exchange selection is active.
+         *
+         * @returns {boolean} True when local rack rearrangement is available.
+         */
+        function canReorderRack() {
+            return (
+                gameStatus !== 'finished' &&
+                currentRack.length > 1 &&
+                pendingPlacements.size === 0 &&
+                !exchangeMode
+            );
+        }
+
+        /**
+         * Updates the accessible rack arrangement controls.
+         *
+         * @returns {void}
+         */
+        function updateRackArrangementControls() {
+            const canReorder = canReorderRack();
+            const selectedIndex = currentRack.findIndex(
+                (tile) => tile.id === selectedTileId
+            );
+
+            shuffleRackButton.disabled = !canReorder;
+            moveRackLeftButton.disabled = !canReorder || selectedIndex <= 0;
+            moveRackRightButton.disabled = (
+                !canReorder ||
+                selectedIndex === -1 ||
+                selectedIndex >= currentRack.length - 1
+            );
+        }
+
+        /**
+         * Moves the selected rack tile by a relative position.
+         *
+         * @param {number} offset Relative rack offset.
+         *
+         * @returns {void}
+         */
+        function moveSelectedRackTile(offset) {
+            if (!canReorderRack() || selectedTileId === null) {
+                return;
+            }
+
+            const previousOrder = currentRack.map((tile) => tile.id).join(':');
+
+            currentRack = RackOrder.moveRackTileByOffset(
+                currentRack,
+                selectedTileId,
+                offset
+            );
+
+            const nextOrder = currentRack.map((tile) => tile.id).join(':');
+
+            if (nextOrder !== previousOrder) {
+                saveRackOrder();
+                rackArrangementStatus.textContent = 'Rack order updated.';
+            }
+
+            renderRack();
+        }
+
+        /**
+         * Randomizes the local visual rack order.
+         *
+         * @returns {void}
+         */
+        function shuffleCurrentRack() {
+            if (!canReorderRack()) {
+                return;
+            }
+
+            currentRack = RackOrder.shuffleRack(currentRack);
+            saveRackOrder();
+            renderRack();
+            rackArrangementStatus.textContent = 'Rack shuffled locally.';
+        }
+
+        /**
+         * Synchronizes the private rack array with the current DOM tile order.
+         *
+         * @returns {void}
+         */
+        function synchronizeRackFromDom() {
+            const orderedIds = Array.from(
+                rackElement.querySelectorAll('.rack-tile')
+            ).map((button) => button.dataset.tileId);
+
+            currentRack = RackOrder.orderRackByIds(currentRack, orderedIds);
+            saveRackOrder();
+            updateRackArrangementControls();
+        }
+
+        /**
+         * Starts a pointer-based rack drag operation.
+         *
+         * @param {PointerEvent} event Pointer event.
+         * @param {string} tileId Private tile identifier.
+         *
+         * @returns {void}
+         */
+        function startRackDrag(event, tileId) {
+            if (
+                !canReorderRack() ||
+                (event.pointerType === 'mouse' && event.button !== 0)
+            ) {
+                return;
+            }
+
+            const button = event.currentTarget;
+
+            rackDragState = {
+                button,
+                moved: false,
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                tileId
+            };
+
+            button.classList.add('rack-tile--dragging');
+            rackElement.classList.add('rack--dragging');
+
+            if (typeof button.setPointerCapture === 'function') {
+                button.setPointerCapture(event.pointerId);
+            }
+        }
+
+        /**
+         * Reorders rack tile elements during a pointer drag operation.
+         *
+         * @param {PointerEvent} event Pointer move event.
+         *
+         * @returns {void}
+         */
+        function moveRackDrag(event) {
+            if (
+                rackDragState === null ||
+                rackDragState.pointerId !== event.pointerId
+            ) {
+                return;
+            }
+
+            const distance = Math.hypot(
+                event.clientX - rackDragState.startX,
+                event.clientY - rackDragState.startY
+            );
+
+            if (!rackDragState.moved && distance < 7) {
+                return;
+            }
+
+            rackDragState.moved = true;
+            event.preventDefault();
+
+            const draggedButton = rackDragState.button;
+
+            draggedButton.style.pointerEvents = 'none';
+            const target = document.elementFromPoint(
+                event.clientX,
+                event.clientY
+            )?.closest('.rack-tile');
+            draggedButton.style.pointerEvents = '';
+
+            if (
+                !target ||
+                target === draggedButton ||
+                !rackElement.contains(target)
+            ) {
+                return;
+            }
+
+            const targetRect = target.getBoundingClientRect();
+            const placeAfter = event.clientX > targetRect.left + (targetRect.width / 2);
+
+            if (placeAfter) {
+                if (target.nextSibling !== draggedButton) {
+                    rackElement.insertBefore(draggedButton, target.nextSibling);
+                }
+            } else if (target.previousSibling !== draggedButton) {
+                rackElement.insertBefore(draggedButton, target);
+            }
+        }
+
+        /**
+         * Completes a pointer-based rack drag operation.
+         *
+         * @param {PointerEvent} event Pointer end event.
+         *
+         * @returns {void}
+         */
+        function finishRackDrag(event) {
+            if (
+                rackDragState === null ||
+                rackDragState.pointerId !== event.pointerId
+            ) {
+                return;
+            }
+
+            const { button, moved } = rackDragState;
+
+            if (
+                typeof button.hasPointerCapture === 'function' &&
+                button.hasPointerCapture(event.pointerId)
+            ) {
+                button.releasePointerCapture(event.pointerId);
+            }
+
+            button.classList.remove('rack-tile--dragging');
+            rackElement.classList.remove('rack--dragging');
+
+            if (moved) {
+                synchronizeRackFromDom();
+                suppressRackClickUntil = Date.now() + 350;
+                rackArrangementStatus.textContent = 'Rack order updated.';
+            }
+
+            rackDragState = null;
+        }
+
+        /**
          * Selects or deselects a private rack tile.
          *
          * @param {string} tileId Tile identifier.
@@ -565,7 +903,11 @@
          * @returns {void}
          */
         function selectRackTile(tileId) {
-            if (exchangeMode || !canPlay() || isTilePending(tileId)) {
+            if (
+                exchangeMode ||
+                gameStatus === 'finished' ||
+                isTilePending(tileId)
+            ) {
                 return;
             }
 
@@ -581,7 +923,6 @@
          */
         function renderRack() {
             const fragment = document.createDocumentFragment();
-            const isTurn = canPlay();
 
             currentRack.forEach((tile) => {
                 if (!exchangeMode && isTilePending(tile.id)) {
@@ -595,7 +936,7 @@
                 button.type = 'button';
                 button.className = 'rack-tile';
                 button.dataset.tileId = tile.id;
-                button.disabled = !isTurn;
+                button.disabled = gameStatus === 'finished';
                 button.setAttribute(
                     'aria-label',
                     tile.isBlank
@@ -614,7 +955,19 @@
                 value.textContent = tile.value;
                 button.appendChild(value);
 
+                button.addEventListener('pointerdown', (event) => {
+                    startRackDrag(event, tile.id);
+                });
+
+                button.addEventListener('pointermove', moveRackDrag);
+                button.addEventListener('pointerup', finishRackDrag);
+                button.addEventListener('pointercancel', finishRackDrag);
+
                 button.addEventListener('click', () => {
+                    if (Date.now() < suppressRackClickUntil) {
+                        return;
+                    }
+
                     if (exchangeMode) {
                         toggleExchangeTile(tile.id);
                         return;
@@ -633,7 +986,13 @@
                 ? getRackTile(selectedTileId)
                 : null;
 
-            blankLetterField.hidden = exchangeMode || !selectedTile?.isBlank;
+            blankLetterField.hidden = (
+                exchangeMode ||
+                !canPlay() ||
+                !selectedTile?.isBlank
+            );
+
+            updateRackArrangementControls();
         }
 
         /**
@@ -1109,6 +1468,9 @@
         cancelExchangeButton.addEventListener('click', cancelExchangeMode);
         confirmExchangeButton.addEventListener('click', submitExchange);
         passTurnButton.addEventListener('click', submitPassTurn);
+        moveRackLeftButton.addEventListener('click', () => moveSelectedRackTile(-1));
+        moveRackRightButton.addEventListener('click', () => moveSelectedRackTile(1));
+        shuffleRackButton.addEventListener('click', shuffleCurrentRack);
 
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
@@ -1159,7 +1521,7 @@
                 data.gameCode === currentGameCode
             ) {
                 currentPlayerId = data.player.id;
-                currentRack = data.player.rack;
+                reconcilePrivateRack(data.player.rack);
                 playerScoreElement.textContent = data.player.score;
                 rackSection.hidden = false;
                 renderRack();
