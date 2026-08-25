@@ -34,29 +34,19 @@ Private information such as a player's tiles must never be displayed on the shar
 
 The system is based on a central game server communicating with all devices in real time.
 
-```text
-                         ┌─────────────────────┐
-                         │     Game Server     │
-                         │                     │
-                         │  Game state         │
-                         │  Rules              │
-                         │  Tile bag           │
-                         │  Scores             │
-                         │  Players            │
-                         └──────────┬──────────┘
-                                    │
-                               WebSocket
-                                    │
-               ┌────────────────────┼────────────────────┐
-               │                    │                    │
-               ▼                    ▼                    ▼
-      ┌────────────────┐   ┌────────────────┐   ┌────────────────┐
-      │ Shared Screen  │   │   Player #1    │   │   Player #2    │
-      │                │   │                │   │                │
-      │ Board          │   │ Private rack   │   │ Private rack   │
-      │ Scores         │   │ Player actions │   │ Player actions │
-      │ Current turn   │   │                │   │                │
-      └────────────────┘   └────────────────┘   └────────────────┘
+```mermaid
+flowchart TB
+    Server["Game Server<br/>Game state<br/>Rules<br/>Tile bag<br/>Scores<br/>Players"]
+
+    Screen["Shared Screen<br/>Board<br/>Scores<br/>Current turn"]
+    Player1["Player #1<br/>Private rack<br/>Player actions"]
+    Player2["Player #2<br/>Private rack<br/>Player actions"]
+    PlayerN["Player #N<br/>Private rack<br/>Player actions"]
+
+    Server <-->|WebSocket| Screen
+    Server <-->|WebSocket| Player1
+    Server <-->|WebSocket| Player2
+    Server <-->|WebSocket| PlayerN
 ```
 
 The server is the authoritative source for the game state.
@@ -88,24 +78,21 @@ An Internet connection should not be required during a game.
 
 A future target configuration is:
 
-```text
-                     Local Wi-Fi
-                         │
-                ┌────────┴────────┐
-                │  Raspberry Pi   │
-                │                 │
-                │ Scrabble Server │
-                │ Web Server      │
-                │ WebSocket       │
-                └────────┬────────┘
-                         │
-                        HDMI
-                         │
-                         ▼
-                    TV / Monitor
+```mermaid
+flowchart TB
+    Pi["Raspberry Pi<br/>Scrabble Server<br/>Web Server<br/>WebSocket"]
+    TV["TV / Monitor"]
+    P1["📱 Player 1"]
+    P2["📱 Player 2"]
+    P3["📱 Player 3"]
+    P4["📱 Player 4"]
 
-                📱      📱      📱      📱
-               P1      P2      P3      P4
+    Pi -->|HDMI| TV
+    P1 <-->|Local Wi-Fi| Pi
+    P2 <-->|Local Wi-Fi| Pi
+    P3 <-->|Local Wi-Fi| Pi
+    P4 <-->|Local Wi-Fi| Pi
+```      P4
 ```
 
 The Raspberry Pi could eventually create its own Wi-Fi network, making Electronic Scrabble a completely autonomous game console.
