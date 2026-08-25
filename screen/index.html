@@ -58,6 +58,12 @@
                     </p>
                 </section>
 
+                <section id="starting-player-card" class="screen-card starting-player-card" hidden>
+                    <h2 class="card__title">Who starts?</h2>
+                    <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
+                    <p id="starting-player-winner" class="starting-player-winner"></p>
+                </section>
+
                 <section id="last-action-card" class="screen-card" hidden>
                     <h2 class="card__title">Last action</h2>
                     <p><strong id="last-action-player"></strong></p>
@@ -90,7 +96,7 @@
          * and the standard board without receiving private player racks.
          *
          * @author Electronic Scrabble Project
-         * @version 0.9.0
+         * @version 1.0.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -115,6 +121,9 @@
         const currentPlayerNameElement = document.getElementById('current-player-name');
         const bagInformation = document.getElementById('bag-information');
         const bagRemainingElement = document.getElementById('bag-remaining');
+        const startingPlayerCard = document.getElementById('starting-player-card');
+        const startingDrawRounds = document.getElementById('starting-draw-rounds');
+        const startingPlayerWinner = document.getElementById('starting-player-winner');
         const lastActionCard = document.getElementById('last-action-card');
         const lastActionPlayer = document.getElementById('last-action-player');
         const lastActionSummary = document.getElementById('last-action-summary');
@@ -235,6 +244,64 @@
             boardElement.replaceChildren(fragment);
         }
 
+
+        /**
+         * Renders the starting-player draw on the shared screen.
+         *
+         * @param {Object|null} startingPlayerDraw Starting-player draw result.
+         *
+         * @returns {void}
+         */
+        function renderStartingPlayerDraw(startingPlayerDraw) {
+            startingDrawRounds.replaceChildren();
+
+            if (startingPlayerDraw === null) {
+                startingPlayerCard.hidden = true;
+                return;
+            }
+
+            let revealIndex = 0;
+
+            startingPlayerDraw.rounds.forEach((round) => {
+                const row = document.createElement('div');
+                const roundLabel = document.createElement('span');
+
+                row.className = 'starting-draw-round';
+                roundLabel.className = 'starting-draw-round__label';
+                roundLabel.textContent = `Round ${round.round}`;
+                row.appendChild(roundLabel);
+
+                round.draws.forEach((draw) => {
+                    const item = document.createElement('span');
+                    const player = document.createElement('span');
+                    const letter = document.createElement('strong');
+
+                    item.className = 'starting-draw-item';
+                    item.style.animationDelay = `${revealIndex * 120}ms`;
+                    revealIndex += 1;
+                    player.textContent = draw.playerName;
+                    letter.className = 'starting-draw-letter';
+                    letter.textContent = draw.letter;
+                    item.append(player, letter);
+
+                    if (draw.blankRedraws > 0) {
+                        const note = document.createElement('small');
+
+                        note.textContent = `★ redraw ×${draw.blankRedraws}`;
+                        item.appendChild(note);
+                    }
+
+                    row.appendChild(item);
+                });
+
+                startingDrawRounds.appendChild(row);
+            });
+
+            startingPlayerWinner.textContent =
+                `${startingPlayerDraw.startingPlayerName} plays first`;
+            startingPlayerCard.hidden = false;
+        }
+
         /**
          * Renders the last accepted move summary.
          *
@@ -339,7 +406,12 @@
          * @returns {void}
          */
         function updateGameState(game) {
-            gameStatusElement.textContent = game.status;
+            gameStatusElement.textContent = game.status === 'starting'
+                ? 'Starting-player draw'
+                : game.status;
+            renderStartingPlayerDraw(
+                game.status === 'starting' ? game.startingPlayerDraw : null
+            );
             wordValidationStatus.textContent = game.wordValidation?.enabled
                 ? game.wordValidation.dictionaryName
                 : 'Structural only';

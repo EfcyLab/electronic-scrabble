@@ -4,7 +4,7 @@
  * Provides a touch-oriented private rack and an interactive board preview.
  *
  * @author Electronic Scrabble Project
- * @version 0.8.0
+ * @version 1.0.0
  */
 
 main {
@@ -401,5 +401,54 @@ main {
 
 .final-ranking li::marker {
     color: var(--color-primary-strong);
+    font-weight: 900;
+}
+
+/*
+ * Starting-player draw.
+ */
+
+.starting-draw-section {
+    border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+}
+
+.starting-draw-rounds {
+    display: grid;
+    gap: var(--spacing-medium);
+}
+
+.starting-draw-round {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.starting-draw-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    background: var(--color-surface-elevated);
+}
+
+.starting-draw-letter {
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--tile-border);
+    border-radius: 0.4rem;
+    background: var(--tile-background);
+    color: var(--tile-text);
+    font-weight: 950;
+}
+
+.starting-player-winner {
+    margin: 0;
+    color: var(--color-primary-strong);
+    font-size: 1.1rem;
     font-weight: 900;
 }

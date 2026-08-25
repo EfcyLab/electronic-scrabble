@@ -7,7 +7,7 @@
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 0.9.0
+ * @version 1.0.0
  */
 
 const WebSocket = require('ws');
@@ -37,6 +37,10 @@ const {
     shouldEndAfterConsecutivePasses,
     shouldEndAfterRackEmptied
 } = require('./game/end-game');
+const {
+    determineStartingPlayer,
+    rotateTurnOrder
+} = require('./game/starting-player');
 const {
     WordValidationError,
     getPublicWordValidationState,
@@ -149,6 +153,7 @@ function getPublicGameState(game) {
         turnNumber: game.turnNumber,
         lastMove: game.lastMove,
         lastAction: game.lastAction,
+        startingPlayerDraw: game.startingPlayerDraw,
         finalResult: game.finalResult,
         wordValidation: publicWordValidationState,
         players: Array.from(game.players.values()).map((player) => ({
@@ -356,6 +361,7 @@ function createGame(socket) {
         turnNumber: 0,
         lastMove: null,
         lastAction: null,
+        startingPlayerDraw: null,
         finalResult: null,
         consecutivePasses: 0,
         adminSockets: new Set(),
@@ -570,10 +576,10 @@ function resumeGame(socket, message) {
 }
 
 /**
- * Starts a game and deals seven private tiles to every player.
+ * Determines the first player before any private rack is dealt.
  *
- * Milestone 0.5 uses lobby join order as the initial turn order.
- * Official starting-player tile selection can be added independently later.
+ * The starting-player draw follows the francophone classic rule. All tiles
+ * used by the draw are returned to the bag before the game can begin.
  *
  * @param {WebSocket} socket Administrator WebSocket connection.
  *
@@ -595,7 +601,7 @@ function startGame(socket) {
     }
 
     if (game.status !== 'lobby') {
-        sendError(socket, 'GAME_ALREADY_STARTED', 'The game has already started.');
+        sendError(socket, 'GAME_ALREADY_STARTED', 'The game has already left the lobby.');
         return;
     }
 
@@ -616,20 +622,91 @@ function startGame(socket) {
         sendError(
             socket,
             'PLAYER_DISCONNECTED',
-            'All players must be connected before starting the game.'
+            'All players must be connected before determining the first player.'
         );
         return;
     }
 
     game.bag = createFrenchTileBag();
     game.board = createBoard();
-    game.turnOrder = Array.from(game.players.keys());
-    game.currentPlayerId = game.turnOrder[0] ?? null;
-    game.turnNumber = 1;
+    game.currentPlayerId = null;
+    game.turnNumber = 0;
     game.lastMove = null;
     game.lastAction = null;
     game.finalResult = null;
     game.consecutivePasses = 0;
+
+    const playersInJoinOrder = Array.from(game.players.values());
+    const joinOrderIds = playersInJoinOrder.map((player) => player.id);
+    const startingPlayerDraw = determineStartingPlayer(
+        game.bag,
+        playersInJoinOrder
+    );
+
+    game.startingPlayerDraw = startingPlayerDraw;
+    game.turnOrder = rotateTurnOrder(
+        joinOrderIds,
+        startingPlayerDraw.startingPlayerId
+    );
+    game.status = 'starting';
+
+    getGameSockets(game).forEach((participantSocket) => {
+        send(participantSocket, 'starting-player-determined', {
+            gameCode: game.code,
+            startingPlayerDraw
+        });
+    });
+
+    broadcastGameState(game);
+
+    console.log(
+        `Game ${game.code}: ${startingPlayerDraw.startingPlayerName} will play first.`
+    );
+}
+
+/**
+ * Deals private racks and begins play after the first player is known.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ *
+ * @returns {void}
+ */
+function beginPlay(socket) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'admin' || !session.gameCode) {
+        sendError(socket, 'NOT_AUTHORIZED', 'Only a game administrator can begin play.');
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The game does not exist.');
+        return;
+    }
+
+    if (game.status !== 'starting' || game.startingPlayerDraw === null) {
+        sendError(
+            socket,
+            'STARTING_PLAYER_NOT_DETERMINED',
+            'The first player must be determined before dealing the racks.'
+        );
+        return;
+    }
+
+    const disconnectedPlayers = Array.from(game.players.values()).filter(
+        (player) => player.socket === null
+    );
+
+    if (disconnectedPlayers.length > 0) {
+        sendError(
+            socket,
+            'PLAYER_DISCONNECTED',
+            'All players must be connected before dealing the racks.'
+        );
+        return;
+    }
 
     game.players.forEach((player) => {
         cancelPlayerRemoval(player);
@@ -637,11 +714,14 @@ function startGame(socket) {
         player.rack = drawTiles(game.bag, RACK_SIZE);
     });
 
+    game.currentPlayerId = game.turnOrder[0] ?? null;
+    game.turnNumber = 1;
     game.status = 'playing';
 
     getGameSockets(game).forEach((participantSocket) => {
         send(participantSocket, 'game-started', {
-            gameCode: game.code
+            gameCode: game.code,
+            startingPlayerId: game.currentPlayerId
         });
     });
 
@@ -1047,6 +1127,10 @@ function handleMessage(socket, message) {
 
         case 'start-game':
             startGame(socket);
+            break;
+
+        case 'begin-play':
+            beginPlay(socket);
             break;
 
         case 'submit-move':

@@ -400,3 +400,44 @@ list, the server rejects the complete move:
 
 No board, rack, bag, score, or turn state is changed when word validation
 fails.
+
+## Starting Player Selection
+
+Before racks are dealt, the administrator requests the official starting-player draw:
+
+```json
+{
+    "type": "start-game"
+}
+```
+
+The server moves the game from `lobby` to `starting`, performs the draw, returns all drawn tiles to the bag, reshuffles it, and publishes `startingPlayerDraw` in the public game state.
+
+When the result has been displayed, the administrator starts actual play:
+
+```json
+{
+    "type": "begin-play"
+}
+```
+
+The server deals the private racks, sets the selected player as `currentPlayerId`, sets `turnNumber` to `1`, and moves the game to `playing`.
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Server
+    participant Screen
+    participant Players
+
+    Admin->>Server: start-game
+    Server->>Server: Draw starting letters
+    Server->>Server: Resolve blanks and ties
+    Server->>Server: Return all drawn tiles to bag
+    Server-->>Screen: game-state (status: starting)
+    Server-->>Players: game-state (status: starting)
+    Admin->>Server: begin-play
+    Server->>Server: Deal 7 tiles per player
+    Server-->>Players: player-state (private racks)
+    Server-->>Screen: game-state (status: playing)
+```

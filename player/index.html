@@ -66,6 +66,13 @@
                 </div>
             </section>
 
+            <section id="starting-draw-section" class="player-panel starting-draw-section" hidden>
+                <h3 class="card__title">Who starts?</h3>
+                <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
+                <p id="starting-player-winner" class="starting-player-winner"></p>
+                <p class="muted panel-help">All drawn tiles return to the bag before racks are dealt.</p>
+            </section>
+
             <section id="rack-section" class="player-panel" hidden>
                 <div class="row row--between">
                     <div>
@@ -216,7 +223,7 @@
          * authoritative game server.
          *
          * @author Electronic Scrabble Project
-         * @version 0.8.0
+         * @version 1.0.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -248,6 +255,9 @@
         const playerScoreElement = document.getElementById('player-score');
         const wordValidationNote = document.getElementById('word-validation-note');
         const turnStatus = document.getElementById('turn-status');
+        const startingDrawSection = document.getElementById('starting-draw-section');
+        const startingDrawRounds = document.getElementById('starting-draw-rounds');
+        const startingPlayerWinner = document.getElementById('starting-player-winner');
         const rackSection = document.getElementById('rack-section');
         const rackElement = document.getElementById('rack');
         const moveRackLeftButton = document.getElementById('move-rack-left');
@@ -519,6 +529,59 @@
             return 'The game has ended.';
         }
 
+
+        /**
+         * Renders the public starting-player draw for the local player.
+         *
+         * @param {Object|null} startingPlayerDraw Starting-player draw result.
+         *
+         * @returns {void}
+         */
+        function renderStartingPlayerDraw(startingPlayerDraw) {
+            startingDrawRounds.replaceChildren();
+
+            if (startingPlayerDraw === null) {
+                startingDrawSection.hidden = true;
+                return;
+            }
+
+            startingPlayerDraw.rounds.forEach((round) => {
+                const roundElement = document.createElement('div');
+                const title = document.createElement('strong');
+
+                roundElement.className = 'starting-draw-round';
+                title.textContent = `Round ${round.round}`;
+                roundElement.appendChild(title);
+
+                round.draws.forEach((draw) => {
+                    const item = document.createElement('div');
+                    const letter = document.createElement('span');
+                    const note = draw.blankRedraws > 0
+                        ? ` · ${draw.blankRedraws} blank redraw${draw.blankRedraws === 1 ? '' : 's'}`
+                        : '';
+
+                    item.className = 'starting-draw-item';
+                    letter.className = 'starting-draw-letter';
+                    letter.textContent = draw.letter;
+                    item.append(
+                        document.createTextNode(`${draw.playerName}: `),
+                        letter,
+                        document.createTextNode(note)
+                    );
+                    roundElement.appendChild(item);
+                });
+
+                startingDrawRounds.appendChild(roundElement);
+            });
+
+            const isLocalStarter = startingPlayerDraw.startingPlayerId === currentPlayerId;
+
+            startingPlayerWinner.textContent = isLocalStarter
+                ? 'You will play first.'
+                : `${startingPlayerDraw.startingPlayerName} will play first.`;
+            startingDrawSection.hidden = false;
+        }
+
         /**
          * Renders the public final ranking.
          *
@@ -636,9 +699,11 @@
 
             turnStatus.textContent = gameStatus === 'finished'
                 ? 'Game finished'
-                : (isTurn
-                    ? 'Your turn'
-                    : (gameStatus === 'playing' ? 'Waiting' : 'Lobby'));
+                : (gameStatus === 'starting'
+                    ? 'Starting-player draw'
+                    : (isTurn
+                        ? 'Your turn'
+                        : (gameStatus === 'playing' ? 'Waiting' : 'Lobby')));
 
             turnStatus.className = gameStatus === 'finished'
                 ? 'status status--warning'
@@ -1529,6 +1594,9 @@
                 currentBagRemaining = data.game.bagRemaining;
                 currentWordValidation = data.game.wordValidation ?? null;
 
+                renderStartingPlayerDraw(
+                    data.game.status === 'starting' ? data.game.startingPlayerDraw : null
+                );
                 updateWordValidationStatus();
                 updatePlayerList(data.game.players);
                 renderFinalResult(data.game.finalResult);

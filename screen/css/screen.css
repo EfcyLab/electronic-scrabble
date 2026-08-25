@@ -2,7 +2,7 @@
  * Electronic Scrabble shared screen styles.
  *
  * @author Electronic Scrabble Project
- * @version 0.7.0
+ * @version 1.0.0
  */
 
 .screen-layout {
@@ -174,4 +174,90 @@
 .final-ranking li::marker {
     color: var(--color-primary-strong);
     font-weight: 900;
+}
+
+/*
+ * Starting-player draw.
+ */
+
+.starting-player-card {
+    border-color: color-mix(in srgb, var(--color-primary) 52%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.starting-draw-rounds {
+    display: grid;
+    gap: var(--spacing-medium);
+    margin-top: var(--spacing-medium);
+}
+
+.starting-draw-round {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+}
+
+.starting-draw-round__label {
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.starting-draw-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    background: var(--color-surface-elevated);
+}
+
+.starting-draw-item small {
+    grid-column: 1 / -1;
+    color: var(--color-text-muted);
+}
+
+.starting-draw-letter {
+    display: grid;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border: 1px solid var(--tile-border);
+    border-radius: 0.4rem;
+    background: var(--tile-background);
+    color: var(--tile-text);
+    font-size: 1.15rem;
+}
+
+.starting-player-winner {
+    margin-top: var(--spacing-medium) !important;
+    color: var(--color-primary-strong);
+    font-size: 1.2rem;
+    font-weight: 950;
+}
+
+.starting-draw-item {
+    animation: starting-tile-reveal 320ms ease both;
+}
+
+@keyframes starting-tile-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(0.45rem) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .starting-draw-item {
+        animation: none;
+    }
 }

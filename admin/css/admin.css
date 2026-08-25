@@ -2,7 +2,7 @@
  * Electronic Scrabble administration interface styles.
  *
  * @author Electronic Scrabble Project
- * @version 0.7.0
+ * @version 1.0.0
  */
 
 #game-information {
@@ -89,5 +89,56 @@
 
 .final-ranking li::marker {
     color: var(--color-primary-strong);
+    font-weight: 900;
+}
+
+/*
+ * Starting-player draw.
+ */
+
+.starting-draw {
+    display: grid;
+    gap: var(--spacing-medium);
+    padding: var(--spacing-large);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+    border-radius: var(--radius-large);
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface-elevated));
+}
+
+.starting-draw[hidden] {
+    display: none;
+}
+
+.starting-draw h3,
+.starting-draw p {
+    margin: 0;
+}
+
+.starting-draw-rounds {
+    display: grid;
+    gap: var(--spacing-medium);
+}
+
+.starting-draw-round {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.starting-draw-letters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.starting-draw-letters span {
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-small);
+    background: var(--color-surface);
+}
+
+.starting-player-winner {
+    color: var(--color-primary-strong);
+    font-size: 1.1rem;
     font-weight: 900;
 }

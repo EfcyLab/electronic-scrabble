@@ -69,6 +69,12 @@
                 <h3>Players</h3>
                 <ul id="player-list"></ul>
 
+                <section id="starting-draw" class="starting-draw" hidden>
+                    <h3>Starting-player draw</h3>
+                    <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
+                    <p id="starting-player-winner" class="starting-player-winner"></p>
+                </section>
+
                 <section id="final-result" class="final-result" hidden>
                     <h3>Final result</h3>
                     <p id="end-reason" class="muted"></p>
@@ -88,7 +94,7 @@
          * Creates game sessions, displays the lobby state,
          * and starts a game when all players are ready.
          *
-         * @version 0.9.0
+         * @version 1.0.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -113,6 +119,9 @@
         const screenLink = document.getElementById('screen-link');
         const playerLink = document.getElementById('player-link');
         const playerList = document.getElementById('player-list');
+        const startingDrawSection = document.getElementById('starting-draw');
+        const startingDrawRounds = document.getElementById('starting-draw-rounds');
+        const startingPlayerWinner = document.getElementById('starting-player-winner');
         const finalResultSection = document.getElementById('final-result');
         const endReasonElement = document.getElementById('end-reason');
         const finalRanking = document.getElementById('final-ranking');
@@ -120,6 +129,51 @@
         const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
         let currentGameCode = null;
+        let currentGameStatus = 'lobby';
+
+
+        /**
+         * Renders the public starting-player draw.
+         *
+         * @param {Object|null} startingPlayerDraw Starting-player draw result.
+         *
+         * @returns {void}
+         */
+        function renderStartingPlayerDraw(startingPlayerDraw) {
+            startingDrawRounds.replaceChildren();
+
+            if (startingPlayerDraw === null) {
+                startingDrawSection.hidden = true;
+                return;
+            }
+
+            startingPlayerDraw.rounds.forEach((round) => {
+                const roundElement = document.createElement('div');
+                const title = document.createElement('strong');
+                const draws = document.createElement('div');
+
+                roundElement.className = 'starting-draw-round';
+                title.textContent = `Round ${round.round}`;
+                draws.className = 'starting-draw-letters';
+
+                round.draws.forEach((draw) => {
+                    const item = document.createElement('span');
+                    const blankNote = draw.blankRedraws > 0
+                        ? ` (${draw.blankRedraws} blank redraw${draw.blankRedraws === 1 ? '' : 's'})`
+                        : '';
+
+                    item.textContent = `${draw.playerName}: ${draw.letter}${blankNote}`;
+                    draws.appendChild(item);
+                });
+
+                roundElement.append(title, draws);
+                startingDrawRounds.appendChild(roundElement);
+            });
+
+            startingPlayerWinner.textContent =
+                `${startingPlayerDraw.startingPlayerName} will play first.`;
+            startingDrawSection.hidden = false;
+        }
 
         /**
          * Returns a human-readable end-game reason.
@@ -181,7 +235,13 @@
          * @returns {void}
          */
         function updateGameState(game) {
-            gameStatusElement.textContent = game.status;
+            currentGameStatus = game.status;
+            gameStatusElement.textContent = game.status === 'starting'
+                ? 'Starting-player draw'
+                : game.status;
+            renderStartingPlayerDraw(
+                game.status === 'starting' ? game.startingPlayerDraw : null
+            );
 
             if (game.wordValidation?.enabled) {
                 wordValidationStatus.textContent =
@@ -252,22 +312,39 @@
                 (player) => player.connected
             );
 
-            const canStart =
+            const canDetermineStartingPlayer =
                 game.status === 'lobby' &&
                 playerCountIsValid &&
                 allPlayersConnected;
 
-            startGameButton.disabled = !canStart;
+            const canBeginPlay =
+                game.status === 'starting' &&
+                game.startingPlayerDraw !== null &&
+                allPlayersConnected;
+
+            startGameButton.disabled = !canDetermineStartingPlayer && !canBeginPlay;
 
             if (game.status === 'finished') {
+                startGameButton.textContent = 'Game Finished';
                 startHelp.textContent = 'Game finished.';
                 return;
             }
 
-            if (game.status !== 'lobby') {
+            if (game.status === 'playing') {
+                startGameButton.textContent = 'Game Started';
                 startHelp.textContent = 'Game started.';
                 return;
             }
+
+            if (game.status === 'starting') {
+                startGameButton.textContent = 'Deal Tiles & Start';
+                startHelp.textContent = allPlayersConnected
+                    ? 'First player determined. Ready to deal the racks.'
+                    : 'All players must reconnect before dealing the racks.';
+                return;
+            }
+
+            startGameButton.textContent = 'Determine First Player';
 
             if (game.players.length < MIN_PLAYERS) {
                 startHelp.textContent = 'At least two connected players are required.';
@@ -279,7 +356,7 @@
                 return;
             }
 
-            startHelp.textContent = 'Ready to start.';
+            startHelp.textContent = 'Ready to determine the first player.';
         }
 
         socket.addEventListener('open', () => {
@@ -305,7 +382,9 @@
 
         startGameButton.addEventListener('click', () => {
             socket.send(JSON.stringify({
-                type: 'start-game'
+                type: currentGameStatus === 'starting'
+                    ? 'begin-play'
+                    : 'start-game'
             }));
         });
 
