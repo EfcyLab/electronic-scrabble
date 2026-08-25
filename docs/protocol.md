@@ -1,16 +1,40 @@
 # Electronic Scrabble WebSocket Protocol
 
-## Version 0.5.0
+## Version 0.6.0
 
 This document describes the WebSocket messages used for game creation,
-player sessions, game startup, private racks, turn synchronization, and
-validated board moves.
+player sessions, game startup, private racks, validated board moves, passing,
+and tile exchanges.
 
-Dictionary validation is **not enabled in milestone 0.5.0**. The server
+Dictionary validation is **not enabled in milestone 0.6.0**. The server
 validates tile ownership, board geometry, connectivity, premium scoring,
-blank assignments, and turn ownership only.
+blank assignments, turn ownership, and exchange eligibility.
 
-## Game Start and Move Flow
+## Complete Turn Flow
+
+```mermaid
+flowchart TD
+    A[Player turn starts] --> B{Choose action}
+    B -->|Play| C[Prepare tile placements]
+    C --> D[submit-move]
+    D --> E{Server validates move}
+    E -->|Accepted| F[Score and refill rack]
+    E -->|Rejected| A
+    B -->|Exchange| G[Select rack tiles]
+    G --> H[exchange-tiles]
+    H --> I{At least 7 tiles remain?}
+    I -->|No| A
+    I -->|Yes| J[Draw replacements]
+    J --> K[Return discarded tiles to bag]
+    B -->|Pass| L[pass-turn]
+    F --> M[Advance turn]
+    K --> M
+    L --> M
+    M --> N[Broadcast public state]
+    N --> O[Send private rack states]
+```
+
+## Game Start and Turn Synchronization
 
 ```mermaid
 sequenceDiagram
@@ -23,49 +47,46 @@ sequenceDiagram
     Admin->>Server: start-game
     Server->>Server: Deal private racks
     Server->>Server: Set currentPlayerId
-    Server-->>All: game-state
+    Server-->>Screen: game-state
     Server-->>P1: player-state
     Server-->>P2: player-state
 
-    P1->>P1: Prepare local placements
-    P1->>Server: submit-move(placements)
-    Server->>Server: Validate turn and rack ownership
-    Server->>Server: Validate geometry and connectivity
-    Server->>Server: Calculate word and premium scores
-    Server->>Server: Apply move and refill rack
+    alt Play a word
+        P1->>Server: submit-move(placements)
+        Server->>Server: Validate and score move
+        Server->>Server: Refill rack
+        Server-->>P1: move-accepted
+    else Exchange tiles
+        P1->>Server: exchange-tiles(tileIds)
+        Server->>Server: Validate bag and rack ownership
+        Server->>Server: Draw replacements first
+        Server->>Server: Return discarded tiles to bag
+        Server-->>P1: tiles-exchanged
+    else Pass
+        P1->>Server: pass-turn
+        Server-->>P1: turn-passed
+    end
+
     Server->>Server: Advance turn
-    Server-->>P1: move-accepted
     Server-->>P1: player-state
     Server-->>P2: player-state
-    Server-->>All: game-state
+    Server-->>Screen: game-state
 ```
 
-## Move Validation
+## Exchange Rules
 
-```mermaid
-flowchart TD
-    A[Receive submit-move] --> B{Authenticated player?}
-    B -- No --> X[Reject]
-    B -- Yes --> C{Player's turn?}
-    C -- No --> X
-    C -- Yes --> D{Tiles belong to rack?}
-    D -- No --> X
-    D -- Yes --> E{Coordinates valid and empty?}
-    E -- No --> X
-    E -- Yes --> F{Aligned and contiguous?}
-    F -- No --> X
-    F -- Yes --> G{First move?}
-    G -- Yes --> H{At least 2 tiles and center covered?}
-    H -- No --> X
-    H -- Yes --> J[Score all formed words]
-    G -- No --> I{Connected to existing board?}
-    I -- No --> X
-    I -- Yes --> J
-    J --> K[Apply move]
-    K --> L[Refill private rack]
-    L --> M[Advance turn]
-    M --> N[Broadcast public state]
-```
+An exchange consumes the player's turn.
+
+The server enforces these rules:
+
+- The request must come from the current authenticated player.
+- At least one rack tile must be selected.
+- Every selected tile identifier must belong to the player's private rack.
+- A tile identifier cannot be submitted twice.
+- At least seven tiles must remain in the bag before the exchange starts.
+- Replacement tiles are drawn before discarded tiles are returned to the bag.
+- The discarded tiles are then returned and the bag is reshuffled.
+- Public clients receive only the number of exchanged tiles, never their letters or identifiers.
 
 ## Client Messages
 
@@ -128,18 +149,33 @@ coordinates. The server retrieves the trusted tile values from the rack.
             "row": 7,
             "column": 7,
             "assignedLetter": null
-        },
-        {
-            "tileId": "PRIVATE-TILE-UUID",
-            "row": 7,
-            "column": 8,
-            "assignedLetter": null
         }
     ]
 }
 ```
 
-For a blank tile, `assignedLetter` must contain exactly one letter from A to Z.
+### Pass Turn
+
+```json
+{
+    "type": "pass-turn"
+}
+```
+
+### Exchange Tiles
+
+The tile identifiers are private and are sent only from the authenticated
+player to the server.
+
+```json
+{
+    "type": "exchange-tiles",
+    "tileIds": [
+        "PRIVATE-TILE-UUID-1",
+        "PRIVATE-TILE-UUID-2"
+    ]
+}
+```
 
 ## Server Messages
 
@@ -160,6 +196,7 @@ The `playerToken` is private and must never be broadcast to other clients.
 ### Public Game State
 
 Rack contents, rack tile identifiers, and player tokens are never included.
+`lastAction` contains only information that may be displayed publicly.
 
 ```json
 {
@@ -170,21 +207,11 @@ Rack contents, rack tile identifiers, and player tokens are never included.
         "bagRemaining": 86,
         "currentPlayerId": "PLAYER-2-UUID",
         "turnNumber": 2,
-        "lastMove": {
+        "lastAction": {
+            "type": "exchange",
             "playerId": "PLAYER-1-UUID",
             "playerName": "Alice",
-            "score": 10,
-            "bingoBonus": 0,
-            "words": [
-                {
-                    "text": "HI",
-                    "score": 10
-                }
-            ],
-            "placements": [
-                { "row": 7, "column": 7 },
-                { "row": 7, "column": 8 }
-            ]
+            "exchangedCount": 2
         },
         "players": [
             {
@@ -241,14 +268,36 @@ This message is sent only to the authenticated player's WebSocket connection.
 }
 ```
 
+### Turn Passed
+
+```json
+{
+    "type": "turn-passed",
+    "gameCode": "ABCD"
+}
+```
+
+### Tiles Exchanged
+
+The response intentionally contains only the number of exchanged tiles.
+
+```json
+{
+    "type": "tiles-exchanged",
+    "gameCode": "ABCD",
+    "exchangedCount": 2
+}
+```
+
 ## Privacy Rule
 
 The server is authoritative. Public messages expose only public board and game
-information. Private rack contents, rack tile identifiers, and reconnection
-tokens are sent exclusively to the authenticated player's WebSocket.
+information. Private rack contents, rack tile identifiers, exchanged letters,
+and reconnection tokens are sent exclusively to the authenticated player's
+WebSocket connection.
 
 ## Current Limitation
 
-Milestone 0.5.0 does not check whether generated letter sequences are valid
+Milestone 0.6.0 does not check whether generated letter sequences are valid
 French words. A structurally valid sequence is accepted regardless of its
 lexical validity. Dictionary integration is a separate milestone.

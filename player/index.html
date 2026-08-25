@@ -130,6 +130,50 @@
                 <p id="move-feedback" class="move-feedback" aria-live="polite"></p>
             </section>
 
+            <section id="turn-actions-section" class="player-panel" hidden>
+                <div class="row row--between">
+                    <div>
+                        <h3 class="card__title">Turn actions</h3>
+                        <p id="turn-action-help" class="muted panel-help">
+                            Play a word, exchange tiles, or pass your turn.
+                        </p>
+                    </div>
+
+                    <span id="bag-status" class="status">Bag: --</span>
+                </div>
+
+                <div class="turn-action-buttons">
+                    <button id="exchange-mode" class="button button--secondary" type="button" disabled>
+                        Exchange Tiles
+                    </button>
+
+                    <button id="pass-turn" class="button button--secondary" type="button" disabled>
+                        Pass Turn
+                    </button>
+                </div>
+
+                <div id="exchange-controls" class="exchange-controls" hidden>
+                    <div>
+                        <strong>Select tiles to exchange</strong>
+                        <p class="muted panel-help">
+                            Tap one or more rack tiles. The exchange consumes your turn.
+                        </p>
+                    </div>
+
+                    <span id="exchange-count" class="status">0 tiles selected</span>
+
+                    <div class="exchange-actions">
+                        <button id="cancel-exchange" class="button button--secondary" type="button">
+                            Cancel
+                        </button>
+
+                        <button id="confirm-exchange" class="button button--primary" type="button" disabled>
+                            Confirm Exchange
+                        </button>
+                    </div>
+                </div>
+            </section>
+
             <section class="player-panel">
                 <h3 class="card__title">Players</h3>
                 <ul id="player-list"></ul>
@@ -146,7 +190,7 @@
          * authoritative game server.
          *
          * @author Electronic Scrabble Project
-         * @version 0.5.0
+         * @version 0.6.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -189,6 +233,15 @@
         const submitMoveButton = document.getElementById('submit-move');
         const pendingCount = document.getElementById('pending-count');
         const moveFeedback = document.getElementById('move-feedback');
+        const turnActionsSection = document.getElementById('turn-actions-section');
+        const turnActionHelp = document.getElementById('turn-action-help');
+        const bagStatus = document.getElementById('bag-status');
+        const exchangeModeButton = document.getElementById('exchange-mode');
+        const passTurnButton = document.getElementById('pass-turn');
+        const exchangeControls = document.getElementById('exchange-controls');
+        const exchangeCount = document.getElementById('exchange-count');
+        const cancelExchangeButton = document.getElementById('cancel-exchange');
+        const confirmExchangeButton = document.getElementById('confirm-exchange');
         const playerList = document.getElementById('player-list');
 
         gameCodeInput.value = initialGameCode;
@@ -201,9 +254,12 @@
         let currentRack = [];
         let currentBoard = [];
         let currentTurnPlayerId = null;
+        let currentBagRemaining = null;
         let gameStatus = 'lobby';
         let selectedTileId = null;
         let pendingPlacements = new Map();
+        let exchangeMode = false;
+        let exchangeTileIds = new Set();
 
         /**
          * Returns the local storage key for a game session.
@@ -386,16 +442,19 @@
                 : 'status';
 
             moveSection.hidden = gameStatus !== 'playing';
-            coordinatePlace.disabled = !isTurn || selectedTileId === null;
-            clearMoveButton.disabled = pendingPlacements.size === 0;
-            submitMoveButton.disabled = !isTurn || pendingPlacements.size === 0;
+            turnActionsSection.hidden = gameStatus !== 'playing';
 
             if (!isTurn) {
                 selectedTileId = null;
+                pendingPlacements.clear();
+                exchangeMode = false;
+                exchangeTileIds.clear();
             }
 
             renderRack();
             renderPlayerBoard();
+            updateMoveControls();
+            updateTurnActionControls();
         }
 
         /**
@@ -430,7 +489,7 @@
          * @returns {void}
          */
         function selectRackTile(tileId) {
-            if (!canPlay() || isTilePending(tileId)) {
+            if (exchangeMode || !canPlay() || isTilePending(tileId)) {
                 return;
             }
 
@@ -449,7 +508,7 @@
             const isTurn = canPlay();
 
             currentRack.forEach((tile) => {
-                if (isTilePending(tile.id)) {
+                if (!exchangeMode && isTilePending(tile.id)) {
                     return;
                 }
 
@@ -468,7 +527,9 @@
                         : `${tile.letter}, ${tile.value} points`
                 );
 
-                if (selectedTileId === tile.id) {
+                if (exchangeMode && exchangeTileIds.has(tile.id)) {
+                    button.classList.add('rack-tile--exchange-selected');
+                } else if (!exchangeMode && selectedTileId === tile.id) {
                     button.classList.add('rack-tile--selected');
                 }
 
@@ -478,6 +539,11 @@
                 button.appendChild(value);
 
                 button.addEventListener('click', () => {
+                    if (exchangeMode) {
+                        toggleExchangeTile(tile.id);
+                        return;
+                    }
+
                     selectRackTile(tile.id);
                 });
 
@@ -491,7 +557,7 @@
                 ? getRackTile(selectedTileId)
                 : null;
 
-            blankLetterField.hidden = !selectedTile?.isBlank;
+            blankLetterField.hidden = exchangeMode || !selectedTile?.isBlank;
         }
 
         /**
@@ -576,7 +642,7 @@
                 button.textContent = PREMIUM_LABELS[cell.premium].label;
             }
 
-            button.disabled = !canPlay();
+            button.disabled = !canPlay() || exchangeMode;
 
             button.addEventListener('click', () => {
                 placeSelectedTile(cell.row, cell.column);
@@ -614,6 +680,11 @@
          * @returns {void}
          */
         function placeSelectedTile(row, column) {
+            if (exchangeMode) {
+                showMoveFeedback('Finish or cancel the tile exchange first.', 'warning');
+                return;
+            }
+
             if (!canPlay()) {
                 showMoveFeedback('It is not your turn.', 'error');
                 return;
@@ -704,9 +775,167 @@
             const count = pendingPlacements.size;
 
             pendingCount.textContent = `${count} tile${count === 1 ? '' : 's'}`;
-            clearMoveButton.disabled = count === 0;
-            submitMoveButton.disabled = !canPlay() || count === 0;
-            coordinatePlace.disabled = !canPlay() || selectedTileId === null;
+            clearMoveButton.disabled = count === 0 || exchangeMode;
+            submitMoveButton.disabled = !canPlay() || exchangeMode || count === 0;
+            coordinatePlace.disabled = !canPlay() || exchangeMode || selectedTileId === null;
+        }
+
+        /**
+         * Returns whether tile exchange is currently available.
+         *
+         * @returns {boolean} True when exchange is allowed.
+         */
+        function canExchangeTiles() {
+            return canPlay() && currentBagRemaining !== null && currentBagRemaining >= 7;
+        }
+
+        /**
+         * Updates pass and exchange controls for the current turn.
+         *
+         * @returns {void}
+         */
+        function updateTurnActionControls() {
+            const isTurn = canPlay();
+            const canExchange = canExchangeTiles();
+            const selectedCount = exchangeTileIds.size;
+
+            bagStatus.textContent = currentBagRemaining === null
+                ? 'Bag: --'
+                : `Bag: ${currentBagRemaining}`;
+
+            passTurnButton.disabled = !isTurn;
+            exchangeModeButton.disabled = !canExchange || exchangeMode;
+            exchangeControls.hidden = !exchangeMode;
+            exchangeCount.textContent = `${selectedCount} tile${selectedCount === 1 ? '' : 's'} selected`;
+            confirmExchangeButton.disabled = !canExchange || selectedCount === 0;
+
+            if (gameStatus !== 'playing') {
+                turnActionHelp.textContent = 'The game has not started yet.';
+                return;
+            }
+
+            if (!isTurn) {
+                turnActionHelp.textContent = 'Wait for your turn.';
+                return;
+            }
+
+            if (!canExchange) {
+                turnActionHelp.textContent = 'Exchange unavailable: fewer than seven tiles remain in the bag.';
+                return;
+            }
+
+            turnActionHelp.textContent = 'Play a word, exchange one or more tiles, or pass your turn.';
+        }
+
+        /**
+         * Starts local tile-exchange selection mode.
+         *
+         * @returns {void}
+         */
+        function beginExchangeMode() {
+            if (!canExchangeTiles()) {
+                showMoveFeedback('Tile exchange is not available.', 'warning');
+                return;
+            }
+
+            pendingPlacements.clear();
+            selectedTileId = null;
+            exchangeTileIds.clear();
+            exchangeMode = true;
+
+            renderRack();
+            renderPlayerBoard();
+            updateMoveControls();
+            updateTurnActionControls();
+            showMoveFeedback('Select the rack tiles you want to exchange.', 'info');
+        }
+
+        /**
+         * Cancels local tile-exchange selection mode.
+         *
+         * @returns {void}
+         */
+        function cancelExchangeMode() {
+            exchangeMode = false;
+            exchangeTileIds.clear();
+
+            renderRack();
+            renderPlayerBoard();
+            updateMoveControls();
+            updateTurnActionControls();
+            showMoveFeedback('Tile exchange cancelled.', 'info');
+        }
+
+        /**
+         * Selects or deselects a private rack tile for exchange.
+         *
+         * @param {string} tileId Private rack tile identifier.
+         *
+         * @returns {void}
+         */
+        function toggleExchangeTile(tileId) {
+            if (!exchangeMode || !canExchangeTiles() || getRackTile(tileId) === null) {
+                return;
+            }
+
+            if (exchangeTileIds.has(tileId)) {
+                exchangeTileIds.delete(tileId);
+            } else {
+                exchangeTileIds.add(tileId);
+            }
+
+            renderRack();
+            updateTurnActionControls();
+        }
+
+        /**
+         * Sends the selected tile exchange to the authoritative server.
+         *
+         * @returns {void}
+         */
+        function submitExchange() {
+            if (!exchangeMode || !canExchangeTiles() || exchangeTileIds.size === 0) {
+                return;
+            }
+
+            confirmExchangeButton.disabled = true;
+            showMoveFeedback('Exchanging tiles...', 'info');
+
+            socket.send(JSON.stringify({
+                type: 'exchange-tiles',
+                tileIds: Array.from(exchangeTileIds)
+            }));
+        }
+
+        /**
+         * Passes the current player's turn after local confirmation.
+         *
+         * @returns {void}
+         */
+        function submitPassTurn() {
+            if (!canPlay()) {
+                return;
+            }
+
+            const hasLocalWork = pendingPlacements.size > 0 || exchangeTileIds.size > 0;
+            const confirmationMessage = hasLocalWork
+                ? 'Pass this turn and discard the move or exchange you prepared?'
+                : 'Pass this turn?';
+
+            if (!window.confirm(confirmationMessage)) {
+                return;
+            }
+
+            pendingPlacements.clear();
+            selectedTileId = null;
+            exchangeMode = false;
+            exchangeTileIds.clear();
+            passTurnButton.disabled = true;
+            showMoveFeedback('Passing turn...', 'info');
+
+            socket.send(JSON.stringify({
+                type: 'pass-turn'
+            }));
         }
 
         /**
@@ -800,6 +1029,10 @@
 
         clearMoveButton.addEventListener('click', clearPendingMove);
         submitMoveButton.addEventListener('click', submitPendingMove);
+        exchangeModeButton.addEventListener('click', beginExchangeMode);
+        cancelExchangeButton.addEventListener('click', cancelExchangeMode);
+        confirmExchangeButton.addEventListener('click', submitExchange);
+        passTurnButton.addEventListener('click', submitPassTurn);
 
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
@@ -837,6 +1070,7 @@
                 gameStatus = data.game.status;
                 currentBoard = data.game.board;
                 currentTurnPlayerId = data.game.currentPlayerId;
+                currentBagRemaining = data.game.bagRemaining;
 
                 updatePlayerList(data.game.players);
                 updateTurnState();
@@ -863,11 +1097,48 @@
 
                 pendingPlacements.clear();
                 selectedTileId = null;
+                exchangeMode = false;
+                exchangeTileIds.clear();
+                updateTurnActionControls();
 
                 showMoveFeedback(
                     `Move accepted: ${wordSummary}. +${data.score} points.`,
                     'success'
                 );
+
+                return;
+            }
+
+            if (data.type === 'tiles-exchanged') {
+                exchangeMode = false;
+                exchangeTileIds.clear();
+                selectedTileId = null;
+                pendingPlacements.clear();
+
+                renderRack();
+                renderPlayerBoard();
+                updateMoveControls();
+                updateTurnActionControls();
+
+                showMoveFeedback(
+                    `${data.exchangedCount} tile${data.exchangedCount === 1 ? '' : 's'} exchanged. Turn completed.`,
+                    'success'
+                );
+
+                return;
+            }
+
+            if (data.type === 'turn-passed') {
+                exchangeMode = false;
+                exchangeTileIds.clear();
+                selectedTileId = null;
+                pendingPlacements.clear();
+
+                renderRack();
+                renderPlayerBoard();
+                updateMoveControls();
+                updateTurnActionControls();
+                showMoveFeedback('Turn passed.', 'success');
 
                 return;
             }
@@ -895,7 +1166,8 @@
                 }
 
                 joinButton.disabled = false;
-                submitMoveButton.disabled = !canPlay() || pendingPlacements.size === 0;
+                submitMoveButton.disabled = !canPlay() || exchangeMode || pendingPlacements.size === 0;
+                updateTurnActionControls();
                 showMoveFeedback(data.message, 'error');
             }
         });

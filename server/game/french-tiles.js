@@ -5,7 +5,7 @@
  * and tile drawing helpers used by the Electronic Scrabble server.
  *
  * @author Electronic Scrabble Project
- * @version 0.3.0
+ * @version 0.6.0
  */
 
 const { randomInt, randomUUID } = require('node:crypto');
@@ -109,10 +109,25 @@ function drawTiles(bag, count) {
     return tiles;
 }
 
+/**
+ * Returns tiles to the bag and securely reshuffles the bag.
+ *
+ * @param {Array<Object>} bag Mutable tile bag.
+ * @param {Array<Object>} tiles Tiles to return.
+ *
+ * @returns {Array<Object>} Reshuffled tile bag.
+ */
+function returnTilesToBag(bag, tiles) {
+    bag.push(...tiles);
+
+    return shuffle(bag);
+}
+
 module.exports = {
     FRENCH_TILE_DISTRIBUTION,
     RACK_SIZE,
     TOTAL_TILES,
     createFrenchTileBag,
-    drawTiles
+    drawTiles,
+    returnTilesToBag
 };

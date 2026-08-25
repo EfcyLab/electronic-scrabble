@@ -57,11 +57,13 @@
                     </p>
                 </section>
 
-                <section id="last-move-card" class="screen-card" hidden>
-                    <h2 class="card__title">Last move</h2>
-                    <p><strong id="last-move-player"></strong></p>
-                    <p id="last-move-words" class="last-move-words"></p>
-                    <p class="last-move-score">+<span id="last-move-score">0</span> pts</p>
+                <section id="last-action-card" class="screen-card" hidden>
+                    <h2 class="card__title">Last action</h2>
+                    <p><strong id="last-action-player"></strong></p>
+                    <p id="last-action-summary" class="last-move-words"></p>
+                    <p id="last-action-score" class="last-move-score" hidden>
+                        +<span id="last-action-score-value">0</span> pts
+                    </p>
                 </section>
 
                 <section class="screen-card">
@@ -80,7 +82,7 @@
          * and the standard board without receiving private player racks.
          *
          * @author Electronic Scrabble Project
-         * @version 0.5.0
+         * @version 0.6.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -104,10 +106,11 @@
         const currentPlayerNameElement = document.getElementById('current-player-name');
         const bagInformation = document.getElementById('bag-information');
         const bagRemainingElement = document.getElementById('bag-remaining');
-        const lastMoveCard = document.getElementById('last-move-card');
-        const lastMovePlayer = document.getElementById('last-move-player');
-        const lastMoveWords = document.getElementById('last-move-words');
-        const lastMoveScore = document.getElementById('last-move-score');
+        const lastActionCard = document.getElementById('last-action-card');
+        const lastActionPlayer = document.getElementById('last-action-player');
+        const lastActionSummary = document.getElementById('last-action-summary');
+        const lastActionScore = document.getElementById('last-action-score');
+        const lastActionScoreValue = document.getElementById('last-action-score-value');
         const playerList = document.getElementById('player-list');
         const boardElement = document.getElementById('board');
 
@@ -226,18 +229,33 @@
          *
          * @returns {void}
          */
-        function renderLastMove(lastMove) {
-            if (lastMove === null) {
-                lastMoveCard.hidden = true;
+        function renderLastAction(lastAction) {
+            if (lastAction === null) {
+                lastActionCard.hidden = true;
                 return;
             }
 
-            lastMovePlayer.textContent = lastMove.playerName;
-            lastMoveWords.textContent = lastMove.words
-                .map((word) => `${word.text} · ${word.score}`)
-                .join('  •  ');
-            lastMoveScore.textContent = lastMove.score;
-            lastMoveCard.hidden = false;
+            lastActionPlayer.textContent = lastAction.playerName;
+            lastActionScore.hidden = true;
+
+            if (lastAction.type === 'move') {
+                lastActionSummary.textContent = lastAction.words
+                    .map((word) => `${word.text} · ${word.score}`)
+                    .join('  •  ');
+                lastActionScoreValue.textContent = lastAction.score;
+                lastActionScore.hidden = false;
+            } else if (lastAction.type === 'exchange') {
+                const count = lastAction.exchangedCount;
+
+                lastActionSummary.textContent =
+                    `Exchanged ${count} tile${count === 1 ? '' : 's'}`;
+            } else if (lastAction.type === 'pass') {
+                lastActionSummary.textContent = 'Passed the turn';
+            } else {
+                lastActionSummary.textContent = 'Turn completed';
+            }
+
+            lastActionCard.hidden = false;
         }
 
         /**
@@ -276,7 +294,7 @@
                 renderBoard(game.board, game.lastMove);
             }
 
-            renderLastMove(game.lastMove);
+            renderLastAction(game.lastAction);
 
             game.players.forEach((player) => {
                 const item = document.createElement('li');

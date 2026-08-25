@@ -7,7 +7,7 @@
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 0.5.0
+ * @version 0.6.0
  */
 
 const WebSocket = require('ws');
@@ -26,6 +26,10 @@ const {
     applyMove,
     validateAndScoreMove
 } = require('./game/move-engine');
+const {
+    TurnActionError,
+    exchangeTiles
+} = require('./game/turn-actions');
 
 const PORT = 8080;
 const MIN_PLAYERS = 2;
@@ -128,6 +132,7 @@ function getPublicGameState(game) {
         currentPlayerId: game.currentPlayerId,
         turnNumber: game.turnNumber,
         lastMove: game.lastMove,
+        lastAction: game.lastAction,
         players: Array.from(game.players.values()).map((player) => ({
             id: player.id,
             name: player.name,
@@ -332,6 +337,7 @@ function createGame(socket) {
         currentPlayerId: null,
         turnNumber: 0,
         lastMove: null,
+        lastAction: null,
         adminSockets: new Set(),
         screenSockets: new Set()
     };
@@ -601,6 +607,7 @@ function startGame(socket) {
     game.currentPlayerId = game.turnOrder[0] ?? null;
     game.turnNumber = 1;
     game.lastMove = null;
+    game.lastAction = null;
 
     game.players.forEach((player) => {
         cancelPlayerRemoval(player);
@@ -743,6 +750,14 @@ function submitMove(socket, message) {
         }))
     };
 
+    game.lastAction = {
+        type: 'move',
+        playerId: player.id,
+        playerName: player.name,
+        score: move.score,
+        words: game.lastMove.words
+    };
+
     send(socket, 'move-accepted', {
         gameCode: game.code,
         score: move.score,
@@ -756,6 +771,150 @@ function submitMove(socket, message) {
 
     console.log(
         `Player "${player.name}" scored ${move.score} points in game ${game.code}.`
+    );
+}
+
+/**
+ * Returns the authenticated player for a turn action after validating
+ * the current game and turn ownership.
+ *
+ * @param {WebSocket} socket Player WebSocket connection.
+ *
+ * @returns {Object|null} Game and player pair, or null after an error response.
+ */
+function getCurrentTurnContext(socket) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'player' || !session.playerId) {
+        sendError(
+            socket,
+            'NOT_AUTHENTICATED_PLAYER',
+            'An authenticated player session is required.'
+        );
+        return null;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The game does not exist.');
+        return null;
+    }
+
+    if (game.status !== 'playing') {
+        sendError(socket, 'GAME_NOT_PLAYING', 'The game is not currently playing.');
+        return null;
+    }
+
+    const player = game.players.get(session.playerId);
+
+    if (!player) {
+        sendError(socket, 'PLAYER_NOT_FOUND', 'The player session no longer exists.');
+        return null;
+    }
+
+    if (game.currentPlayerId !== player.id) {
+        sendError(socket, 'NOT_YOUR_TURN', 'It is not your turn.');
+        return null;
+    }
+
+    return {
+        game,
+        player
+    };
+}
+
+/**
+ * Passes the authenticated player's turn without modifying rack or score.
+ *
+ * @param {WebSocket} socket Player WebSocket connection.
+ *
+ * @returns {void}
+ */
+function passTurn(socket) {
+    const context = getCurrentTurnContext(socket);
+
+    if (context === null) {
+        return;
+    }
+
+    const { game, player } = context;
+
+    game.lastAction = {
+        type: 'pass',
+        playerId: player.id,
+        playerName: player.name
+    };
+
+    send(socket, 'turn-passed', {
+        gameCode: game.code
+    });
+
+    advanceTurn(game);
+    sendAllPrivatePlayerStates(game);
+    broadcastGameState(game);
+
+    console.log(
+        `Player "${player.name}" passed turn ${game.turnNumber - 1} in game ${game.code}.`
+    );
+}
+
+/**
+ * Exchanges selected private rack tiles and ends the player's turn.
+ *
+ * The server validates that at least seven tiles remain in the bag before
+ * the exchange and draws replacements before returning discarded tiles.
+ *
+ * @param {WebSocket} socket Player WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function exchangePlayerTiles(socket, message) {
+    const context = getCurrentTurnContext(socket);
+
+    if (context === null) {
+        return;
+    }
+
+    const { game, player } = context;
+    let exchangeResult;
+
+    try {
+        exchangeResult = exchangeTiles(
+            game.bag,
+            player.rack,
+            message.tileIds
+        );
+    } catch (error) {
+        if (error instanceof TurnActionError) {
+            sendError(socket, error.code, error.message);
+            return;
+        }
+
+        throw error;
+    }
+
+    player.rack = exchangeResult.rack;
+
+    game.lastAction = {
+        type: 'exchange',
+        playerId: player.id,
+        playerName: player.name,
+        exchangedCount: exchangeResult.exchangedCount
+    };
+
+    send(socket, 'tiles-exchanged', {
+        gameCode: game.code,
+        exchangedCount: exchangeResult.exchangedCount
+    });
+
+    advanceTurn(game);
+    sendAllPrivatePlayerStates(game);
+    broadcastGameState(game);
+
+    console.log(
+        `Player "${player.name}" exchanged ${exchangeResult.exchangedCount} tile(s) in game ${game.code}.`
     );
 }
 
@@ -796,6 +955,14 @@ function handleMessage(socket, message) {
 
         case 'submit-move':
             submitMove(socket, message);
+            break;
+
+        case 'pass-turn':
+            passTurn(socket);
+            break;
+
+        case 'exchange-tiles':
+            exchangePlayerTiles(socket, message);
             break;
 
         default:

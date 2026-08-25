@@ -49,10 +49,9 @@
                     Turn <strong id="turn-number">0</strong> — <strong id="turn-player">Waiting</strong>
                 </p>
 
-                <p id="last-move-information" hidden>
-                    Last move: <strong id="last-move-player"></strong> —
-                    <span id="last-move-words"></span> —
-                    <strong>+<span id="last-move-score">0</span> pts</strong>
+                <p id="last-action-information" hidden>
+                    Last action: <strong id="last-action-player"></strong> —
+                    <span id="last-action-summary"></span>
                 </p>
 
                 <p>
@@ -81,7 +80,7 @@
          * Creates game sessions, displays the lobby state,
          * and starts a game when all players are ready.
          *
-         * @version 0.5.0
+         * @version 0.6.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -99,10 +98,9 @@
         const turnInformation = document.getElementById('turn-information');
         const turnNumberElement = document.getElementById('turn-number');
         const turnPlayerElement = document.getElementById('turn-player');
-        const lastMoveInformation = document.getElementById('last-move-information');
-        const lastMovePlayer = document.getElementById('last-move-player');
-        const lastMoveWords = document.getElementById('last-move-words');
-        const lastMoveScore = document.getElementById('last-move-score');
+        const lastActionInformation = document.getElementById('last-action-information');
+        const lastActionPlayer = document.getElementById('last-action-player');
+        const lastActionSummary = document.getElementById('last-action-summary');
         const screenLink = document.getElementById('screen-link');
         const playerLink = document.getElementById('player-link');
         const playerList = document.getElementById('player-list');
@@ -136,15 +134,30 @@
                 turnInformation.hidden = true;
             }
 
-            if (game.lastMove !== null) {
-                lastMovePlayer.textContent = game.lastMove.playerName;
-                lastMoveWords.textContent = game.lastMove.words
-                    .map((word) => word.text)
-                    .join(', ');
-                lastMoveScore.textContent = game.lastMove.score;
-                lastMoveInformation.hidden = false;
+            if (game.lastAction !== null) {
+                lastActionPlayer.textContent = game.lastAction.playerName;
+
+                if (game.lastAction.type === 'move') {
+                    const words = game.lastAction.words
+                        .map((word) => word.text)
+                        .join(', ');
+
+                    lastActionSummary.textContent =
+                        `${words} — +${game.lastAction.score} pts`;
+                } else if (game.lastAction.type === 'exchange') {
+                    const count = game.lastAction.exchangedCount;
+
+                    lastActionSummary.textContent =
+                        `exchanged ${count} tile${count === 1 ? '' : 's'}`;
+                } else if (game.lastAction.type === 'pass') {
+                    lastActionSummary.textContent = 'passed the turn';
+                } else {
+                    lastActionSummary.textContent = 'turn completed';
+                }
+
+                lastActionInformation.hidden = false;
             } else {
-                lastMoveInformation.hidden = true;
+                lastActionInformation.hidden = true;
             }
 
             game.players.forEach((player) => {
