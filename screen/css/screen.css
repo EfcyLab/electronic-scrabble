@@ -1,0 +1,150 @@
+/**
+ * Electronic Scrabble shared screen styles.
+ *
+ * @author Electronic Scrabble Project
+ * @version 0.5.0
+ */
+
+.screen-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 310px);
+    gap: var(--spacing-large);
+    align-items: start;
+}
+
+.board-frame {
+    width: min(100%, 850px);
+    margin: 0 auto;
+    padding: clamp(0.35rem, 1vw, 0.75rem);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-large);
+    background: var(--color-surface-elevated);
+    box-shadow: var(--shadow-card);
+}
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(15, minmax(0, 1fr));
+    gap: clamp(1px, 0.18vw, 3px);
+    width: 100%;
+    aspect-ratio: 1;
+}
+
+.board-cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: clamp(1px, 0.28vw, 5px);
+    background: var(--board-normal);
+    color: var(--board-normal-text);
+    font-size: clamp(0.32rem, 0.72vw, 0.68rem);
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+}
+
+.board-cell--dl {
+    background: var(--board-dl);
+}
+
+.board-cell--tl {
+    background: var(--board-tl);
+    color: #fff;
+}
+
+.board-cell--dw {
+    background: var(--board-dw);
+}
+
+.board-cell--tw {
+    background: var(--board-tw);
+    color: #fff;
+}
+
+.board-cell--last-move {
+    outline: clamp(2px, 0.25vw, 4px) solid var(--color-primary-strong);
+    outline-offset: clamp(-4px, -0.25vw, -2px);
+    z-index: 1;
+}
+
+.board-tile {
+    position: absolute;
+    inset: 6%;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--tile-border);
+    border-radius: 12%;
+    background: var(--tile-background);
+    color: var(--tile-text);
+    font-size: clamp(0.55rem, 1.65vw, 1.35rem);
+    font-weight: 950;
+}
+
+.board-tile-value {
+    position: absolute;
+    right: 8%;
+    bottom: 6%;
+    font-size: 42%;
+}
+
+.screen-sidebar {
+    display: grid;
+    gap: var(--spacing-large);
+}
+
+.screen-card {
+    padding: var(--spacing-large);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-large);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
+}
+
+.screen-card p {
+    margin: 0.65rem 0 0;
+}
+
+.last-move-words {
+    color: var(--color-text-muted);
+}
+
+.last-move-score {
+    color: var(--color-success);
+    font-size: 1.55rem;
+    font-weight: 900;
+}
+
+#player-list {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+#player-list li {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    background: var(--color-surface-elevated);
+}
+
+.screen-player--current {
+    border-color: color-mix(in srgb, var(--color-primary) 62%, var(--color-border)) !important;
+    box-shadow: inset 4px 0 0 var(--color-primary);
+}
+
+.screen-player-meta {
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+}
+
+@media (max-width: 950px) {
+    .screen-layout {
+        grid-template-columns: 1fr;
+    }
+}

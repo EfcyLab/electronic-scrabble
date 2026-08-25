@@ -1,0 +1,226 @@
+/**
+ * Electronic Scrabble shared components.
+ *
+ * Provides reusable visual components for the administration,
+ * player, and shared screen interfaces.
+ *
+ * @version 0.1.0
+ */
+
+.card {
+    padding: var(--spacing-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-large);
+    background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+    box-shadow: var(--shadow-card);
+}
+
+.card--soft {
+    background: var(--color-surface-elevated);
+    box-shadow: none;
+}
+
+.card__title {
+    margin: 0 0 var(--spacing-3);
+    font-size: 1.05rem;
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 32px;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface-elevated);
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.status::before {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+}
+
+.status--success {
+    color: var(--color-success);
+}
+
+.status--warning {
+    color: var(--color-warning);
+}
+
+.status--danger {
+    color: var(--color-danger);
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 46px;
+    padding: 0.75rem 1rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-medium);
+    cursor: pointer;
+    transition:
+        transform var(--transition-fast),
+        background var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.button:focus-visible,
+.input:focus-visible,
+.select:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-primary) 42%, transparent);
+    outline-offset: 2px;
+}
+
+.button--primary {
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    font-weight: 800;
+}
+
+.button--secondary {
+    border-color: var(--color-border);
+    background: var(--color-surface-soft);
+    color: var(--color-text);
+}
+
+.button--danger {
+    border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+    background: color-mix(in srgb, var(--color-danger) 14%, var(--color-surface));
+    color: var(--color-danger);
+}
+
+.button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .button:not(:disabled):hover {
+        transform: translateY(-1px);
+    }
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.field__label {
+    color: var(--color-text-muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.input,
+.select {
+    width: 100%;
+    min-height: 46px;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    background: var(--color-surface-elevated);
+    color: var(--color-text);
+}
+
+.metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.metric__value {
+    font-size: clamp(1.6rem, 5vw, 2.7rem);
+    font-weight: 900;
+}
+
+.metric__label {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+.player-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.player-list__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-3);
+    min-height: 54px;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    background: var(--color-surface-elevated);
+}
+
+.player-list__name {
+    font-weight: 800;
+}
+
+.player-list__meta {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+.tile-rack {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: clamp(0.25rem, 1.8vw, 0.65rem);
+    padding: var(--spacing-3);
+    overflow-x: auto;
+}
+
+.tile {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: clamp(44px, 12vw, 68px);
+    aspect-ratio: 1;
+    flex: 0 0 auto;
+    border: 2px solid var(--tile-border);
+    border-radius: 0.55rem;
+    background: var(--tile-background);
+    color: var(--tile-text);
+    box-shadow: 0 5px 0 color-mix(in srgb, var(--tile-border) 72%, #000);
+    font-size: clamp(1.25rem, 5vw, 2rem);
+    font-weight: 900;
+    user-select: none;
+}
+
+.tile__value {
+    position: absolute;
+    right: 0.3rem;
+    bottom: 0.2rem;
+    font-size: 0.62rem;
+    font-weight: 800;
+}
+
+.game-code {
+    letter-spacing: 0.18em;
+    font-size: clamp(2rem, 8vw, 4rem);
+    font-weight: 950;
+}
+
+.theme-picker {
+    width: auto;
+    min-width: 160px;
+}

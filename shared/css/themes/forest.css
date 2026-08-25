@@ -1,0 +1,38 @@
+/**
+ * Electronic Scrabble Forest theme.
+ *
+ * Natural green theme.
+ *
+ * @version 0.1.0
+ */
+
+html[data-theme="forest"] {
+    color-scheme: dark;
+
+    --color-background: #0f1712;
+    --color-surface: #17221a;
+    --color-surface-elevated: #1d2d22;
+    --color-surface-soft: #25392b;
+    --color-text: #edf5ed;
+    --color-text-muted: #a1b7a4;
+    --color-border: rgba(184, 217, 185, 0.13);
+
+    --color-primary: #8fbe72;
+    --color-primary-strong: #b6d99e;
+    --color-primary-text: #10190c;
+
+    --color-success: #72d69b;
+    --color-warning: #d6bd67;
+    --color-danger: #df7f79;
+
+    --tile-background: #d8d0a6;
+    --tile-text: #182014;
+    --tile-border: #aaa16f;
+    --board-normal: #c8c5a2;
+    --board-normal-text: #1b251b;
+    --board-dl: #8ab8ad;
+    --board-tl: #4c7d72;
+    --board-dw: #c69b93;
+    --board-tw: #925b56;
+}
+

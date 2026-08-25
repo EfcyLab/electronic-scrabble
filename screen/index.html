@@ -1,45 +1,97 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="classic">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Electronic Scrabble - Shared Screen</title>
+
+    <link rel="stylesheet" href="../shared/css/base.css">
+    <link rel="stylesheet" href="../shared/css/components.css">
+    <link rel="stylesheet" href="../shared/css/themes/classic.css">
+    <link rel="stylesheet" href="../shared/css/themes/midnight.css">
+    <link rel="stylesheet" href="../shared/css/themes/forest.css">
+    <link rel="stylesheet" href="./css/screen.css">
+
+    <script src="../shared/js/theme-manager.js" defer></script>
 </head>
 <body>
-    <main>
-        <h1>Electronic Scrabble</h1>
+    <main class="app-shell">
+        <header class="app-header">
+            <div class="app-brand">
+                <div class="app-logo" aria-hidden="true">ES</div>
+                <div>
+                    <h1 class="app-title">Electronic Scrabble</h1>
+                    <p class="app-subtitle">Game <strong id="game-code">----</strong></p>
+                </div>
+            </div>
 
-        <p id="connection-status">Connecting...</p>
+            <div class="row">
+                <p id="connection-status" class="status">Connecting...</p>
 
-        <section>
-            <h2>Game <span id="game-code">----</span></h2>
+                <label class="field">
+                    <span class="field__label">Theme</span>
+                    <select class="select theme-picker" data-theme-picker>
+                        <option value="classic">Classic</option>
+                        <option value="midnight">Midnight</option>
+                        <option value="forest">Forest</option>
+                    </select>
+                </label>
+            </div>
+        </header>
 
-            <p>
-                Status:
-                <strong id="game-status">Lobby</strong>
-            </p>
+        <div class="screen-layout">
+            <section class="board-frame">
+                <div id="board" role="grid" aria-label="Scrabble board"></div>
+            </section>
 
-            <p id="bag-information" hidden>
-                Tiles remaining:
-                <strong id="bag-remaining">0</strong>
-            </p>
+            <aside class="screen-sidebar">
+                <section class="screen-card">
+                    <h2 class="card__title">Game</h2>
+                    <p>Status: <strong id="game-status">Lobby</strong></p>
+                    <p id="turn-information" hidden>
+                        Turn <strong id="turn-number">0</strong><br>
+                        <span id="current-player-name">Waiting</span>
+                    </p>
+                    <p id="bag-information" hidden>
+                        Tiles remaining: <strong id="bag-remaining">0</strong>
+                    </p>
+                </section>
 
-            <h3>Players</h3>
-            <ul id="player-list"></ul>
-        </section>
+                <section id="last-move-card" class="screen-card" hidden>
+                    <h2 class="card__title">Last move</h2>
+                    <p><strong id="last-move-player"></strong></p>
+                    <p id="last-move-words" class="last-move-words"></p>
+                    <p class="last-move-score">+<span id="last-move-score">0</span> pts</p>
+                </section>
+
+                <section class="screen-card">
+                    <h2 class="card__title">Players</h2>
+                    <ul id="player-list"></ul>
+                </section>
+            </aside>
+        </div>
     </main>
 
     <script>
         /**
          * Electronic Scrabble Shared Screen Client
          *
-         * Displays the public game state without exposing private racks.
+         * Displays the public game state, active turn, last accepted move,
+         * and the standard board without receiving private player racks.
          *
-         * @version 0.3.0
+         * @author Electronic Scrabble Project
+         * @version 0.5.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
+
+        const PREMIUM_LABELS = Object.freeze({
+            DL: { label: 'DL', className: 'board-cell--dl' },
+            TL: { label: 'TL', className: 'board-cell--tl' },
+            DW: { label: 'DW', className: 'board-cell--dw' },
+            TW: { label: 'TW', className: 'board-cell--tw' }
+        });
 
         const parameters = new URLSearchParams(window.location.search);
         const gameCode = parameters.get('game')?.toUpperCase() ?? '';
@@ -47,13 +99,146 @@
         const connectionStatus = document.getElementById('connection-status');
         const gameCodeElement = document.getElementById('game-code');
         const gameStatusElement = document.getElementById('game-status');
+        const turnInformation = document.getElementById('turn-information');
+        const turnNumberElement = document.getElementById('turn-number');
+        const currentPlayerNameElement = document.getElementById('current-player-name');
         const bagInformation = document.getElementById('bag-information');
         const bagRemainingElement = document.getElementById('bag-remaining');
+        const lastMoveCard = document.getElementById('last-move-card');
+        const lastMovePlayer = document.getElementById('last-move-player');
+        const lastMoveWords = document.getElementById('last-move-words');
+        const lastMoveScore = document.getElementById('last-move-score');
         const playerList = document.getElementById('player-list');
+        const boardElement = document.getElementById('board');
 
         gameCodeElement.textContent = gameCode || '----';
 
         const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
+
+        /**
+         * Returns a coordinate key used to highlight the last move.
+         *
+         * @param {number} row Board row.
+         * @param {number} column Board column.
+         *
+         * @returns {string} Coordinate key.
+         */
+        function getCoordinateKey(row, column) {
+            return `${row}:${column}`;
+        }
+
+        /**
+         * Creates a board tile element.
+         *
+         * @param {Object} tile Public board tile.
+         *
+         * @returns {HTMLDivElement} Tile element.
+         */
+        function createBoardTile(tile) {
+            const tileElement = document.createElement('div');
+            const valueElement = document.createElement('span');
+
+            tileElement.className = 'board-tile';
+            valueElement.className = 'board-tile-value';
+
+            tileElement.textContent = tile.isBlank
+                ? (tile.assignedLetter ?? '★')
+                : tile.letter;
+
+            valueElement.textContent = tile.value;
+            tileElement.appendChild(valueElement);
+
+            return tileElement;
+        }
+
+        /**
+         * Creates a board cell element.
+         *
+         * @param {Object} cell Public board cell.
+         * @param {Set<string>} lastMoveCoordinates Last-move coordinate set.
+         *
+         * @returns {HTMLDivElement} Board cell element.
+         */
+        function createBoardCell(cell, lastMoveCoordinates) {
+            const cellElement = document.createElement('div');
+            const isCenter = cell.row === 7 && cell.column === 7;
+            const coordinateKey = getCoordinateKey(cell.row, cell.column);
+
+            cellElement.className = 'board-cell';
+            cellElement.setAttribute('role', 'gridcell');
+
+            if (cell.premium !== null && PREMIUM_LABELS[cell.premium]) {
+                cellElement.classList.add(
+                    PREMIUM_LABELS[cell.premium].className
+                );
+            }
+
+            if (lastMoveCoordinates.has(coordinateKey)) {
+                cellElement.classList.add('board-cell--last-move');
+            }
+
+            if (cell.tile !== null) {
+                cellElement.appendChild(createBoardTile(cell.tile));
+                return cellElement;
+            }
+
+            if (isCenter) {
+                cellElement.textContent = '★';
+                return cellElement;
+            }
+
+            if (cell.premium !== null && PREMIUM_LABELS[cell.premium]) {
+                cellElement.textContent = PREMIUM_LABELS[cell.premium].label;
+            }
+
+            return cellElement;
+        }
+
+        /**
+         * Renders the public board matrix.
+         *
+         * @param {Array<Array<Object>>} board Public board matrix.
+         * @param {Object|null} lastMove Last accepted public move.
+         *
+         * @returns {void}
+         */
+        function renderBoard(board, lastMove) {
+            const fragment = document.createDocumentFragment();
+            const lastMoveCoordinates = new Set(
+                (lastMove?.placements ?? []).map((placement) => (
+                    getCoordinateKey(placement.row, placement.column)
+                ))
+            );
+
+            board.flat().forEach((cell) => {
+                fragment.appendChild(
+                    createBoardCell(cell, lastMoveCoordinates)
+                );
+            });
+
+            boardElement.replaceChildren(fragment);
+        }
+
+        /**
+         * Renders the last accepted move summary.
+         *
+         * @param {Object|null} lastMove Last accepted move.
+         *
+         * @returns {void}
+         */
+        function renderLastMove(lastMove) {
+            if (lastMove === null) {
+                lastMoveCard.hidden = true;
+                return;
+            }
+
+            lastMovePlayer.textContent = lastMove.playerName;
+            lastMoveWords.textContent = lastMove.words
+                .map((word) => `${word.text} · ${word.score}`)
+                .join('  •  ');
+            lastMoveScore.textContent = lastMove.score;
+            lastMoveCard.hidden = false;
+        }
 
         /**
          * Updates the public game state on the shared display.
@@ -73,27 +258,57 @@
                 bagInformation.hidden = true;
             }
 
+            if (game.status === 'playing') {
+                const currentPlayer = game.players.find(
+                    (player) => player.id === game.currentPlayerId
+                );
+
+                turnNumberElement.textContent = game.turnNumber;
+                currentPlayerNameElement.textContent = currentPlayer
+                    ? `${currentPlayer.name}'s turn`
+                    : 'Waiting';
+                turnInformation.hidden = false;
+            } else {
+                turnInformation.hidden = true;
+            }
+
+            if (Array.isArray(game.board)) {
+                renderBoard(game.board, game.lastMove);
+            }
+
+            renderLastMove(game.lastMove);
+
             game.players.forEach((player) => {
                 const item = document.createElement('li');
-                const connectionLabel = player.connected ? '' : ' — disconnected';
+                const name = document.createElement('strong');
+                const metadata = document.createElement('span');
+                const isCurrent = player.id === game.currentPlayerId;
+
+                name.textContent = player.name;
+                metadata.className = 'screen-player-meta';
 
                 if (game.status === 'playing') {
-                    item.textContent =
-                        `${player.name} — ${player.score} pts — ` +
-                        `${player.rackCount} tiles${connectionLabel}`;
+                    metadata.textContent = `${player.score} pts · ${player.rackCount} tiles`;
                 } else {
-                    item.textContent = `${player.name}${connectionLabel}`;
+                    metadata.textContent = player.connected ? 'connected' : 'disconnected';
                 }
 
+                if (isCurrent) {
+                    item.classList.add('screen-player--current');
+                }
+
+                item.append(name, metadata);
                 playerList.appendChild(item);
             });
         }
 
         socket.addEventListener('open', () => {
             connectionStatus.textContent = 'Connected';
+            connectionStatus.className = 'status status--success';
 
             if (!gameCode) {
                 connectionStatus.textContent = 'Missing game code';
+                connectionStatus.className = 'status status--danger';
                 return;
             }
 
@@ -105,10 +320,12 @@
 
         socket.addEventListener('close', () => {
             connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'status status--danger';
         });
 
         socket.addEventListener('error', () => {
             connectionStatus.textContent = 'Connection error';
+            connectionStatus.className = 'status status--danger';
         });
 
         socket.addEventListener('message', (event) => {
@@ -124,6 +341,7 @@
 
             if (data.type === 'error') {
                 connectionStatus.textContent = data.message;
+                connectionStatus.className = 'status status--danger';
             }
         });
     </script>

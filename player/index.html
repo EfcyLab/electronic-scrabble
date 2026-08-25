@@ -1,78 +1,139 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="classic">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Electronic Scrabble - Player</title>
-    <style>
-        #rack {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            padding: 0;
-            list-style: none;
-        }
 
-        .tile {
-            min-width: 3rem;
-            min-height: 3rem;
-            display: grid;
-            place-items: center;
-            border: 1px solid currentColor;
-            border-radius: 0.25rem;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
+    <link rel="stylesheet" href="../shared/css/base.css">
+    <link rel="stylesheet" href="../shared/css/components.css">
+    <link rel="stylesheet" href="../shared/css/themes/classic.css">
+    <link rel="stylesheet" href="../shared/css/themes/midnight.css">
+    <link rel="stylesheet" href="../shared/css/themes/forest.css">
+    <link rel="stylesheet" href="./css/player.css">
 
-        .tile-value {
-            font-size: 0.75rem;
-            font-weight: normal;
-        }
-    </style>
+    <script src="../shared/js/theme-manager.js" defer></script>
 </head>
 <body>
-    <main>
-        <h1>Electronic Scrabble</h1>
+    <main class="app-shell">
+        <header class="app-header">
+            <div class="app-brand">
+                <div class="app-logo" aria-hidden="true">ES</div>
+                <div>
+                    <h1 class="app-title">Player Rack</h1>
+                    <p class="app-subtitle">Private Electronic Scrabble interface</p>
+                </div>
+            </div>
 
-        <p id="connection-status">Connecting...</p>
+            <div class="row">
+                <p id="connection-status" class="status">Connecting...</p>
+
+                <label class="field">
+                    <span class="field__label">Theme</span>
+                    <select class="select theme-picker" data-theme-picker>
+                        <option value="classic">Classic</option>
+                        <option value="midnight">Midnight</option>
+                        <option value="forest">Forest</option>
+                    </select>
+                </label>
+            </div>
+        </header>
 
         <form id="join-form">
+            <h2 class="card__title">Join a game</h2>
+
             <label for="game-code">Game code</label>
             <input id="game-code" type="text" maxlength="4" required>
 
             <label for="player-name">Player name</label>
             <input id="player-name" type="text" maxlength="30" required>
 
-            <button id="join-button" type="submit" disabled>
-                Join Game
-            </button>
+            <button id="join-button" type="submit" disabled>Join Game</button>
         </form>
 
         <section id="game-information" hidden>
-            <h2>Game <span id="current-game-code"></span></h2>
+            <section class="player-summary">
+                <div>
+                    <p class="muted player-summary__eyebrow">Game <span id="current-game-code"></span></p>
+                    <h2 id="current-player-name">Player</h2>
+                    <p id="turn-status" class="status">Waiting</p>
+                </div>
 
-            <p>
-                Player:
-                <strong id="current-player-name"></strong>
-            </p>
-
-            <p>
-                Status:
-                <strong id="game-status">Lobby</strong>
-            </p>
-
-            <p>
-                Score:
-                <strong id="player-score">0</strong>
-            </p>
-
-            <section id="rack-section" hidden>
-                <h3>Your rack</h3>
-                <ul id="rack"></ul>
+                <div class="metric">
+                    <span id="player-score" class="metric__value">0</span>
+                    <span class="metric__label">Points</span>
+                </div>
             </section>
 
-            <h3>Players</h3>
-            <ul id="player-list"></ul>
+            <section id="rack-section" class="player-panel" hidden>
+                <div class="row row--between">
+                    <div>
+                        <h3 class="card__title">Your rack</h3>
+                        <p class="muted panel-help">Select a tile, then choose a board square.</p>
+                    </div>
+
+                    <label id="blank-letter-field" class="field blank-letter-field" hidden>
+                        <span class="field__label">Blank letter</span>
+                        <select id="blank-letter" class="select" aria-label="Blank tile assigned letter"></select>
+                    </label>
+                </div>
+
+                <div id="rack" class="rack" aria-label="Private tile rack"></div>
+            </section>
+
+            <section id="move-section" class="player-panel" hidden>
+                <div class="row row--between">
+                    <div>
+                        <h3 class="card__title">Prepare your move</h3>
+                        <p class="muted panel-help">
+                            Tap a square below, or use the coordinate controls as an alternative.
+                        </p>
+                    </div>
+
+                    <span id="pending-count" class="status">0 tiles</span>
+                </div>
+
+                <div class="player-board-scroll">
+                    <div id="player-board" role="grid" aria-label="Scrabble board"></div>
+                </div>
+
+                <form id="coordinate-form" class="coordinate-form">
+                    <label class="field">
+                        <span class="field__label">Column</span>
+                        <select id="coordinate-column" class="select"></select>
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">Row</span>
+                        <select id="coordinate-row" class="select"></select>
+                    </label>
+
+                    <button id="coordinate-place" class="button button--secondary" type="submit">
+                        Place Selected Tile
+                    </button>
+                </form>
+
+                <div class="move-actions">
+                    <button id="clear-move" class="button button--secondary" type="button" disabled>
+                        Clear Move
+                    </button>
+
+                    <button id="submit-move" class="button button--primary" type="button" disabled>
+                        Submit Move
+                    </button>
+                </div>
+
+                <p class="validation-note">
+                    This milestone validates placement and scoring rules. Dictionary validation is not enabled yet.
+                </p>
+
+                <p id="move-feedback" class="move-feedback" aria-live="polite"></p>
+            </section>
+
+            <section class="player-panel">
+                <h3 class="card__title">Players</h3>
+                <ul id="player-list"></ul>
+            </section>
         </section>
     </main>
 
@@ -80,15 +141,26 @@
         /**
          * Electronic Scrabble Player Client
          *
-         * Joins or resumes a game session and displays the player's
-         * private tile rack without exposing it to other clients.
+         * Joins or resumes a private player session, renders the private rack,
+         * prepares local tile placements, and submits proposed moves to the
+         * authoritative game server.
          *
-         * @version 0.3.0
+         * @author Electronic Scrabble Project
+         * @version 0.5.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
         const STORAGE_PREFIX = 'electronicScrabble.player.';
+        const BOARD_SIZE = 15;
+        const COLUMN_LABELS = 'ABCDEFGHIJKLMNO'.split('');
+
+        const PREMIUM_LABELS = Object.freeze({
+            DL: { label: 'DL', className: 'player-board-cell--dl' },
+            TL: { label: 'TL', className: 'player-board-cell--tl' },
+            DW: { label: 'DW', className: 'player-board-cell--dw' },
+            TW: { label: 'TW', className: 'player-board-cell--tw' }
+        });
 
         const parameters = new URLSearchParams(window.location.search);
         const initialGameCode = parameters.get('game')?.toUpperCase() ?? '';
@@ -101,10 +173,22 @@
         const gameInformation = document.getElementById('game-information');
         const currentGameCodeElement = document.getElementById('current-game-code');
         const currentPlayerNameElement = document.getElementById('current-player-name');
-        const gameStatusElement = document.getElementById('game-status');
         const playerScoreElement = document.getElementById('player-score');
+        const turnStatus = document.getElementById('turn-status');
         const rackSection = document.getElementById('rack-section');
         const rackElement = document.getElementById('rack');
+        const blankLetterField = document.getElementById('blank-letter-field');
+        const blankLetterSelect = document.getElementById('blank-letter');
+        const moveSection = document.getElementById('move-section');
+        const playerBoard = document.getElementById('player-board');
+        const coordinateForm = document.getElementById('coordinate-form');
+        const coordinateColumn = document.getElementById('coordinate-column');
+        const coordinateRow = document.getElementById('coordinate-row');
+        const coordinatePlace = document.getElementById('coordinate-place');
+        const clearMoveButton = document.getElementById('clear-move');
+        const submitMoveButton = document.getElementById('submit-move');
+        const pendingCount = document.getElementById('pending-count');
+        const moveFeedback = document.getElementById('move-feedback');
         const playerList = document.getElementById('player-list');
 
         gameCodeInput.value = initialGameCode;
@@ -112,6 +196,14 @@
         const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
         let currentGameCode = null;
+        let currentPlayerId = null;
+        let currentPlayerName = null;
+        let currentRack = [];
+        let currentBoard = [];
+        let currentTurnPlayerId = null;
+        let gameStatus = 'lobby';
+        let selectedTileId = null;
+        let pendingPlacements = new Map();
 
         /**
          * Returns the local storage key for a game session.
@@ -169,15 +261,61 @@
         }
 
         /**
+         * Returns a coordinate key for pending placements.
+         *
+         * @param {number} row Board row.
+         * @param {number} column Board column.
+         *
+         * @returns {string} Coordinate key.
+         */
+        function getCoordinateKey(row, column) {
+            return `${row}:${column}`;
+        }
+
+        /**
+         * Initializes letter and coordinate selectors.
+         *
+         * @returns {void}
+         */
+        function initializeSelectors() {
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((letter) => {
+                const option = document.createElement('option');
+                option.value = letter;
+                option.textContent = letter;
+                blankLetterSelect.appendChild(option);
+            });
+
+            COLUMN_LABELS.forEach((column, index) => {
+                const option = document.createElement('option');
+                option.value = String(index);
+                option.textContent = column;
+                coordinateColumn.appendChild(option);
+            });
+
+            for (let row = 0; row < BOARD_SIZE; row += 1) {
+                const option = document.createElement('option');
+                option.value = String(row);
+                option.textContent = String(row + 1);
+                coordinateRow.appendChild(option);
+            }
+
+            coordinateColumn.value = '7';
+            coordinateRow.value = '7';
+        }
+
+        /**
          * Displays the authenticated player interface.
          *
          * @param {string} gameCode Public game code.
          * @param {string} playerName Player name.
+         * @param {string} playerId Player identifier.
          *
          * @returns {void}
          */
-        function showPlayerInterface(gameCode, playerName) {
+        function showPlayerInterface(gameCode, playerName, playerId) {
             currentGameCode = gameCode;
+            currentPlayerName = playerName;
+            currentPlayerId = playerId;
             currentGameCodeElement.textContent = gameCode;
             currentPlayerNameElement.textContent = playerName;
             joinForm.hidden = true;
@@ -185,7 +323,7 @@
         }
 
         /**
-         * Updates the public player list.
+         * Updates the public player list and current-turn indicator.
          *
          * @param {Array<Object>} players Public player list.
          *
@@ -196,48 +334,424 @@
 
             players.forEach((player) => {
                 const item = document.createElement('li');
-                const connectionLabel = player.connected ? '' : ' — disconnected';
+                const name = document.createElement('strong');
+                const metadata = document.createElement('span');
+                const isCurrent = player.id === currentTurnPlayerId;
 
-                item.textContent = `${player.name}${connectionLabel}`;
+                name.textContent = player.name;
+                metadata.className = 'player-list-meta';
+
+                if (gameStatus === 'playing') {
+                    metadata.textContent = `${player.score} pts${isCurrent ? ' · turn' : ''}`;
+                } else {
+                    metadata.textContent = player.connected ? 'connected' : 'disconnected';
+                }
+
+                if (isCurrent) {
+                    item.classList.add('player-list-item--current');
+                }
+
+                item.append(name, metadata);
                 playerList.appendChild(item);
             });
         }
 
         /**
-         * Displays the player's private tile rack.
+         * Returns whether the local player may prepare and submit a move.
          *
-         * @param {Array<Object>} rack Private tile rack.
+         * @returns {boolean} True when it is the local player's turn.
+         */
+        function canPlay() {
+            return (
+                gameStatus === 'playing' &&
+                currentPlayerId !== null &&
+                currentTurnPlayerId === currentPlayerId
+            );
+        }
+
+        /**
+         * Updates turn-dependent controls and status text.
          *
          * @returns {void}
          */
-        function updateRack(rack) {
-            rackElement.replaceChildren();
+        function updateTurnState() {
+            const isTurn = canPlay();
 
-            rack.forEach((tile) => {
-                const item = document.createElement('li');
-                const letter = document.createElement('span');
+            turnStatus.textContent = isTurn
+                ? 'Your turn'
+                : (gameStatus === 'playing' ? 'Waiting' : 'Lobby');
+
+            turnStatus.className = isTurn
+                ? 'status status--success'
+                : 'status';
+
+            moveSection.hidden = gameStatus !== 'playing';
+            coordinatePlace.disabled = !isTurn || selectedTileId === null;
+            clearMoveButton.disabled = pendingPlacements.size === 0;
+            submitMoveButton.disabled = !isTurn || pendingPlacements.size === 0;
+
+            if (!isTurn) {
+                selectedTileId = null;
+            }
+
+            renderRack();
+            renderPlayerBoard();
+        }
+
+        /**
+         * Returns the private rack tile matching an identifier.
+         *
+         * @param {string} tileId Tile identifier.
+         *
+         * @returns {Object|null} Tile or null.
+         */
+        function getRackTile(tileId) {
+            return currentRack.find((tile) => tile.id === tileId) ?? null;
+        }
+
+        /**
+         * Returns whether a rack tile is already used by the pending move.
+         *
+         * @param {string} tileId Tile identifier.
+         *
+         * @returns {boolean} True when already placed locally.
+         */
+        function isTilePending(tileId) {
+            return Array.from(pendingPlacements.values()).some(
+                (placement) => placement.tileId === tileId
+            );
+        }
+
+        /**
+         * Selects or deselects a private rack tile.
+         *
+         * @param {string} tileId Tile identifier.
+         *
+         * @returns {void}
+         */
+        function selectRackTile(tileId) {
+            if (!canPlay() || isTilePending(tileId)) {
+                return;
+            }
+
+            selectedTileId = selectedTileId === tileId ? null : tileId;
+            renderRack();
+            updateMoveControls();
+        }
+
+        /**
+         * Renders the player's private rack as accessible buttons.
+         *
+         * @returns {void}
+         */
+        function renderRack() {
+            const fragment = document.createDocumentFragment();
+            const isTurn = canPlay();
+
+            currentRack.forEach((tile) => {
+                if (isTilePending(tile.id)) {
+                    return;
+                }
+
+                const button = document.createElement('button');
                 const value = document.createElement('span');
+                const displayLetter = tile.isBlank ? '★' : tile.letter;
 
-                item.className = 'tile';
-                letter.textContent = tile.isBlank ? '★' : tile.letter;
-                value.className = 'tile-value';
+                button.type = 'button';
+                button.className = 'rack-tile';
+                button.dataset.tileId = tile.id;
+                button.disabled = !isTurn;
+                button.setAttribute(
+                    'aria-label',
+                    tile.isBlank
+                        ? 'Blank tile, zero points'
+                        : `${tile.letter}, ${tile.value} points`
+                );
+
+                if (selectedTileId === tile.id) {
+                    button.classList.add('rack-tile--selected');
+                }
+
+                button.textContent = displayLetter;
+                value.className = 'rack-tile__value';
                 value.textContent = tile.value;
+                button.appendChild(value);
 
-                item.append(letter, value);
-                rackElement.appendChild(item);
+                button.addEventListener('click', () => {
+                    selectRackTile(tile.id);
+                });
+
+                fragment.appendChild(button);
             });
 
-            rackSection.hidden = false;
+            rackElement.replaceChildren(fragment);
+            rackSection.hidden = currentRack.length === 0 && gameStatus !== 'playing';
+
+            const selectedTile = selectedTileId !== null
+                ? getRackTile(selectedTileId)
+                : null;
+
+            blankLetterField.hidden = !selectedTile?.isBlank;
         }
+
+        /**
+         * Creates a visual tile for the local board preview.
+         *
+         * @param {Object} tile Tile data.
+         * @param {boolean} pending Whether the tile is pending locally.
+         *
+         * @returns {HTMLSpanElement} Tile element.
+         */
+        function createPreviewTile(tile, pending) {
+            const tileElement = document.createElement('span');
+            const valueElement = document.createElement('span');
+
+            tileElement.className = pending
+                ? 'player-board-tile player-board-tile--pending'
+                : 'player-board-tile';
+
+            tileElement.textContent = tile.isBlank
+                ? (tile.assignedLetter ?? '★')
+                : tile.letter;
+
+            valueElement.className = 'player-board-tile__value';
+            valueElement.textContent = tile.value;
+            tileElement.appendChild(valueElement);
+
+            return tileElement;
+        }
+
+        /**
+         * Creates one interactive board cell for the player's local preview.
+         *
+         * @param {Object} cell Public board cell.
+         *
+         * @returns {HTMLButtonElement} Board cell button.
+         */
+        function createPlayerBoardCell(cell) {
+            const button = document.createElement('button');
+            const coordinateKey = getCoordinateKey(cell.row, cell.column);
+            const pendingPlacement = pendingPlacements.get(coordinateKey);
+            const isCenter = cell.row === 7 && cell.column === 7;
+
+            button.type = 'button';
+            button.className = 'player-board-cell';
+            button.setAttribute('role', 'gridcell');
+            button.setAttribute(
+                'aria-label',
+                `Column ${COLUMN_LABELS[cell.column]}, row ${cell.row + 1}`
+            );
+
+            if (cell.premium !== null && PREMIUM_LABELS[cell.premium]) {
+                button.classList.add(PREMIUM_LABELS[cell.premium].className);
+            }
+
+            if (cell.tile !== null) {
+                button.appendChild(createPreviewTile(cell.tile, false));
+                button.disabled = true;
+                return button;
+            }
+
+            if (pendingPlacement) {
+                const rackTile = getRackTile(pendingPlacement.tileId);
+
+                if (rackTile !== null) {
+                    button.appendChild(createPreviewTile({
+                        ...rackTile,
+                        assignedLetter: pendingPlacement.assignedLetter ?? null
+                    }, true));
+                }
+
+                button.classList.add('player-board-cell--pending');
+                button.addEventListener('click', () => {
+                    removePendingPlacement(cell.row, cell.column);
+                });
+
+                return button;
+            }
+
+            if (isCenter) {
+                button.textContent = '★';
+            } else if (cell.premium !== null && PREMIUM_LABELS[cell.premium]) {
+                button.textContent = PREMIUM_LABELS[cell.premium].label;
+            }
+
+            button.disabled = !canPlay();
+
+            button.addEventListener('click', () => {
+                placeSelectedTile(cell.row, cell.column);
+            });
+
+            return button;
+        }
+
+        /**
+         * Renders the public board with local pending placements overlaid.
+         *
+         * @returns {void}
+         */
+        function renderPlayerBoard() {
+            if (!Array.isArray(currentBoard) || currentBoard.length !== BOARD_SIZE) {
+                playerBoard.replaceChildren();
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+
+            currentBoard.flat().forEach((cell) => {
+                fragment.appendChild(createPlayerBoardCell(cell));
+            });
+
+            playerBoard.replaceChildren(fragment);
+        }
+
+        /**
+         * Places the selected rack tile into the local move preview.
+         *
+         * @param {number} row Board row.
+         * @param {number} column Board column.
+         *
+         * @returns {void}
+         */
+        function placeSelectedTile(row, column) {
+            if (!canPlay()) {
+                showMoveFeedback('It is not your turn.', 'error');
+                return;
+            }
+
+            if (selectedTileId === null) {
+                showMoveFeedback('Select a tile from your rack first.', 'warning');
+                return;
+            }
+
+            if (currentBoard[row]?.[column]?.tile !== null) {
+                showMoveFeedback('This square is already occupied.', 'error');
+                return;
+            }
+
+            const coordinateKey = getCoordinateKey(row, column);
+
+            if (pendingPlacements.has(coordinateKey)) {
+                return;
+            }
+
+            const tile = getRackTile(selectedTileId);
+
+            if (tile === null || isTilePending(tile.id)) {
+                selectedTileId = null;
+                renderRack();
+                return;
+            }
+
+            const assignedLetter = tile.isBlank
+                ? blankLetterSelect.value
+                : null;
+
+            pendingPlacements.set(coordinateKey, {
+                tileId: tile.id,
+                row,
+                column,
+                assignedLetter
+            });
+
+            selectedTileId = null;
+            showMoveFeedback(
+                `Tile placed at ${COLUMN_LABELS[column]}${row + 1}.`,
+                'info'
+            );
+
+            renderRack();
+            renderPlayerBoard();
+            updateMoveControls();
+        }
+
+        /**
+         * Removes a pending tile from the local board preview.
+         *
+         * @param {number} row Board row.
+         * @param {number} column Board column.
+         *
+         * @returns {void}
+         */
+        function removePendingPlacement(row, column) {
+            pendingPlacements.delete(getCoordinateKey(row, column));
+            renderRack();
+            renderPlayerBoard();
+            updateMoveControls();
+            showMoveFeedback('Tile returned to your rack.', 'info');
+        }
+
+        /**
+         * Clears the complete local move preview.
+         *
+         * @returns {void}
+         */
+        function clearPendingMove() {
+            pendingPlacements.clear();
+            selectedTileId = null;
+            renderRack();
+            renderPlayerBoard();
+            updateMoveControls();
+            showMoveFeedback('Move cleared.', 'info');
+        }
+
+        /**
+         * Updates move counters and action buttons.
+         *
+         * @returns {void}
+         */
+        function updateMoveControls() {
+            const count = pendingPlacements.size;
+
+            pendingCount.textContent = `${count} tile${count === 1 ? '' : 's'}`;
+            clearMoveButton.disabled = count === 0;
+            submitMoveButton.disabled = !canPlay() || count === 0;
+            coordinatePlace.disabled = !canPlay() || selectedTileId === null;
+        }
+
+        /**
+         * Displays move feedback using semantic status styling.
+         *
+         * @param {string} message Feedback message.
+         * @param {string} level Feedback level.
+         *
+         * @returns {void}
+         */
+        function showMoveFeedback(message, level = 'info') {
+            moveFeedback.textContent = message;
+            moveFeedback.dataset.level = level;
+        }
+
+        /**
+         * Submits the local move preview to the authoritative server.
+         *
+         * @returns {void}
+         */
+        function submitPendingMove() {
+            if (!canPlay() || pendingPlacements.size === 0) {
+                return;
+            }
+
+            submitMoveButton.disabled = true;
+            showMoveFeedback('Validating move...', 'info');
+
+            socket.send(JSON.stringify({
+                type: 'submit-move',
+                placements: Array.from(pendingPlacements.values())
+            }));
+        }
+
+        initializeSelectors();
 
         socket.addEventListener('open', () => {
             connectionStatus.textContent = 'Connected';
+            connectionStatus.className = 'status status--success';
 
             if (initialGameCode) {
                 const savedSession = loadPlayerSession(initialGameCode);
 
                 if (savedSession?.playerToken) {
-                    connectionStatus.textContent = 'Restoring player session...';
+                    connectionStatus.textContent = 'Restoring session...';
 
                     socket.send(JSON.stringify({
                         type: 'resume-game',
@@ -254,16 +768,18 @@
 
         socket.addEventListener('close', () => {
             connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'status status--danger';
             joinButton.disabled = true;
+            submitMoveButton.disabled = true;
         });
 
         socket.addEventListener('error', () => {
             connectionStatus.textContent = 'Connection error';
+            connectionStatus.className = 'status status--danger';
         });
 
         joinForm.addEventListener('submit', (event) => {
             event.preventDefault();
-
             joinButton.disabled = true;
 
             socket.send(JSON.stringify({
@@ -272,6 +788,18 @@
                 playerName: playerNameInput.value.trim()
             }));
         });
+
+        coordinateForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            placeSelectedTile(
+                Number.parseInt(coordinateRow.value, 10),
+                Number.parseInt(coordinateColumn.value, 10)
+            );
+        });
+
+        clearMoveButton.addEventListener('click', clearPendingMove);
+        submitMoveButton.addEventListener('click', submitPendingMove);
 
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
@@ -283,14 +811,22 @@
                     data.playerName
                 );
 
-                connectionStatus.textContent = 'Connected';
-                showPlayerInterface(data.gameCode, data.playerName);
+                showPlayerInterface(
+                    data.gameCode,
+                    data.playerName,
+                    data.playerId
+                );
+
                 return;
             }
 
             if (data.type === 'session-resumed') {
-                connectionStatus.textContent = 'Connected';
-                showPlayerInterface(data.gameCode, data.playerName);
+                showPlayerInterface(
+                    data.gameCode,
+                    data.playerName,
+                    data.playerId
+                );
+
                 return;
             }
 
@@ -298,8 +834,12 @@
                 data.type === 'game-state' &&
                 data.game.code === currentGameCode
             ) {
-                gameStatusElement.textContent = data.game.status;
+                gameStatus = data.game.status;
+                currentBoard = data.game.board;
+                currentTurnPlayerId = data.game.currentPlayerId;
+
                 updatePlayerList(data.game.players);
+                updateTurnState();
                 return;
             }
 
@@ -307,13 +847,34 @@
                 data.type === 'player-state' &&
                 data.gameCode === currentGameCode
             ) {
+                currentPlayerId = data.player.id;
+                currentRack = data.player.rack;
                 playerScoreElement.textContent = data.player.score;
-                updateRack(data.player.rack);
+                rackSection.hidden = false;
+                renderRack();
+                updateMoveControls();
+                return;
+            }
+
+            if (data.type === 'move-accepted') {
+                const wordSummary = data.words
+                    .map((word) => `${word.text} (${word.score})`)
+                    .join(', ');
+
+                pendingPlacements.clear();
+                selectedTileId = null;
+
+                showMoveFeedback(
+                    `Move accepted: ${wordSummary}. +${data.score} points.`,
+                    'success'
+                );
+
                 return;
             }
 
             if (data.type === 'session-replaced') {
                 connectionStatus.textContent = 'Session opened on another device';
+                connectionStatus.className = 'status status--warning';
                 return;
             }
 
@@ -327,13 +888,15 @@
                     );
 
                     connectionStatus.textContent = 'Connected';
+                    connectionStatus.className = 'status status--success';
                     joinButton.disabled = false;
                     joinForm.hidden = false;
                     return;
                 }
 
                 joinButton.disabled = false;
-                alert(data.message);
+                submitMoveButton.disabled = !canPlay() || pendingPlacements.size === 0;
+                showMoveFeedback(data.message, 'error');
             }
         });
     </script>

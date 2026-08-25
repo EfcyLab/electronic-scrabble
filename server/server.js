@@ -2,12 +2,12 @@
  * Electronic Scrabble WebSocket Server
  *
  * Manages game sessions, lobby synchronization, player reconnection,
- * game startup, the French tile bag, and private player racks.
+ * game startup, private racks, turn order, and validated board moves.
  *
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 0.3.0
+ * @version 0.5.0
  */
 
 const WebSocket = require('ws');
@@ -17,6 +17,15 @@ const {
     createFrenchTileBag,
     drawTiles
 } = require('./game/french-tiles');
+const {
+    createBoard,
+    getPublicBoardState
+} = require('./game/board');
+const {
+    MoveValidationError,
+    applyMove,
+    validateAndScoreMove
+} = require('./game/move-engine');
 
 const PORT = 8080;
 const MIN_PLAYERS = 2;
@@ -115,6 +124,10 @@ function getPublicGameState(game) {
         code: game.code,
         status: game.status,
         bagRemaining: game.status === 'playing' ? game.bag.length : null,
+        board: getPublicBoardState(game.board),
+        currentPlayerId: game.currentPlayerId,
+        turnNumber: game.turnNumber,
+        lastMove: game.lastMove,
         players: Array.from(game.players.values()).map((player) => ({
             id: player.id,
             name: player.name,
@@ -188,8 +201,22 @@ function sendPrivatePlayerState(game, player) {
             id: player.id,
             name: player.name,
             score: player.score,
-            rack: player.rack
+            rack: player.rack,
+            isCurrentPlayer: game.currentPlayerId === player.id
         }
+    });
+}
+
+/**
+ * Sends every connected player their own private state.
+ *
+ * @param {Object} game Game instance.
+ *
+ * @returns {void}
+ */
+function sendAllPrivatePlayerStates(game) {
+    game.players.forEach((player) => {
+        sendPrivatePlayerState(game, player);
     });
 }
 
@@ -299,7 +326,12 @@ function createGame(socket) {
         code: gameCode,
         status: 'lobby',
         bag: [],
+        board: createBoard(),
         players: new Map(),
+        turnOrder: [],
+        currentPlayerId: null,
+        turnNumber: 0,
+        lastMove: null,
         adminSockets: new Set(),
         screenSockets: new Set()
     };
@@ -514,6 +546,9 @@ function resumeGame(socket, message) {
 /**
  * Starts a game and deals seven private tiles to every player.
  *
+ * Milestone 0.5 uses lobby join order as the initial turn order.
+ * Official starting-player tile selection can be added independently later.
+ *
  * @param {WebSocket} socket Administrator WebSocket connection.
  *
  * @returns {void}
@@ -561,6 +596,11 @@ function startGame(socket) {
     }
 
     game.bag = createFrenchTileBag();
+    game.board = createBoard();
+    game.turnOrder = Array.from(game.players.keys());
+    game.currentPlayerId = game.turnOrder[0] ?? null;
+    game.turnNumber = 1;
+    game.lastMove = null;
 
     game.players.forEach((player) => {
         cancelPlayerRemoval(player);
@@ -576,14 +616,146 @@ function startGame(socket) {
         });
     });
 
-    game.players.forEach((player) => {
-        sendPrivatePlayerState(game, player);
-    });
-
+    sendAllPrivatePlayerStates(game);
     broadcastGameState(game);
 
     console.log(
         `Game ${game.code} started with ${game.players.size} players and ${game.bag.length} tiles remaining.`
+    );
+}
+
+/**
+ * Advances the game to the next player in turn order.
+ *
+ * @param {Object} game Game instance.
+ *
+ * @returns {void}
+ */
+function advanceTurn(game) {
+    if (game.turnOrder.length === 0) {
+        game.currentPlayerId = null;
+        return;
+    }
+
+    const currentIndex = game.turnOrder.indexOf(game.currentPlayerId);
+    const nextIndex = currentIndex >= 0
+        ? (currentIndex + 1) % game.turnOrder.length
+        : 0;
+
+    game.currentPlayerId = game.turnOrder[nextIndex];
+    game.turnNumber += 1;
+}
+
+/**
+ * Validates and applies a player's proposed board move.
+ *
+ * Dictionary validation is intentionally not performed in milestone 0.5.
+ *
+ * @param {WebSocket} socket Player WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function submitMove(socket, message) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'player' || !session.playerId) {
+        sendError(
+            socket,
+            'NOT_AUTHENTICATED_PLAYER',
+            'An authenticated player session is required.'
+        );
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The game does not exist.');
+        return;
+    }
+
+    if (game.status !== 'playing') {
+        sendError(socket, 'GAME_NOT_PLAYING', 'The game is not currently playing.');
+        return;
+    }
+
+    const player = game.players.get(session.playerId);
+
+    if (!player) {
+        sendError(socket, 'PLAYER_NOT_FOUND', 'The player session no longer exists.');
+        return;
+    }
+
+    if (game.currentPlayerId !== player.id) {
+        sendError(socket, 'NOT_YOUR_TURN', 'It is not your turn.');
+        return;
+    }
+
+    let move;
+
+    try {
+        move = validateAndScoreMove(
+            game.board,
+            player.rack,
+            message.placements
+        );
+    } catch (error) {
+        if (error instanceof MoveValidationError) {
+            sendError(socket, error.code, error.message);
+            return;
+        }
+
+        throw error;
+    }
+
+    applyMove(game.board, move);
+
+    const usedTileIds = new Set(
+        move.placements.map((placement) => placement.tile.id)
+    );
+
+    player.rack = player.rack.filter(
+        (tile) => !usedTileIds.has(tile.id)
+    );
+
+    player.score += move.score;
+
+    const replacementTiles = drawTiles(
+        game.bag,
+        RACK_SIZE - player.rack.length
+    );
+
+    player.rack.push(...replacementTiles);
+
+    game.lastMove = {
+        playerId: player.id,
+        playerName: player.name,
+        score: move.score,
+        bingoBonus: move.bingoBonus,
+        words: move.words.map((word) => ({
+            text: word.text,
+            score: word.score
+        })),
+        placements: move.placements.map((placement) => ({
+            row: placement.row,
+            column: placement.column
+        }))
+    };
+
+    send(socket, 'move-accepted', {
+        gameCode: game.code,
+        score: move.score,
+        bingoBonus: move.bingoBonus,
+        words: game.lastMove.words
+    });
+
+    advanceTurn(game);
+    sendAllPrivatePlayerStates(game);
+    broadcastGameState(game);
+
+    console.log(
+        `Player "${player.name}" scored ${move.score} points in game ${game.code}.`
     );
 }
 
@@ -620,6 +792,10 @@ function handleMessage(socket, message) {
 
         case 'start-game':
             startGame(socket);
+            break;
+
+        case 'submit-move':
+            submitMove(socket, message);
             break;
 
         default:

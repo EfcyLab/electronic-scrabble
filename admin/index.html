@@ -1,48 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="classic">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Electronic Scrabble - Administration</title>
+    <link rel="stylesheet" href="../shared/css/base.css">
+    <link rel="stylesheet" href="../shared/css/components.css">
+    <link rel="stylesheet" href="../shared/css/themes/classic.css">
+    <link rel="stylesheet" href="../shared/css/themes/midnight.css">
+    <link rel="stylesheet" href="../shared/css/themes/forest.css">
+    <link rel="stylesheet" href="./css/admin.css">
+    <script src="../shared/js/theme-manager.js" defer></script>
 </head>
 <body>
-    <main>
-        <h1>Electronic Scrabble</h1>
+    <main class="app-shell">
+        <header class="app-header">
+            <div class="app-brand">
+                <div class="app-logo" aria-hidden="true">ES</div>
+                <div>
+                    <h1 class="app-title">Administration</h1>
+                    <p class="app-subtitle">Electronic Scrabble control room</p>
+                </div>
+            </div>
 
-        <p id="connection-status">Connecting...</p>
+            <div class="row">
+                <p id="connection-status" class="status">Connecting...</p>
+                <label class="field">
+                    <span class="field__label">Theme</span>
+                    <select class="select theme-picker" data-theme-picker>
+                        <option value="classic">Classic</option>
+                        <option value="midnight">Midnight</option>
+                        <option value="forest">Forest</option>
+                    </select>
+                </label>
+            </div>
+        </header>
 
-        <button id="create-game" type="button" disabled>
-            Create Game
-        </button>
+        <section class="card stack">
+            <h2 class="card__title">Game session</h2>
+            <button id="create-game" type="button" disabled>Create Game</button>
 
-        <section id="game-information" hidden>
-            <h2>Game <span id="game-code"></span></h2>
+            <section id="game-information" hidden>
+                <h2>Game <span id="game-code" class="game-code"></span></h2>
 
-            <p>
-                Status:
-                <strong id="game-status">Lobby</strong>
-            </p>
+                <p>Status: <strong id="game-status">Lobby</strong></p>
 
-            <p>
-                Shared screen:
-                <a id="screen-link"></a>
-            </p>
+                <p id="turn-information" hidden>
+                    Turn <strong id="turn-number">0</strong> — <strong id="turn-player">Waiting</strong>
+                </p>
 
-            <p>
-                Players:
-                <a id="player-link"></a>
-            </p>
+                <p id="last-move-information" hidden>
+                    Last move: <strong id="last-move-player"></strong> —
+                    <span id="last-move-words"></span> —
+                    <strong>+<span id="last-move-score">0</span> pts</strong>
+                </p>
 
-            <h3>Players</h3>
-            <ul id="player-list"></ul>
+                <p>
+                    Shared screen:<br>
+                    <a id="screen-link"></a>
+                </p>
 
-            <button id="start-game" type="button" disabled>
-                Start Game
-            </button>
+                <p>
+                    Players:<br>
+                    <a id="player-link"></a>
+                </p>
 
-            <p id="start-help">
-                At least two connected players are required.
-            </p>
+                <h3>Players</h3>
+                <ul id="player-list"></ul>
+
+                <button id="start-game" type="button" disabled>Start Game</button>
+                <p id="start-help" class="muted">At least two connected players are required.</p>
+            </section>
         </section>
     </main>
 
@@ -53,7 +81,7 @@
          * Creates game sessions, displays the lobby state,
          * and starts a game when all players are ready.
          *
-         * @version 0.3.0
+         * @version 0.5.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
@@ -68,6 +96,13 @@
         const gameInformation = document.getElementById('game-information');
         const gameCodeElement = document.getElementById('game-code');
         const gameStatusElement = document.getElementById('game-status');
+        const turnInformation = document.getElementById('turn-information');
+        const turnNumberElement = document.getElementById('turn-number');
+        const turnPlayerElement = document.getElementById('turn-player');
+        const lastMoveInformation = document.getElementById('last-move-information');
+        const lastMovePlayer = document.getElementById('last-move-player');
+        const lastMoveWords = document.getElementById('last-move-words');
+        const lastMoveScore = document.getElementById('last-move-score');
         const screenLink = document.getElementById('screen-link');
         const playerLink = document.getElementById('player-link');
         const playerList = document.getElementById('player-list');
@@ -86,6 +121,31 @@
         function updateGameState(game) {
             gameStatusElement.textContent = game.status;
             playerList.replaceChildren();
+
+            if (game.status === 'playing') {
+                const currentPlayer = game.players.find(
+                    (player) => player.id === game.currentPlayerId
+                );
+
+                turnNumberElement.textContent = game.turnNumber;
+                turnPlayerElement.textContent = currentPlayer
+                    ? currentPlayer.name
+                    : 'Waiting';
+                turnInformation.hidden = false;
+            } else {
+                turnInformation.hidden = true;
+            }
+
+            if (game.lastMove !== null) {
+                lastMovePlayer.textContent = game.lastMove.playerName;
+                lastMoveWords.textContent = game.lastMove.words
+                    .map((word) => word.text)
+                    .join(', ');
+                lastMoveScore.textContent = game.lastMove.score;
+                lastMoveInformation.hidden = false;
+            } else {
+                lastMoveInformation.hidden = true;
+            }
 
             game.players.forEach((player) => {
                 const item = document.createElement('li');
@@ -192,6 +252,7 @@
                 alert(data.message);
             }
         });
+    
     </script>
 </body>
 </html>

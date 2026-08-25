@@ -1,0 +1,38 @@
+/**
+ * Electronic Scrabble Midnight theme.
+ *
+ * Cool modern dark theme.
+ *
+ * @version 0.1.0
+ */
+
+html[data-theme="midnight"] {
+    color-scheme: dark;
+
+    --color-background: #0c1118;
+    --color-surface: #121a24;
+    --color-surface-elevated: #182331;
+    --color-surface-soft: #203044;
+    --color-text: #edf4fb;
+    --color-text-muted: #96a9bb;
+    --color-border: rgba(166, 198, 230, 0.13);
+
+    --color-primary: #78a9e8;
+    --color-primary-strong: #a7c9f4;
+    --color-primary-text: #09101a;
+
+    --color-success: #64d29b;
+    --color-warning: #f0c56c;
+    --color-danger: #f27d87;
+
+    --tile-background: #dfe8f1;
+    --tile-text: #101821;
+    --tile-border: #96acc0;
+    --board-normal: #c5d0da;
+    --board-normal-text: #17212a;
+    --board-dl: #78b7d0;
+    --board-tl: #3e7199;
+    --board-dw: #c291a6;
+    --board-tw: #8e4c65;
+}
+

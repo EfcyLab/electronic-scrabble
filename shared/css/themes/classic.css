@@ -1,0 +1,38 @@
+/**
+ * Electronic Scrabble Classic theme.
+ *
+ * Warm wood-inspired default theme.
+ *
+ * @version 0.1.0
+ */
+
+html[data-theme="classic"] {
+    color-scheme: dark;
+
+    --color-background: #171410;
+    --color-surface: #211d18;
+    --color-surface-elevated: #2b251e;
+    --color-surface-soft: #342d24;
+    --color-text: #f7f1e4;
+    --color-text-muted: #bcb09b;
+    --color-border: rgba(240, 219, 179, 0.14);
+
+    --color-primary: #d2a65a;
+    --color-primary-strong: #f1ca82;
+    --color-primary-text: #1d160b;
+
+    --color-success: #74c58a;
+    --color-warning: #e2b85d;
+    --color-danger: #df7470;
+
+    --tile-background: #ead8ab;
+    --tile-text: #211a10;
+    --tile-border: #bd9856;
+    --board-normal: #d8cda9;
+    --board-normal-text: #2b251d;
+    --board-dl: #8fc6d8;
+    --board-tl: #4d80a7;
+    --board-dw: #d9a7ae;
+    --board-tw: #a95355;
+}
+
