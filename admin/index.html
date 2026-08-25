@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Electronic Scrabble - Player</title>
+    <title>Electronic Scrabble - Administration</title>
 </head>
 
 <body>
@@ -15,42 +15,21 @@
             Connecting...
         </p>
 
-        <form id="join-form">
-            <label for="game-code">
-                Game code
-            </label>
-
-            <input
-                id="game-code"
-                type="text"
-                maxlength="4"
-                required
-            >
-
-            <label for="player-name">
-                Player name
-            </label>
-
-            <input
-                id="player-name"
-                type="text"
-                maxlength="30"
-                required
-            >
-
-            <button id="join-button" type="submit" disabled>
-                Join Game
-            </button>
-        </form>
+        <button id="create-game" type="button" disabled>
+            Create Game
+        </button>
 
         <section id="game-information" hidden>
-            <h2>
-                Game <span id="current-game-code"></span>
-            </h2>
+            <h2>Game <span id="game-code"></span></h2>
 
             <p>
-                Welcome,
-                <strong id="current-player-name"></strong>
+                Shared screen:
+                <a id="screen-link"></a>
+            </p>
+
+            <p>
+                Players:
+                <a id="player-link"></a>
             </p>
 
             <h3>Players</h3>
@@ -61,10 +40,9 @@
 
     <script>
         /**
-         * Electronic Scrabble Player Client
+         * Electronic Scrabble Administration Client
          *
-         * Allows a player to join a game and displays
-         * the synchronized lobby state.
+         * Creates game sessions and displays the current lobby state.
          *
          * @version 0.2.0
          */
@@ -72,38 +50,25 @@
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
 
-        const parameters = new URLSearchParams(
-            window.location.search
-        );
-
-        const initialGameCode =
-            parameters.get('game')?.toUpperCase() ?? '';
-
         const connectionStatus = document.getElementById(
             'connection-status'
         );
 
-        const joinForm = document.getElementById('join-form');
-        const joinButton = document.getElementById('join-button');
-
-        const gameCodeInput = document.getElementById('game-code');
-        const playerNameInput = document.getElementById('player-name');
+        const createGameButton = document.getElementById(
+            'create-game'
+        );
 
         const gameInformation = document.getElementById(
             'game-information'
         );
 
-        const currentGameCodeElement = document.getElementById(
-            'current-game-code'
+        const gameCodeElement = document.getElementById(
+            'game-code'
         );
 
-        const currentPlayerNameElement = document.getElementById(
-            'current-player-name'
-        );
-
+        const screenLink = document.getElementById('screen-link');
+        const playerLink = document.getElementById('player-link');
         const playerList = document.getElementById('player-list');
-
-        gameCodeInput.value = initialGameCode;
 
         const socket = new WebSocket(
             `ws://${SERVER_HOST}:${SERVER_PORT}`
@@ -112,7 +77,7 @@
         let currentGameCode = null;
 
         /**
-         * Updates the synchronized player list.
+         * Updates the displayed player list.
          *
          * @param {Array<Object>} players Public player list.
          *
@@ -132,41 +97,46 @@
 
         socket.addEventListener('open', () => {
             connectionStatus.textContent = 'Connected';
-            joinButton.disabled = false;
+            createGameButton.disabled = false;
         });
 
         socket.addEventListener('close', () => {
             connectionStatus.textContent = 'Disconnected';
-            joinButton.disabled = true;
+            createGameButton.disabled = true;
         });
 
         socket.addEventListener('error', () => {
             connectionStatus.textContent = 'Connection error';
         });
 
-        joinForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-
+        createGameButton.addEventListener('click', () => {
             socket.send(JSON.stringify({
-                type: 'join-game',
-                gameCode: gameCodeInput.value.trim().toUpperCase(),
-                playerName: playerNameInput.value.trim()
+                type: 'create-game'
             }));
         });
 
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
 
-            if (data.type === 'game-joined') {
+            if (data.type === 'game-created') {
                 currentGameCode = data.gameCode;
 
-                currentGameCodeElement.textContent =
-                    data.gameCode;
+                const screenUrl =
+                    `${window.location.origin}/screen/` +
+                    `?game=${encodeURIComponent(currentGameCode)}`;
 
-                currentPlayerNameElement.textContent =
-                    data.playerName;
+                const playerUrl =
+                    `${window.location.origin}/player/` +
+                    `?game=${encodeURIComponent(currentGameCode)}`;
 
-                joinForm.hidden = true;
+                gameCodeElement.textContent = currentGameCode;
+
+                screenLink.href = screenUrl;
+                screenLink.textContent = screenUrl;
+
+                playerLink.href = playerUrl;
+                playerLink.textContent = playerUrl;
+
                 gameInformation.hidden = false;
 
                 return;

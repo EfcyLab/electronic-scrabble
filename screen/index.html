@@ -5,124 +5,116 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Electronic Scrabble - Shared Screen</title>
-
-    <style>
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: Arial, sans-serif;
-            background: #1d1d1d;
-            color: #ffffff;
-        }
-
-        main {
-            width: min(900px, 90%);
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 3rem;
-        }
-
-        #connection-status {
-            margin-bottom: 2rem;
-            font-weight: bold;
-        }
-
-        #message {
-            min-height: 150px;
-            padding: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            background: #2d2d2d;
-            font-size: 2rem;
-        }
-
-        #player-name {
-            margin-top: 1rem;
-            font-size: 1.25rem;
-        }
-    </style>
 </head>
 
 <body>
     <main>
         <h1>Electronic Scrabble</h1>
 
-        <div id="connection-status">
+        <p id="connection-status">
             Connecting...
-        </div>
+        </p>
 
-        <div id="message">
-            Waiting for a player action...
-        </div>
+        <section>
+            <h2>
+                Game <span id="game-code">----</span>
+            </h2>
 
-        <div id="player-name"></div>
+            <h3>Players</h3>
+
+            <ul id="player-list"></ul>
+        </section>
     </main>
 
     <script>
         /**
          * Electronic Scrabble Shared Screen Client
          *
-         * Connects the shared display to the game WebSocket server
-         * and displays player actions in real time.
+         * Displays the public state of a game session.
          *
-         * @version 0.1.0
+         * @version 0.2.0
          */
 
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
 
-        const connectionStatus = document.getElementById('connection-status');
-        const messageElement = document.getElementById('message');
-        const playerNameElement = document.getElementById('player-name');
+        const parameters = new URLSearchParams(
+            window.location.search
+        );
+
+        const gameCode = parameters.get('game')?.toUpperCase() ?? '';
+
+        const connectionStatus = document.getElementById(
+            'connection-status'
+        );
+
+        const gameCodeElement = document.getElementById(
+            'game-code'
+        );
+
+        const playerList = document.getElementById('player-list');
+
+        gameCodeElement.textContent = gameCode || '----';
 
         const socket = new WebSocket(
             `ws://${SERVER_HOST}:${SERVER_PORT}`
         );
 
         /**
-         * Updates the connection status displayed on screen.
+         * Updates the displayed player list.
          *
-         * @param {string} status New connection status.
+         * @param {Array<Object>} players Public player list.
          *
          * @returns {void}
          */
-        function updateConnectionStatus(status) {
-            connectionStatus.textContent = status;
+        function updatePlayerList(players) {
+            playerList.replaceChildren();
+
+            players.forEach((player) => {
+                const item = document.createElement('li');
+
+                item.textContent = player.name;
+
+                playerList.appendChild(item);
+            });
         }
 
         socket.addEventListener('open', () => {
-            updateConnectionStatus('Connected');
+            connectionStatus.textContent = 'Connected';
+
+            if (!gameCode) {
+                connectionStatus.textContent = 'Missing game code';
+                return;
+            }
+
+            socket.send(JSON.stringify({
+                type: 'watch-game',
+                gameCode
+            }));
         });
 
         socket.addEventListener('close', () => {
-            updateConnectionStatus('Disconnected');
+            connectionStatus.textContent = 'Disconnected';
         });
 
         socket.addEventListener('error', () => {
-            updateConnectionStatus('Connection error');
+            connectionStatus.textContent = 'Connection error';
         });
 
         socket.addEventListener('message', (event) => {
-            try {
-                const data = JSON.parse(event.data);
+            const data = JSON.parse(event.data);
 
-                if (data.type !== 'player-action') {
-                    return;
-                }
+            if (
+                data.type === 'game-state' &&
+                data.game.code === gameCode
+            ) {
+                updatePlayerList(data.game.players);
 
-                messageElement.textContent = data.message ?? '';
-                playerNameElement.textContent = data.player
-                    ? `Player: ${data.player}`
-                    : '';
-            } catch (error) {
-                console.error('Invalid server message:', error);
+                return;
+            }
+
+            if (data.type === 'error') {
+                connectionStatus.textContent = data.message;
             }
         });
     </script>
