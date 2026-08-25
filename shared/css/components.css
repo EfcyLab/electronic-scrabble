@@ -220,7 +220,8 @@
     font-weight: 950;
 }
 
-.theme-picker {
+.theme-picker,
+.language-picker {
     width: auto;
-    min-width: 160px;
+    min-width: 150px;
 }

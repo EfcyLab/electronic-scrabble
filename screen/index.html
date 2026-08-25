@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="classic">
+<html lang="en" data-theme="classic" data-language="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,28 +12,39 @@
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
     <link rel="stylesheet" href="./css/screen.css">
 
+    <script src="../shared/i18n/en.js"></script>
+    <script src="../shared/i18n/fr.js"></script>
+    <script src="../shared/js/i18n-manager.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
-<body>
+<body data-i18n-page-title="screen.pageTitle">
     <main class="app-shell">
         <header class="app-header">
             <div class="app-brand">
                 <div class="app-logo" aria-hidden="true">ES</div>
                 <div>
                     <h1 class="app-title">Electronic Scrabble</h1>
-                    <p class="app-subtitle">Game <strong id="game-code">----</strong></p>
+                    <p class="app-subtitle"><span data-i18n="common.game">Game</span> <strong id="game-code">----</strong></p>
                 </div>
             </div>
 
             <div class="row">
-                <p id="connection-status" class="status">Connecting...</p>
+                <p id="connection-status" class="status" data-i18n="common.connecting">Connecting...</p>
 
                 <label class="field">
-                    <span class="field__label">Theme</span>
+                    <span class="field__label" data-i18n="common.theme">Theme</span>
                     <select class="select theme-picker" data-theme-picker>
-                        <option value="classic">Classic</option>
-                        <option value="midnight">Midnight</option>
-                        <option value="forest">Forest</option>
+                        <option value="classic" data-i18n="theme.classic">Classic</option>
+                        <option value="midnight" data-i18n="theme.midnight">Midnight</option>
+                        <option value="forest" data-i18n="theme.forest">Forest</option>
+                    </select>
+                </label>
+
+                <label class="field">
+                    <span class="field__label" data-i18n="common.language">Language</span>
+                    <select class="select language-picker" data-language-picker>
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
                     </select>
                 </label>
             </div>
@@ -41,31 +52,31 @@
 
         <div class="screen-layout">
             <section class="board-frame">
-                <div id="board" role="grid" aria-label="Scrabble board"></div>
+                <div id="board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
             </section>
 
             <aside class="screen-sidebar">
                 <section class="screen-card">
-                    <h2 class="card__title">Game</h2>
-                    <p>Status: <strong id="game-status">Lobby</strong></p>
-                    <p>Words: <strong id="word-validation-status">Waiting</strong></p>
+                    <h2 class="card__title" data-i18n="screen.gamePanel">Game</h2>
+                    <p><span data-i18n="common.status">Status</span>: <strong id="game-status" data-i18n="common.lobby">Lobby</strong></p>
+                    <p><span data-i18n="screen.words">Words</span>: <strong id="word-validation-status" data-i18n="common.waiting">Waiting</strong></p>
                     <p id="turn-information" hidden>
-                        Turn <strong id="turn-number">0</strong><br>
-                        <span id="current-player-name">Waiting</span>
+                        <span data-i18n="common.turn">Turn</span> <strong id="turn-number">0</strong><br>
+                        <span id="current-player-name" data-i18n="common.waiting">Waiting</span>
                     </p>
                     <p id="bag-information" hidden>
-                        Tiles remaining: <strong id="bag-remaining">0</strong>
+                        <span data-i18n="screen.tilesRemainingLabel">Tiles remaining</span>: <strong id="bag-remaining">0</strong>
                     </p>
                 </section>
 
                 <section id="starting-player-card" class="screen-card starting-player-card" hidden>
-                    <h2 class="card__title">Who starts?</h2>
+                    <h2 class="card__title" data-i18n="screen.whoStarts">Who starts?</h2>
                     <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
                     <p id="starting-player-winner" class="starting-player-winner"></p>
                 </section>
 
                 <section id="last-action-card" class="screen-card" hidden>
-                    <h2 class="card__title">Last action</h2>
+                    <h2 class="card__title" data-i18n="screen.lastAction">Last action</h2>
                     <p><strong id="last-action-player"></strong></p>
                     <p id="last-action-summary" class="last-move-words"></p>
                     <p id="last-action-score" class="last-move-score" hidden>
@@ -74,14 +85,14 @@
                 </section>
 
                 <section id="final-result-card" class="screen-card final-result-card" hidden>
-                    <h2 class="card__title">Final result</h2>
+                    <h2 class="card__title" data-i18n="screen.finalResult">Final result</h2>
                     <p id="final-winner" class="final-winner"></p>
                     <p id="end-reason" class="last-move-words"></p>
                     <ol id="final-ranking" class="final-ranking"></ol>
                 </section>
 
                 <section class="screen-card">
-                    <h2 class="card__title">Players</h2>
+                    <h2 class="card__title" data-i18n="common.players">Players</h2>
                     <ul id="player-list"></ul>
                 </section>
             </aside>
@@ -99,14 +110,16 @@
          * @version 1.0.0
          */
 
+        const I18n = window.ElectronicScrabbleI18n;
+
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
 
         const PREMIUM_LABELS = Object.freeze({
-            DL: { label: 'DL', className: 'board-cell--dl' },
-            TL: { label: 'TL', className: 'board-cell--tl' },
-            DW: { label: 'DW', className: 'board-cell--dw' },
-            TW: { label: 'TW', className: 'board-cell--tw' }
+            DL: { key: 'premium.DL.short', className: 'board-cell--dl' },
+            TL: { key: 'premium.TL.short', className: 'board-cell--tl' },
+            DW: { key: 'premium.DW.short', className: 'board-cell--dw' },
+            TW: { key: 'premium.TW.short', className: 'board-cell--tw' }
         });
 
         const parameters = new URLSearchParams(window.location.search);
@@ -139,6 +152,8 @@
         gameCodeElement.textContent = gameCode || '----';
 
         const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
+        let lastGameState = null;
+        let connectionStatusKey = 'common.connecting';
 
         /**
          * Returns a coordinate key used to highlight the last move.
@@ -213,7 +228,7 @@
             }
 
             if (cell.premium !== null && PREMIUM_LABELS[cell.premium]) {
-                cellElement.textContent = PREMIUM_LABELS[cell.premium].label;
+                cellElement.textContent = I18n.t(PREMIUM_LABELS[cell.premium].key);
             }
 
             return cellElement;
@@ -268,7 +283,7 @@
 
                 row.className = 'starting-draw-round';
                 roundLabel.className = 'starting-draw-round__label';
-                roundLabel.textContent = `Round ${round.round}`;
+                roundLabel.textContent = I18n.t('common.round', { round: round.round });
                 row.appendChild(roundLabel);
 
                 round.draws.forEach((draw) => {
@@ -287,7 +302,7 @@
                     if (draw.blankRedraws > 0) {
                         const note = document.createElement('small');
 
-                        note.textContent = `★ redraw ×${draw.blankRedraws}`;
+                        note.textContent = I18n.t('screen.blankRedraw', { count: draw.blankRedraws });
                         item.appendChild(note);
                     }
 
@@ -297,8 +312,9 @@
                 startingDrawRounds.appendChild(row);
             });
 
-            startingPlayerWinner.textContent =
-                `${startingPlayerDraw.startingPlayerName} plays first`;
+            startingPlayerWinner.textContent = I18n.t('screen.playerFirst', {
+                name: startingPlayerDraw.startingPlayerName
+            });
             startingPlayerCard.hidden = false;
         }
 
@@ -327,12 +343,11 @@
             } else if (lastAction.type === 'exchange') {
                 const count = lastAction.exchangedCount;
 
-                lastActionSummary.textContent =
-                    `Exchanged ${count} tile${count === 1 ? '' : 's'}`;
+                lastActionSummary.textContent = I18n.t('screen.lastAction.exchange', { count });
             } else if (lastAction.type === 'pass') {
-                lastActionSummary.textContent = 'Passed the turn';
+                lastActionSummary.textContent = I18n.t('screen.lastAction.pass');
             } else {
-                lastActionSummary.textContent = 'Turn completed';
+                lastActionSummary.textContent = I18n.t('screen.lastAction.completed');
             }
 
             lastActionCard.hidden = false;
@@ -347,14 +362,14 @@
          */
         function getEndReasonLabel(reason) {
             if (reason === 'rack-emptied') {
-                return 'A player emptied their rack after the tile bag became empty.';
+                return I18n.t('end.rackEmptied');
             }
 
             if (reason === 'consecutive-passes') {
-                return 'The game ended after three complete rounds of consecutive passes.';
+                return I18n.t('end.consecutivePasses');
             }
 
-            return 'The game has ended.';
+            return I18n.t('end.default');
         }
 
         /**
@@ -377,8 +392,10 @@
             );
 
             finalWinner.textContent = winners.length === 1
-                ? `Winner: ${winners[0].playerName}`
-                : `Winners: ${winners.map((winner) => winner.playerName).join(', ')}`;
+                ? I18n.t('final.winner', { name: winners[0].playerName })
+                : I18n.t('final.winners', {
+                    names: winners.map((winner) => winner.playerName).join(', ')
+                });
 
             endReasonElement.textContent = getEndReasonLabel(finalResult.reason);
 
@@ -388,9 +405,11 @@
                     ? `+${ranking.adjustment}`
                     : String(ranking.adjustment);
 
-                item.textContent =
-                    `${ranking.playerName} — ${ranking.finalScore} pts ` +
-                    `(${adjustment})`;
+                item.textContent = I18n.t('screen.finalRanking', {
+                    name: ranking.playerName,
+                    score: ranking.finalScore,
+                    adjustment
+                });
 
                 finalRanking.appendChild(item);
             });
@@ -406,15 +425,20 @@
          * @returns {void}
          */
         function updateGameState(game) {
-            gameStatusElement.textContent = game.status === 'starting'
-                ? 'Starting-player draw'
-                : game.status;
+            lastGameState = game;
+            const statusKey = {
+                lobby: 'common.lobby',
+                starting: 'common.starting',
+                playing: 'common.playing',
+                finished: 'common.finished'
+            }[game.status] ?? 'common.waiting';
+            gameStatusElement.textContent = I18n.t(statusKey);
             renderStartingPlayerDraw(
                 game.status === 'starting' ? game.startingPlayerDraw : null
             );
             wordValidationStatus.textContent = game.wordValidation?.enabled
                 ? game.wordValidation.dictionaryName
-                : 'Structural only';
+                : I18n.t('screen.structuralOnly');
             playerList.replaceChildren();
 
             if (game.bagRemaining !== null) {
@@ -431,8 +455,8 @@
 
                 turnNumberElement.textContent = game.turnNumber;
                 currentPlayerNameElement.textContent = currentPlayer
-                    ? `${currentPlayer.name}'s turn`
-                    : 'Waiting';
+                    ? I18n.t('screen.currentPlayer', { name: currentPlayer.name })
+                    : I18n.t('common.waiting');
                 turnInformation.hidden = false;
             } else {
                 turnInformation.hidden = true;
@@ -455,11 +479,11 @@
                 metadata.className = 'screen-player-meta';
 
                 if (game.status === 'playing') {
-                    metadata.textContent = `${player.score} pts · ${player.rackCount} tiles`;
+                    metadata.textContent = I18n.t('screen.player.playing', { score: player.score, count: player.rackCount });
                 } else if (game.status === 'finished') {
-                    metadata.textContent = `${player.score} pts · final`;
+                    metadata.textContent = I18n.t('screen.player.final', { score: player.score });
                 } else {
-                    metadata.textContent = player.connected ? 'connected' : 'disconnected';
+                    metadata.textContent = player.connected ? I18n.t('common.connected') : I18n.t('common.disconnected');
                 }
 
                 if (isCurrent) {
@@ -472,11 +496,13 @@
         }
 
         socket.addEventListener('open', () => {
-            connectionStatus.textContent = 'Connected';
+            connectionStatusKey = 'common.connected';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
             connectionStatus.className = 'status status--success';
 
             if (!gameCode) {
-                connectionStatus.textContent = 'Missing game code';
+                connectionStatusKey = 'screen.missingGameCode';
+                connectionStatus.textContent = I18n.t(connectionStatusKey);
                 connectionStatus.className = 'status status--danger';
                 return;
             }
@@ -488,13 +514,23 @@
         });
 
         socket.addEventListener('close', () => {
-            connectionStatus.textContent = 'Disconnected';
+            connectionStatusKey = 'common.disconnected';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
             connectionStatus.className = 'status status--danger';
         });
 
         socket.addEventListener('error', () => {
-            connectionStatus.textContent = 'Connection error';
+            connectionStatusKey = 'common.connectionError';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
             connectionStatus.className = 'status status--danger';
+        });
+
+        document.addEventListener('electronic-scrabble:language-changed', () => {
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
+
+            if (lastGameState !== null) {
+                updateGameState(lastGameState);
+            }
         });
 
         socket.addEventListener('message', (event) => {
@@ -509,7 +545,7 @@
             }
 
             if (data.type === 'error') {
-                connectionStatus.textContent = data.message;
+                connectionStatus.textContent = I18n.t(`error.${data.code}`) === `error.${data.code}` ? data.message : I18n.t(`error.${data.code}`);
                 connectionStatus.className = 'status status--danger';
             }
         });

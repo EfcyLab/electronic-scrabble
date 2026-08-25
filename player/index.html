@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="classic">
+<html lang="en" data-theme="classic" data-language="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,145 +12,170 @@
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
     <link rel="stylesheet" href="./css/player.css">
 
+    <script src="../shared/i18n/en.js"></script>
+    <script src="../shared/i18n/fr.js"></script>
+    <script src="../shared/js/i18n-manager.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
     <script src="./js/rack-order.js"></script>
+    <script src="./js/board-navigation.js"></script>
 </head>
-<body>
+<body data-i18n-page-title="player.pageTitle">
     <main class="app-shell">
         <header class="app-header">
             <div class="app-brand">
                 <div class="app-logo" aria-hidden="true">ES</div>
                 <div>
-                    <h1 class="app-title">Player Rack</h1>
-                    <p class="app-subtitle">Private Electronic Scrabble interface</p>
+                    <h1 class="app-title" data-i18n="player.title">Player Rack</h1>
+                    <p class="app-subtitle" data-i18n="player.subtitle">Private Electronic Scrabble interface</p>
                 </div>
             </div>
 
             <div class="row">
-                <p id="connection-status" class="status">Connecting...</p>
+                <p id="connection-status" class="status" data-i18n="common.connecting">Connecting...</p>
 
                 <label class="field">
-                    <span class="field__label">Theme</span>
+                    <span class="field__label" data-i18n="common.theme">Theme</span>
                     <select class="select theme-picker" data-theme-picker>
-                        <option value="classic">Classic</option>
-                        <option value="midnight">Midnight</option>
-                        <option value="forest">Forest</option>
+                        <option value="classic" data-i18n="theme.classic">Classic</option>
+                        <option value="midnight" data-i18n="theme.midnight">Midnight</option>
+                        <option value="forest" data-i18n="theme.forest">Forest</option>
+                    </select>
+                </label>
+
+                <label class="field">
+                    <span class="field__label" data-i18n="common.language">Language</span>
+                    <select class="select language-picker" data-language-picker>
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
                     </select>
                 </label>
             </div>
         </header>
 
         <form id="join-form">
-            <h2 class="card__title">Join a game</h2>
+            <h2 class="card__title" data-i18n="player.join.title">Join a game</h2>
 
-            <label for="game-code">Game code</label>
+            <label for="game-code" data-i18n="player.join.gameCode">Game code</label>
             <input id="game-code" type="text" maxlength="4" required>
 
-            <label for="player-name">Player name</label>
+            <label for="player-name" data-i18n="player.join.playerName">Player name</label>
             <input id="player-name" type="text" maxlength="30" required>
 
-            <button id="join-button" type="submit" disabled>Join Game</button>
+            <button id="join-button" type="submit" disabled data-i18n="player.join.button">Join Game</button>
         </form>
 
         <section id="game-information" hidden>
             <section class="player-summary">
                 <div>
-                    <p class="muted player-summary__eyebrow">Game <span id="current-game-code"></span></p>
-                    <h2 id="current-player-name">Player</h2>
-                    <p id="turn-status" class="status">Waiting</p>
+                    <p class="muted player-summary__eyebrow"><span data-i18n="common.game">Game</span> <span id="current-game-code"></span></p>
+                    <h2 id="current-player-name" data-i18n="player.player">Player</h2>
+                    <p id="turn-status" class="status" data-i18n="common.waiting">Waiting</p>
                 </div>
 
                 <div class="metric">
                     <span id="player-score" class="metric__value">0</span>
-                    <span class="metric__label">Points</span>
+                    <span class="metric__label" data-i18n="common.points">Points</span>
                 </div>
             </section>
 
             <section id="starting-draw-section" class="player-panel starting-draw-section" hidden>
-                <h3 class="card__title">Who starts?</h3>
+                <h3 class="card__title" data-i18n="player.whoStarts">Who starts?</h3>
                 <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
                 <p id="starting-player-winner" class="starting-player-winner"></p>
-                <p class="muted panel-help">All drawn tiles return to the bag before racks are dealt.</p>
+                <p class="muted panel-help" data-i18n="player.drawHelp">All drawn tiles return to the bag before racks are dealt.</p>
             </section>
 
             <section id="rack-section" class="player-panel" hidden>
                 <div class="row row--between">
                     <div>
-                        <h3 class="card__title">Your rack</h3>
-                        <p class="muted panel-help">Drag tiles to rearrange your rack, or select one before placing it.</p>
+                        <h3 class="card__title" data-i18n="player.rack.title">Your rack</h3>
+                        <p class="muted panel-help" data-i18n="player.rack.help">Drag tiles to rearrange your rack, or select one before placing it.</p>
                     </div>
 
                     <label id="blank-letter-field" class="field blank-letter-field" hidden>
-                        <span class="field__label">Blank letter</span>
-                        <select id="blank-letter" class="select" aria-label="Blank tile assigned letter"></select>
+                        <span class="field__label" data-i18n="player.rack.blankLetter">Blank letter</span>
+                        <select id="blank-letter" class="select" aria-label="Blank tile assigned letter" data-i18n-aria-label="player.rack.blankAria"></select>
                     </label>
                 </div>
 
-                <div id="rack" class="rack" aria-label="Private tile rack"></div>
+                <div id="rack" class="rack" aria-label="Private tile rack" data-i18n-aria-label="player.rack.aria"></div>
 
-                <div class="rack-arrangement" aria-label="Rack arrangement controls">
+                <div class="rack-arrangement" aria-label="Rack arrangement controls" data-i18n-aria-label="player.rack.arrangementAria">
                     <button id="move-rack-left" class="button button--secondary" type="button" disabled>
-                        Move Left
+                        <span data-i18n="player.rack.moveLeft">Move Left</span>
                     </button>
 
                     <button id="shuffle-rack" class="button button--secondary" type="button" disabled>
-                        Shuffle Rack
+                        <span data-i18n="player.rack.shuffle">Shuffle Rack</span>
                     </button>
 
                     <button id="move-rack-right" class="button button--secondary" type="button" disabled>
-                        Move Right
+                        <span data-i18n="player.rack.moveRight">Move Right</span>
                     </button>
                 </div>
 
                 <p id="rack-arrangement-status" class="muted rack-arrangement-status" aria-live="polite">
-                    Drag a tile, or select it and use the arrangement buttons.
+                    <span data-i18n="player.rack.arrangementHelp">Drag a tile, or select it and use the arrangement buttons.</span>
                 </p>
             </section>
 
             <section id="move-section" class="player-panel" hidden>
                 <div class="row row--between">
                     <div>
-                        <h3 class="card__title">Prepare your move</h3>
+                        <h3 class="card__title" data-i18n="player.move.title">Prepare your move</h3>
                         <p class="muted panel-help">
-                            Tap a square below, or use the coordinate controls as an alternative.
+                            <span data-i18n="player.move.help">Tap a square to place a selected tile. Tap the board without a selected tile to zoom into that area.</span>
                         </p>
                     </div>
 
                     <span id="pending-count" class="status">0 tiles</span>
                 </div>
 
-                <div class="player-board-scroll">
-                    <div id="player-board" role="grid" aria-label="Scrabble board"></div>
+                <div class="board-navigation">
+                    <div class="board-navigation__controls">
+                        <button id="board-zoom-out" class="button button--secondary board-navigation__button" type="button" data-i18n-aria-label="player.board.zoomOut" aria-label="Zoom out">−</button>
+                        <button id="board-fit" class="button button--secondary" type="button" data-i18n="player.board.fit">Fit board</button>
+                        <span id="board-zoom-status" class="status" aria-live="polite">100%</span>
+                        <button id="board-zoom-in" class="button button--secondary board-navigation__button" type="button" data-i18n-aria-label="player.board.zoomIn" aria-label="Zoom in">+</button>
+                    </div>
+
+                    <div id="player-board-viewport" class="player-board-viewport">
+                        <div id="player-board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
+                    </div>
+
+                    <p class="muted board-navigation__help" data-i18n="player.board.panHelp">
+                        When zoomed, drag the board to move around it.
+                    </p>
                 </div>
 
                 <form id="coordinate-form" class="coordinate-form">
                     <label class="field">
-                        <span class="field__label">Column</span>
+                        <span class="field__label" data-i18n="player.coordinate.column">Column</span>
                         <select id="coordinate-column" class="select"></select>
                     </label>
 
                     <label class="field">
-                        <span class="field__label">Row</span>
+                        <span class="field__label" data-i18n="player.coordinate.row">Row</span>
                         <select id="coordinate-row" class="select"></select>
                     </label>
 
                     <button id="coordinate-place" class="button button--secondary" type="submit">
-                        Place Selected Tile
+                        <span data-i18n="player.coordinate.place">Place Selected Tile</span>
                     </button>
                 </form>
 
                 <div class="move-actions">
                     <button id="clear-move" class="button button--secondary" type="button" disabled>
-                        Clear Move
+                        <span data-i18n="player.move.clear">Clear Move</span>
                     </button>
 
                     <button id="submit-move" class="button button--primary" type="button" disabled>
-                        Submit Move
+                        <span data-i18n="player.move.submit">Submit Move</span>
                     </button>
                 </div>
 
                 <p id="word-validation-note" class="validation-note">
-                    Word validation status is loading.
+                    <span data-i18n="player.validation.loading">Word validation status is loading.</span>
                 </p>
 
                 <p id="move-feedback" class="move-feedback" aria-live="polite"></p>
@@ -159,9 +184,9 @@
             <section id="turn-actions-section" class="player-panel" hidden>
                 <div class="row row--between">
                     <div>
-                        <h3 class="card__title">Turn actions</h3>
+                        <h3 class="card__title" data-i18n="player.actions.title">Turn actions</h3>
                         <p id="turn-action-help" class="muted panel-help">
-                            Play a word, exchange tiles, or pass your turn.
+                            <span data-i18n="player.actions.help">Play a word, exchange one or more tiles, or pass your turn.</span>
                         </p>
                     </div>
 
@@ -170,19 +195,19 @@
 
                 <div class="turn-action-buttons">
                     <button id="exchange-mode" class="button button--secondary" type="button" disabled>
-                        Exchange Tiles
+                        <span data-i18n="player.exchange.button">Exchange Tiles</span>
                     </button>
 
                     <button id="pass-turn" class="button button--secondary" type="button" disabled>
-                        Pass Turn
+                        <span data-i18n="player.pass.button">Pass Turn</span>
                     </button>
                 </div>
 
                 <div id="exchange-controls" class="exchange-controls" hidden>
                     <div>
-                        <strong>Select tiles to exchange</strong>
+                        <strong data-i18n="player.exchange.select">Select tiles to exchange</strong>
                         <p class="muted panel-help">
-                            Tap one or more rack tiles. The exchange consumes your turn.
+                            <span data-i18n="player.exchange.help">Tap one or more rack tiles. The exchange consumes your turn.</span>
                         </p>
                     </div>
 
@@ -190,25 +215,25 @@
 
                     <div class="exchange-actions">
                         <button id="cancel-exchange" class="button button--secondary" type="button">
-                            Cancel
+                            <span data-i18n="common.cancel">Cancel</span>
                         </button>
 
                         <button id="confirm-exchange" class="button button--primary" type="button" disabled>
-                            Confirm Exchange
+                            <span data-i18n="player.exchange.confirm">Confirm Exchange</span>
                         </button>
                     </div>
                 </div>
             </section>
 
             <section id="final-result-section" class="player-panel final-result" hidden>
-                <h3 class="card__title">Final result</h3>
+                <h3 class="card__title" data-i18n="player.finalResult">Final result</h3>
                 <p id="final-winner" class="final-winner"></p>
                 <p id="end-reason" class="muted panel-help"></p>
                 <ol id="final-ranking" class="final-ranking"></ol>
             </section>
 
             <section class="player-panel">
-                <h3 class="card__title">Players</h3>
+                <h3 class="card__title" data-i18n="common.players">Players</h3>
                 <ul id="player-list"></ul>
             </section>
         </section>
@@ -226,19 +251,25 @@
          * @version 1.0.0
          */
 
+        const I18n = window.ElectronicScrabbleI18n;
+
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
         const STORAGE_PREFIX = 'electronicScrabble.player.';
         const RACK_ORDER_STORAGE_PREFIX = 'electronicScrabble.rackOrder.';
         const BOARD_SIZE = 15;
+        const BOARD_ZOOM_MULTIPLIERS = Object.freeze([1, 1.35, 1.7, 2.05, 2.4]);
+        const BOARD_GAP = 2;
+        const BOARD_PADDING = 6;
         const COLUMN_LABELS = 'ABCDEFGHIJKLMNO'.split('');
         const RackOrder = window.ElectronicScrabbleRackOrder;
+        const BoardNavigation = window.ElectronicScrabbleBoardNavigation;
 
         const PREMIUM_LABELS = Object.freeze({
-            DL: { label: 'DL', className: 'player-board-cell--dl' },
-            TL: { label: 'TL', className: 'player-board-cell--tl' },
-            DW: { label: 'DW', className: 'player-board-cell--dw' },
-            TW: { label: 'TW', className: 'player-board-cell--tw' }
+            DL: { key: 'premium.DL.short', longKey: 'premium.DL.long', className: 'player-board-cell--dl' },
+            TL: { key: 'premium.TL.short', longKey: 'premium.TL.long', className: 'player-board-cell--tl' },
+            DW: { key: 'premium.DW.short', longKey: 'premium.DW.long', className: 'player-board-cell--dw' },
+            TW: { key: 'premium.TW.short', longKey: 'premium.TW.long', className: 'player-board-cell--tw' }
         });
 
         const parameters = new URLSearchParams(window.location.search);
@@ -268,6 +299,11 @@
         const blankLetterSelect = document.getElementById('blank-letter');
         const moveSection = document.getElementById('move-section');
         const playerBoard = document.getElementById('player-board');
+        const playerBoardViewport = document.getElementById('player-board-viewport');
+        const boardZoomOutButton = document.getElementById('board-zoom-out');
+        const boardFitButton = document.getElementById('board-fit');
+        const boardZoomInButton = document.getElementById('board-zoom-in');
+        const boardZoomStatus = document.getElementById('board-zoom-status');
         const coordinateForm = document.getElementById('coordinate-form');
         const coordinateColumn = document.getElementById('coordinate-column');
         const coordinateRow = document.getElementById('coordinate-row');
@@ -310,6 +346,13 @@
         let exchangeTileIds = new Set();
         let rackDragState = null;
         let suppressRackClickUntil = 0;
+        let boardZoomIndex = 0;
+        let boardPanX = 0;
+        let boardPanY = 0;
+        let boardPanPointer = null;
+        let suppressBoardClickUntil = 0;
+        let lastGameState = null;
+        let connectionStatusKey = 'common.connecting';
 
         /**
          * Returns the local storage key for a player's rack order.
@@ -519,14 +562,14 @@
          */
         function getEndReasonLabel(reason) {
             if (reason === 'rack-emptied') {
-                return 'A player emptied their rack after the tile bag became empty.';
+                return I18n.t('end.rackEmptied');
             }
 
             if (reason === 'consecutive-passes') {
-                return 'The game ended after three complete rounds of consecutive passes.';
+                return I18n.t('end.consecutivePasses');
             }
 
-            return 'The game has ended.';
+            return I18n.t('end.default');
         }
 
 
@@ -550,14 +593,14 @@
                 const title = document.createElement('strong');
 
                 roundElement.className = 'starting-draw-round';
-                title.textContent = `Round ${round.round}`;
+                title.textContent = I18n.t('common.round', { round: round.round });
                 roundElement.appendChild(title);
 
                 round.draws.forEach((draw) => {
                     const item = document.createElement('div');
                     const letter = document.createElement('span');
                     const note = draw.blankRedraws > 0
-                        ? ` · ${draw.blankRedraws} blank redraw${draw.blankRedraws === 1 ? '' : 's'}`
+                        ? I18n.tp('player.blankRedraw', draw.blankRedraws)
                         : '';
 
                     item.className = 'starting-draw-item';
@@ -577,8 +620,8 @@
             const isLocalStarter = startingPlayerDraw.startingPlayerId === currentPlayerId;
 
             startingPlayerWinner.textContent = isLocalStarter
-                ? 'You will play first.'
-                : `${startingPlayerDraw.startingPlayerName} will play first.`;
+                ? I18n.t('player.youFirst')
+                : I18n.t('player.playerFirst', { name: startingPlayerDraw.startingPlayerName });
             startingDrawSection.hidden = false;
         }
 
@@ -602,8 +645,10 @@
             );
 
             finalWinner.textContent = winners.length === 1
-                ? `Winner: ${winners[0].playerName}`
-                : `Winners: ${winners.map((winner) => winner.playerName).join(', ')}`;
+                ? I18n.t('final.winner', { name: winners[0].playerName })
+                : I18n.t('final.winners', {
+                    names: winners.map((winner) => winner.playerName).join(', ')
+                });
 
             endReasonElement.textContent = getEndReasonLabel(finalResult.reason);
 
@@ -614,9 +659,12 @@
                     : String(ranking.adjustment);
                 const isLocalPlayer = ranking.playerId === currentPlayerId;
 
-                item.textContent =
-                    `${ranking.playerName}${isLocalPlayer ? ' (you)' : ''} — ` +
-                    `${ranking.finalScore} pts (${adjustment})`;
+                item.textContent = I18n.t('final.ranking', {
+                    name: ranking.playerName,
+                    you: isLocalPlayer ? I18n.t('final.you') : '',
+                    score: ranking.finalScore,
+                    adjustment
+                });
 
                 finalRanking.appendChild(item);
             });
@@ -644,11 +692,11 @@
                 metadata.className = 'player-list-meta';
 
                 if (gameStatus === 'playing') {
-                    metadata.textContent = `${player.score} pts${isCurrent ? ' · turn' : ''}`;
+                    metadata.textContent = I18n.t('player.list.playing', { score: player.score, turn: isCurrent ? I18n.t('player.list.turn') : '' });
                 } else if (gameStatus === 'finished') {
-                    metadata.textContent = `${player.score} pts · final`;
+                    metadata.textContent = I18n.t('player.list.final', { score: player.score });
                 } else {
-                    metadata.textContent = player.connected ? 'connected' : 'disconnected';
+                    metadata.textContent = player.connected ? I18n.t('common.connected') : I18n.t('common.disconnected');
                 }
 
                 if (isCurrent) {
@@ -667,13 +715,13 @@
          */
         function updateWordValidationStatus() {
             if (currentWordValidation?.enabled) {
-                wordValidationNote.textContent =
-                    `Words are checked with ${currentWordValidation.dictionaryName}.`;
+                wordValidationNote.textContent = I18n.t('player.validation.enabled', {
+                    name: currentWordValidation.dictionaryName
+                });
                 return;
             }
 
-            wordValidationNote.textContent =
-                'Dictionary validation is disabled. Only placement and scoring rules are checked.';
+            wordValidationNote.textContent = I18n.t('player.validation.disabled');
         }
 
         /**
@@ -698,12 +746,14 @@
             const isTurn = canPlay();
 
             turnStatus.textContent = gameStatus === 'finished'
-                ? 'Game finished'
+                ? I18n.t('player.turn.finished')
                 : (gameStatus === 'starting'
-                    ? 'Starting-player draw'
+                    ? I18n.t('player.turn.starting')
                     : (isTurn
-                        ? 'Your turn'
-                        : (gameStatus === 'playing' ? 'Waiting' : 'Lobby')));
+                        ? I18n.t('player.turn.yours')
+                        : (gameStatus === 'playing'
+                            ? I18n.t('player.turn.waiting')
+                            : I18n.t('player.turn.lobby'))));
 
             turnStatus.className = gameStatus === 'finished'
                 ? 'status status--warning'
@@ -814,7 +864,7 @@
 
             if (nextOrder !== previousOrder) {
                 saveRackOrder();
-                rackArrangementStatus.textContent = 'Rack order updated.';
+                rackArrangementStatus.textContent = I18n.t('player.rack.updated');
             }
 
             renderRack();
@@ -833,7 +883,7 @@
             currentRack = RackOrder.shuffleRack(currentRack);
             saveRackOrder();
             renderRack();
-            rackArrangementStatus.textContent = 'Rack shuffled locally.';
+            rackArrangementStatus.textContent = I18n.t('player.rack.shuffled');
         }
 
         /**
@@ -972,7 +1022,7 @@
             if (moved) {
                 synchronizeRackFromDom();
                 suppressRackClickUntil = Date.now() + 350;
-                rackArrangementStatus.textContent = 'Rack order updated.';
+                rackArrangementStatus.textContent = I18n.t('player.rack.updated');
             }
 
             rackDragState = null;
@@ -1023,8 +1073,11 @@
                 button.setAttribute(
                     'aria-label',
                     tile.isBlank
-                        ? 'Blank tile, zero points'
-                        : `${tile.letter}, ${tile.value} points`
+                        ? I18n.t('player.rack.blankTileAria')
+                        : I18n.t('player.rack.tileAria', {
+                            letter: tile.letter,
+                            value: tile.value
+                        })
                 );
 
                 if (exchangeMode && exchangeTileIds.has(tile.id)) {
@@ -1079,6 +1132,244 @@
         }
 
         /**
+         * Returns the cell size required to fit the complete board.
+         *
+         * @returns {number} Cell size in CSS pixels.
+         */
+        function getFitBoardCellSize() {
+            return BoardNavigation.calculateFitCellSize(
+                playerBoardViewport.clientWidth || 320,
+                BOARD_SIZE,
+                BOARD_GAP,
+                BOARD_PADDING
+            );
+        }
+
+        /**
+         * Returns the rendered board edge length for a cell size.
+         *
+         * @param {number} cellSize Board cell size.
+         *
+         * @returns {number} Board edge length in CSS pixels.
+         */
+        function getBoardRenderedSize(cellSize) {
+            return BoardNavigation.calculateBoardSize(
+                cellSize,
+                BOARD_SIZE,
+                BOARD_GAP,
+                BOARD_PADDING
+            );
+        }
+
+        /**
+         * Clamps board pan offsets to the visible viewport.
+         *
+         * @param {number} x Requested horizontal offset.
+         * @param {number} y Requested vertical offset.
+         * @param {number} boardSize Rendered board size.
+         *
+         * @returns {{x: number, y: number}} Clamped offsets.
+         */
+        function clampBoardPan(x, y, boardSize) {
+            return BoardNavigation.clampPan(
+                x,
+                y,
+                boardSize,
+                playerBoardViewport.clientWidth,
+                playerBoardViewport.clientHeight
+            );
+        }
+
+        /**
+         * Applies the current board zoom and pan state.
+         *
+         * @returns {void}
+         */
+        function applyBoardView() {
+            const fitCellSize = getFitBoardCellSize();
+            const multiplier = BOARD_ZOOM_MULTIPLIERS[boardZoomIndex];
+            const cellSize = fitCellSize * multiplier;
+            const boardSize = getBoardRenderedSize(cellSize);
+            const clampedPan = clampBoardPan(boardPanX, boardPanY, boardSize);
+
+            boardPanX = clampedPan.x;
+            boardPanY = clampedPan.y;
+
+            playerBoard.style.setProperty('--board-cell-size', `${cellSize}px`);
+            playerBoard.style.setProperty('--board-pan-x', `${boardPanX}px`);
+            playerBoard.style.setProperty('--board-pan-y', `${boardPanY}px`);
+
+            playerBoardViewport.classList.toggle(
+                'player-board-viewport--zoomed',
+                boardZoomIndex > 0
+            );
+
+            boardZoomOutButton.disabled = boardZoomIndex === 0;
+            boardZoomInButton.disabled = boardZoomIndex === BOARD_ZOOM_MULTIPLIERS.length - 1;
+            boardZoomStatus.textContent = I18n.t('player.board.zoomLevel', {
+                value: Math.round(multiplier * 100)
+            });
+        }
+
+        /**
+         * Centers a board coordinate in the viewport.
+         *
+         * @param {number} row Board row.
+         * @param {number} column Board column.
+         * @param {boolean} zoomFromOverview Whether overview mode should zoom first.
+         *
+         * @returns {void}
+         */
+        function focusBoardCell(row, column, zoomFromOverview = true) {
+            if (zoomFromOverview && boardZoomIndex === 0) {
+                boardZoomIndex = BOARD_ZOOM_MULTIPLIERS.length - 1;
+            }
+
+            const fitCellSize = getFitBoardCellSize();
+            const cellSize = fitCellSize * BOARD_ZOOM_MULTIPLIERS[boardZoomIndex];
+            const boardSize = getBoardRenderedSize(cellSize);
+            const centeredPan = BoardNavigation.calculateCenteredPan(
+                row,
+                column,
+                cellSize,
+                playerBoardViewport.clientWidth,
+                playerBoardViewport.clientHeight,
+                BOARD_GAP,
+                BOARD_PADDING
+            );
+
+            boardPanX = centeredPan.x;
+            boardPanY = centeredPan.y;
+
+            const clampedPan = clampBoardPan(boardPanX, boardPanY, boardSize);
+            boardPanX = clampedPan.x;
+            boardPanY = clampedPan.y;
+            applyBoardView();
+        }
+
+        /**
+         * Changes the board zoom while keeping a board coordinate focused.
+         *
+         * @param {number} nextIndex Requested zoom index.
+         *
+         * @returns {void}
+         */
+        function setBoardZoom(nextIndex) {
+            const clampedIndex = Math.min(
+                BOARD_ZOOM_MULTIPLIERS.length - 1,
+                Math.max(0, nextIndex)
+            );
+
+            if (clampedIndex === 0) {
+                boardZoomIndex = 0;
+                boardPanX = 0;
+                boardPanY = 0;
+                applyBoardView();
+                return;
+            }
+
+            const currentFitSize = getFitBoardCellSize();
+            const currentCellSize = currentFitSize * BOARD_ZOOM_MULTIPLIERS[boardZoomIndex];
+            const viewportCenterX = (playerBoardViewport.clientWidth / 2) - boardPanX;
+            const viewportCenterY = (playerBoardViewport.clientHeight / 2) - boardPanY;
+            const focusedColumn = Math.max(0, Math.min(
+                BOARD_SIZE - 1,
+                Math.floor((viewportCenterX - BOARD_PADDING) / (currentCellSize + BOARD_GAP))
+            ));
+            const focusedRow = Math.max(0, Math.min(
+                BOARD_SIZE - 1,
+                Math.floor((viewportCenterY - BOARD_PADDING) / (currentCellSize + BOARD_GAP))
+            ));
+
+            boardZoomIndex = clampedIndex;
+            focusBoardCell(focusedRow, focusedColumn, false);
+        }
+
+        /**
+         * Starts touch or pointer panning of a zoomed board.
+         *
+         * @param {PointerEvent} event Pointer event.
+         *
+         * @returns {void}
+         */
+        function startBoardPan(event) {
+            if (boardZoomIndex === 0 || event.button !== 0) {
+                return;
+            }
+
+            boardPanPointer = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                initialPanX: boardPanX,
+                initialPanY: boardPanY,
+                moved: false
+            };
+
+            if (typeof playerBoardViewport.setPointerCapture === 'function') {
+                playerBoardViewport.setPointerCapture(event.pointerId);
+            }
+        }
+
+        /**
+         * Updates a board pan gesture.
+         *
+         * @param {PointerEvent} event Pointer event.
+         *
+         * @returns {void}
+         */
+        function moveBoardPan(event) {
+            if (boardPanPointer?.pointerId !== event.pointerId) {
+                return;
+            }
+
+            const deltaX = event.clientX - boardPanPointer.startX;
+            const deltaY = event.clientY - boardPanPointer.startY;
+
+            if (Math.hypot(deltaX, deltaY) > 6) {
+                boardPanPointer.moved = true;
+                playerBoardViewport.classList.add('player-board-viewport--panning');
+            }
+
+            if (!boardPanPointer.moved) {
+                return;
+            }
+
+            const cellSize = getFitBoardCellSize() * BOARD_ZOOM_MULTIPLIERS[boardZoomIndex];
+            const boardSize = getBoardRenderedSize(cellSize);
+            const clampedPan = clampBoardPan(
+                boardPanPointer.initialPanX + deltaX,
+                boardPanPointer.initialPanY + deltaY,
+                boardSize
+            );
+
+            boardPanX = clampedPan.x;
+            boardPanY = clampedPan.y;
+            playerBoard.style.setProperty('--board-pan-x', `${boardPanX}px`);
+            playerBoard.style.setProperty('--board-pan-y', `${boardPanY}px`);
+        }
+
+        /**
+         * Ends a board pan gesture.
+         *
+         * @param {PointerEvent} event Pointer event.
+         *
+         * @returns {void}
+         */
+        function finishBoardPan(event) {
+            if (boardPanPointer?.pointerId !== event.pointerId) {
+                return;
+            }
+
+            if (boardPanPointer.moved) {
+                suppressBoardClickUntil = Date.now() + 250;
+            }
+
+            playerBoardViewport.classList.remove('player-board-viewport--panning');
+            boardPanPointer = null;
+        }
+
+        /**
          * Creates a visual tile for the local board preview.
          *
          * @param {Object} tile Tile data.
@@ -1121,9 +1412,19 @@
             button.type = 'button';
             button.className = 'player-board-cell';
             button.setAttribute('role', 'gridcell');
+            const coordinateLabel = I18n.t('player.board.coordinateAria', {
+                column: COLUMN_LABELS[cell.column],
+                row: cell.row + 1
+            });
+            const premiumLabel = cell.premium !== null && PREMIUM_LABELS[cell.premium]
+                ? I18n.t(PREMIUM_LABELS[cell.premium].longKey)
+                : null;
+
             button.setAttribute(
                 'aria-label',
-                `Column ${COLUMN_LABELS[cell.column]}, row ${cell.row + 1}`
+                premiumLabel === null
+                    ? coordinateLabel
+                    : `${coordinateLabel}, ${premiumLabel}`
             );
 
             if (cell.premium !== null && PREMIUM_LABELS[cell.premium]) {
@@ -1132,7 +1433,18 @@
 
             if (cell.tile !== null) {
                 button.appendChild(createPreviewTile(cell.tile, false));
-                button.disabled = true;
+                button.addEventListener('click', () => {
+                    if (Date.now() < suppressBoardClickUntil) {
+                        return;
+                    }
+
+                    if (selectedTileId !== null && canPlay() && !exchangeMode) {
+                        showMoveFeedback(I18n.t('player.feedback.squareOccupied'), 'error');
+                        return;
+                    }
+
+                    focusBoardCell(cell.row, cell.column, true);
+                });
                 return button;
             }
 
@@ -1157,12 +1469,19 @@
             if (isCenter) {
                 button.textContent = '★';
             } else if (cell.premium !== null && PREMIUM_LABELS[cell.premium]) {
-                button.textContent = PREMIUM_LABELS[cell.premium].label;
+                button.textContent = I18n.t(PREMIUM_LABELS[cell.premium].key);
             }
 
-            button.disabled = !canPlay() || exchangeMode;
-
             button.addEventListener('click', () => {
+                if (Date.now() < suppressBoardClickUntil) {
+                    return;
+                }
+
+                if (selectedTileId === null || !canPlay() || exchangeMode) {
+                    focusBoardCell(cell.row, cell.column, true);
+                    return;
+                }
+
                 placeSelectedTile(cell.row, cell.column);
             });
 
@@ -1187,6 +1506,7 @@
             });
 
             playerBoard.replaceChildren(fragment);
+            applyBoardView();
         }
 
         /**
@@ -1199,22 +1519,22 @@
          */
         function placeSelectedTile(row, column) {
             if (exchangeMode) {
-                showMoveFeedback('Finish or cancel the tile exchange first.', 'warning');
+                showMoveFeedback(I18n.t('player.feedback.exchangeFirst'), 'warning');
                 return;
             }
 
             if (!canPlay()) {
-                showMoveFeedback('It is not your turn.', 'error');
+                showMoveFeedback(I18n.t('error.NOT_YOUR_TURN'), 'error');
                 return;
             }
 
             if (selectedTileId === null) {
-                showMoveFeedback('Select a tile from your rack first.', 'warning');
+                showMoveFeedback(I18n.t('player.feedback.selectTileFirst'), 'warning');
                 return;
             }
 
             if (currentBoard[row]?.[column]?.tile !== null) {
-                showMoveFeedback('This square is already occupied.', 'error');
+                showMoveFeedback(I18n.t('player.feedback.squareOccupied'), 'error');
                 return;
             }
 
@@ -1244,14 +1564,14 @@
             });
 
             selectedTileId = null;
-            showMoveFeedback(
-                `Tile placed at ${COLUMN_LABELS[column]}${row + 1}.`,
-                'info'
-            );
+            showMoveFeedback(I18n.t('player.feedback.tilePlaced', {
+                coordinate: `${COLUMN_LABELS[column]}${row + 1}`
+            }), 'info');
 
             renderRack();
             renderPlayerBoard();
             updateMoveControls();
+            focusBoardCell(row, column, true);
         }
 
         /**
@@ -1267,7 +1587,7 @@
             renderRack();
             renderPlayerBoard();
             updateMoveControls();
-            showMoveFeedback('Tile returned to your rack.', 'info');
+            showMoveFeedback(I18n.t('player.feedback.tileReturned'), 'info');
         }
 
         /**
@@ -1281,7 +1601,7 @@
             renderRack();
             renderPlayerBoard();
             updateMoveControls();
-            showMoveFeedback('Move cleared.', 'info');
+            showMoveFeedback(I18n.t('player.feedback.moveCleared'), 'info');
         }
 
         /**
@@ -1292,7 +1612,7 @@
         function updateMoveControls() {
             const count = pendingPlacements.size;
 
-            pendingCount.textContent = `${count} tile${count === 1 ? '' : 's'}`;
+            pendingCount.textContent = I18n.tp('common.tile', count);
             clearMoveButton.disabled = count === 0 || exchangeMode;
             submitMoveButton.disabled = !canPlay() || exchangeMode || count === 0;
             coordinatePlace.disabled = !canPlay() || exchangeMode || selectedTileId === null;
@@ -1317,32 +1637,32 @@
             const canExchange = canExchangeTiles();
             const selectedCount = exchangeTileIds.size;
 
-            bagStatus.textContent = currentBagRemaining === null
-                ? 'Bag: --'
-                : `Bag: ${currentBagRemaining}`;
+            bagStatus.textContent = I18n.t('player.bag', {
+                count: currentBagRemaining === null ? '--' : currentBagRemaining
+            });
 
             passTurnButton.disabled = !isTurn;
             exchangeModeButton.disabled = !canExchange || exchangeMode;
             exchangeControls.hidden = !exchangeMode;
-            exchangeCount.textContent = `${selectedCount} tile${selectedCount === 1 ? '' : 's'} selected`;
+            exchangeCount.textContent = I18n.tp('player.exchange.selected', selectedCount);
             confirmExchangeButton.disabled = !canExchange || selectedCount === 0;
 
             if (gameStatus !== 'playing') {
-                turnActionHelp.textContent = 'The game has not started yet.';
+                turnActionHelp.textContent = I18n.t('player.actions.notStarted');
                 return;
             }
 
             if (!isTurn) {
-                turnActionHelp.textContent = 'Wait for your turn.';
+                turnActionHelp.textContent = I18n.t('player.actions.wait');
                 return;
             }
 
             if (!canExchange) {
-                turnActionHelp.textContent = 'Exchange unavailable: fewer than seven tiles remain in the bag.';
+                turnActionHelp.textContent = I18n.t('player.actions.exchangeUnavailable');
                 return;
             }
 
-            turnActionHelp.textContent = 'Play a word, exchange one or more tiles, or pass your turn.';
+            turnActionHelp.textContent = I18n.t('player.actions.help');
         }
 
         /**
@@ -1352,7 +1672,7 @@
          */
         function beginExchangeMode() {
             if (!canExchangeTiles()) {
-                showMoveFeedback('Tile exchange is not available.', 'warning');
+                showMoveFeedback(I18n.t('player.feedback.exchangeUnavailable'), 'warning');
                 return;
             }
 
@@ -1365,7 +1685,7 @@
             renderPlayerBoard();
             updateMoveControls();
             updateTurnActionControls();
-            showMoveFeedback('Select the rack tiles you want to exchange.', 'info');
+            showMoveFeedback(I18n.t('player.feedback.selectExchange'), 'info');
         }
 
         /**
@@ -1381,7 +1701,7 @@
             renderPlayerBoard();
             updateMoveControls();
             updateTurnActionControls();
-            showMoveFeedback('Tile exchange cancelled.', 'info');
+            showMoveFeedback(I18n.t('player.feedback.exchangeCancelled'), 'info');
         }
 
         /**
@@ -1417,7 +1737,7 @@
             }
 
             confirmExchangeButton.disabled = true;
-            showMoveFeedback('Exchanging tiles...', 'info');
+            showMoveFeedback(I18n.t('player.feedback.exchanging'), 'info');
 
             socket.send(JSON.stringify({
                 type: 'exchange-tiles',
@@ -1437,8 +1757,8 @@
 
             const hasLocalWork = pendingPlacements.size > 0 || exchangeTileIds.size > 0;
             const confirmationMessage = hasLocalWork
-                ? 'Pass this turn and discard the move or exchange you prepared?'
-                : 'Pass this turn?';
+                ? I18n.t('player.confirm.pendingPass')
+                : I18n.t('player.confirm.pass');
 
             if (!window.confirm(confirmationMessage)) {
                 return;
@@ -1449,7 +1769,7 @@
             exchangeMode = false;
             exchangeTileIds.clear();
             passTurnButton.disabled = true;
-            showMoveFeedback('Passing turn...', 'info');
+            showMoveFeedback(I18n.t('player.feedback.passing'), 'info');
 
             socket.send(JSON.stringify({
                 type: 'pass-turn'
@@ -1480,7 +1800,7 @@
             }
 
             submitMoveButton.disabled = true;
-            showMoveFeedback('Validating move...', 'info');
+            showMoveFeedback(I18n.t('player.feedback.validating'), 'info');
 
             socket.send(JSON.stringify({
                 type: 'submit-move',
@@ -1491,14 +1811,16 @@
         initializeSelectors();
 
         socket.addEventListener('open', () => {
-            connectionStatus.textContent = 'Connected';
+            connectionStatusKey = 'common.connected';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
             connectionStatus.className = 'status status--success';
 
             if (initialGameCode) {
                 const savedSession = loadPlayerSession(initialGameCode);
 
                 if (savedSession?.playerToken) {
-                    connectionStatus.textContent = 'Restoring session...';
+                    connectionStatusKey = 'player.sessionRestoring';
+                    connectionStatus.textContent = I18n.t(connectionStatusKey);
 
                     socket.send(JSON.stringify({
                         type: 'resume-game',
@@ -1514,14 +1836,16 @@
         });
 
         socket.addEventListener('close', () => {
-            connectionStatus.textContent = 'Disconnected';
+            connectionStatusKey = 'common.disconnected';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
             connectionStatus.className = 'status status--danger';
             joinButton.disabled = true;
             submitMoveButton.disabled = true;
         });
 
         socket.addEventListener('error', () => {
-            connectionStatus.textContent = 'Connection error';
+            connectionStatusKey = 'common.connectionError';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
             connectionStatus.className = 'status status--danger';
         });
 
@@ -1554,6 +1878,51 @@
         moveRackLeftButton.addEventListener('click', () => moveSelectedRackTile(-1));
         moveRackRightButton.addEventListener('click', () => moveSelectedRackTile(1));
         shuffleRackButton.addEventListener('click', shuffleCurrentRack);
+        boardZoomOutButton.addEventListener('click', () => setBoardZoom(boardZoomIndex - 1));
+        boardZoomInButton.addEventListener('click', () => setBoardZoom(boardZoomIndex + 1));
+        boardFitButton.addEventListener('click', () => setBoardZoom(0));
+        playerBoardViewport.addEventListener('pointerdown', startBoardPan);
+        playerBoardViewport.addEventListener('pointermove', moveBoardPan);
+        playerBoardViewport.addEventListener('pointerup', finishBoardPan);
+        playerBoardViewport.addEventListener('pointercancel', finishBoardPan);
+
+        if (typeof ResizeObserver === 'function') {
+            const boardResizeObserver = new ResizeObserver(() => {
+                applyBoardView();
+            });
+            boardResizeObserver.observe(playerBoardViewport);
+        } else {
+            window.addEventListener('resize', applyBoardView);
+        }
+
+        document.addEventListener('electronic-scrabble:language-changed', () => {
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
+
+            if (currentPlayerName !== null) {
+                currentPlayerNameElement.textContent = currentPlayerName;
+            }
+
+            renderRack();
+            renderPlayerBoard();
+            updateWordValidationStatus();
+            updateMoveControls();
+            updateTurnActionControls();
+            updateTurnState();
+            applyBoardView();
+
+            if (lastGameState !== null) {
+                renderStartingPlayerDraw(
+                    lastGameState.status === 'starting'
+                        ? lastGameState.startingPlayerDraw
+                        : null
+                );
+                updatePlayerList(lastGameState.players);
+                renderFinalResult(lastGameState.finalResult);
+            }
+
+            rackArrangementStatus.textContent = I18n.t('player.rack.arrangementHelp');
+            showMoveFeedback('', 'info');
+        });
 
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
@@ -1575,6 +1944,10 @@
             }
 
             if (data.type === 'session-resumed') {
+                connectionStatusKey = 'common.connected';
+                connectionStatus.textContent = I18n.t(connectionStatusKey);
+                connectionStatus.className = 'status status--success';
+
                 showPlayerInterface(
                     data.gameCode,
                     data.playerName,
@@ -1588,6 +1961,7 @@
                 data.type === 'game-state' &&
                 data.game.code === currentGameCode
             ) {
+                lastGameState = data.game;
                 gameStatus = data.game.status;
                 currentBoard = data.game.board;
                 currentTurnPlayerId = data.game.currentPlayerId;
@@ -1628,10 +2002,10 @@
                 exchangeTileIds.clear();
                 updateTurnActionControls();
 
-                showMoveFeedback(
-                    `Move accepted: ${wordSummary}. +${data.score} points.`,
-                    'success'
-                );
+                showMoveFeedback(I18n.t('player.feedback.moveAccepted', {
+                    words: wordSummary,
+                    score: data.score
+                }), 'success');
 
                 return;
             }
@@ -1648,7 +2022,7 @@
                 updateTurnActionControls();
 
                 showMoveFeedback(
-                    `${data.exchangedCount} tile${data.exchangedCount === 1 ? '' : 's'} exchanged. Turn completed.`,
+                    I18n.tp('player.feedback.exchanged', data.exchangedCount),
                     'success'
                 );
 
@@ -1665,18 +2039,19 @@
                 renderPlayerBoard();
                 updateMoveControls();
                 updateTurnActionControls();
-                showMoveFeedback('Turn passed.', 'success');
+                showMoveFeedback(I18n.t('player.feedback.turnPassed'), 'success');
 
                 return;
             }
 
             if (data.type === 'game-finished') {
-                showMoveFeedback('Game finished. Final scores have been calculated.', 'success');
+                showMoveFeedback(I18n.t('player.feedback.gameFinished'), 'success');
                 return;
             }
 
             if (data.type === 'session-replaced') {
-                connectionStatus.textContent = 'Session opened on another device';
+                connectionStatusKey = 'player.sessionOtherDevice';
+                connectionStatus.textContent = I18n.t(connectionStatusKey);
                 connectionStatus.className = 'status status--warning';
                 return;
             }
@@ -1690,7 +2065,8 @@
                         getSessionStorageKey(initialGameCode)
                     );
 
-                    connectionStatus.textContent = 'Connected';
+                    connectionStatusKey = 'common.connected';
+                    connectionStatus.textContent = I18n.t(connectionStatusKey);
                     connectionStatus.className = 'status status--success';
                     joinButton.disabled = false;
                     joinForm.hidden = false;
@@ -1700,7 +2076,18 @@
                 joinButton.disabled = false;
                 submitMoveButton.disabled = !canPlay() || exchangeMode || pendingPlacements.size === 0;
                 updateTurnActionControls();
-                showMoveFeedback(data.message, 'error');
+                                let translatedError = I18n.t(`error.${data.code}`);
+
+                if (data.code === 'INVALID_WORD' && Array.isArray(data.invalidWords)) {
+                    translatedError = I18n.t('error.INVALID_WORD_DETAILS', {
+                        words: data.invalidWords.join(', ')
+                    });
+                }
+
+                showMoveFeedback(
+                    translatedError === `error.${data.code}` ? data.message : translatedError,
+                    'error'
+                );
             }
         });
     </script>

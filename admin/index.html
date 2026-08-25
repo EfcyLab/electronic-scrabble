@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="classic">
+<html lang="en" data-theme="classic" data-language="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,79 +10,90 @@
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
     <link rel="stylesheet" href="./css/admin.css">
+    <script src="../shared/i18n/en.js"></script>
+    <script src="../shared/i18n/fr.js"></script>
+    <script src="../shared/js/i18n-manager.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
-<body>
+<body data-i18n-page-title="admin.pageTitle">
     <main class="app-shell">
         <header class="app-header">
             <div class="app-brand">
                 <div class="app-logo" aria-hidden="true">ES</div>
                 <div>
-                    <h1 class="app-title">Administration</h1>
-                    <p class="app-subtitle">Electronic Scrabble control room</p>
+                    <h1 class="app-title" data-i18n="admin.title">Administration</h1>
+                    <p class="app-subtitle" data-i18n="admin.subtitle">Electronic Scrabble control room</p>
                 </div>
             </div>
 
             <div class="row">
-                <p id="connection-status" class="status">Connecting...</p>
+                <p id="connection-status" class="status" data-i18n="common.connecting">Connecting...</p>
                 <label class="field">
-                    <span class="field__label">Theme</span>
+                    <span class="field__label" data-i18n="common.theme">Theme</span>
                     <select class="select theme-picker" data-theme-picker>
-                        <option value="classic">Classic</option>
-                        <option value="midnight">Midnight</option>
-                        <option value="forest">Forest</option>
+                        <option value="classic" data-i18n="theme.classic">Classic</option>
+                        <option value="midnight" data-i18n="theme.midnight">Midnight</option>
+                        <option value="forest" data-i18n="theme.forest">Forest</option>
+                    </select>
+                </label>
+
+                <label class="field">
+                    <span class="field__label" data-i18n="common.language">Language</span>
+                    <select class="select language-picker" data-language-picker>
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
                     </select>
                 </label>
             </div>
         </header>
 
         <section class="card stack">
-            <h2 class="card__title">Game session</h2>
-            <button id="create-game" type="button" disabled>Create Game</button>
+            <h2 class="card__title" data-i18n="admin.session">Game session</h2>
+            <button id="create-game" type="button" disabled data-i18n="admin.createGame">Create Game</button>
 
             <section id="game-information" hidden>
-                <h2>Game <span id="game-code" class="game-code"></span></h2>
+                <h2><span data-i18n="common.game">Game</span> <span id="game-code" class="game-code"></span></h2>
 
-                <p>Status: <strong id="game-status">Lobby</strong></p>
+                <p><span data-i18n="common.status">Status</span>: <strong id="game-status" data-i18n="common.lobby">Lobby</strong></p>
 
-                <p>Word validation: <strong id="word-validation-status">Waiting</strong></p>
+                <p><span data-i18n="admin.wordValidation">Word validation</span>: <strong id="word-validation-status" data-i18n="common.waiting">Waiting</strong></p>
 
                 <p id="turn-information" hidden>
-                    Turn <strong id="turn-number">0</strong> — <strong id="turn-player">Waiting</strong>
+                    <span data-i18n="common.turn">Turn</span> <strong id="turn-number">0</strong> — <strong id="turn-player" data-i18n="common.waiting">Waiting</strong>
                 </p>
 
                 <p id="last-action-information" hidden>
-                    Last action: <strong id="last-action-player"></strong> —
+                    <span data-i18n="admin.lastActionLabel">Last action</span>: <strong id="last-action-player"></strong> —
                     <span id="last-action-summary"></span>
                 </p>
 
                 <p>
-                    Shared screen:<br>
+                    <span data-i18n="admin.sharedScreen">Shared screen</span>:<br>
                     <a id="screen-link"></a>
                 </p>
 
                 <p>
-                    Players:<br>
+                    <span data-i18n="admin.playerAccess">Players</span>:<br>
                     <a id="player-link"></a>
                 </p>
 
-                <h3>Players</h3>
+                <h3 data-i18n="common.players">Players</h3>
                 <ul id="player-list"></ul>
 
                 <section id="starting-draw" class="starting-draw" hidden>
-                    <h3>Starting-player draw</h3>
+                    <h3 data-i18n="admin.startingDraw">Starting-player draw</h3>
                     <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
                     <p id="starting-player-winner" class="starting-player-winner"></p>
                 </section>
 
                 <section id="final-result" class="final-result" hidden>
-                    <h3>Final result</h3>
+                    <h3 data-i18n="admin.finalResult">Final result</h3>
                     <p id="end-reason" class="muted"></p>
                     <ol id="final-ranking" class="final-ranking"></ol>
                 </section>
 
-                <button id="start-game" type="button" disabled>Start Game</button>
-                <p id="start-help" class="muted">At least two connected players are required.</p>
+                <button id="start-game" type="button" disabled data-i18n="admin.startGame">Start Game</button>
+                <p id="start-help" class="muted" data-i18n="admin.minimumPlayers">At least two connected players are required.</p>
             </section>
         </section>
     </main>
@@ -96,6 +107,8 @@
          *
          * @version 1.0.0
          */
+
+        const I18n = window.ElectronicScrabbleI18n;
 
         const SERVER_HOST = window.location.hostname || 'localhost';
         const SERVER_PORT = 8080;
@@ -130,6 +143,8 @@
 
         let currentGameCode = null;
         let currentGameStatus = 'lobby';
+        let lastGameState = null;
+        let connectionStatusKey = 'common.connecting';
 
 
         /**
@@ -153,13 +168,13 @@
                 const draws = document.createElement('div');
 
                 roundElement.className = 'starting-draw-round';
-                title.textContent = `Round ${round.round}`;
+                title.textContent = I18n.t('common.round', { round: round.round });
                 draws.className = 'starting-draw-letters';
 
                 round.draws.forEach((draw) => {
                     const item = document.createElement('span');
                     const blankNote = draw.blankRedraws > 0
-                        ? ` (${draw.blankRedraws} blank redraw${draw.blankRedraws === 1 ? '' : 's'})`
+                        ? I18n.tp('admin.blankRedraw', draw.blankRedraws)
                         : '';
 
                     item.textContent = `${draw.playerName}: ${draw.letter}${blankNote}`;
@@ -170,8 +185,9 @@
                 startingDrawRounds.appendChild(roundElement);
             });
 
-            startingPlayerWinner.textContent =
-                `${startingPlayerDraw.startingPlayerName} will play first.`;
+            startingPlayerWinner.textContent = I18n.t('admin.playerFirst', {
+                name: startingPlayerDraw.startingPlayerName
+            });
             startingDrawSection.hidden = false;
         }
 
@@ -184,14 +200,14 @@
          */
         function getEndReasonLabel(reason) {
             if (reason === 'rack-emptied') {
-                return 'A player emptied their rack after the tile bag became empty.';
+                return I18n.t('end.rackEmptied');
             }
 
             if (reason === 'consecutive-passes') {
-                return 'The game ended after three complete rounds of consecutive passes with fewer than seven tiles remaining.';
+                return I18n.t('end.consecutivePasses');
             }
 
-            return 'The game has ended.';
+            return I18n.t('end.default');
         }
 
         /**
@@ -217,9 +233,11 @@
                     ? `+${ranking.adjustment}`
                     : String(ranking.adjustment);
 
-                item.textContent =
-                    `${ranking.playerName}: ${ranking.finalScore} pts ` +
-                    `(${adjustment} final adjustment)`;
+                item.textContent = I18n.t('admin.finalRanking', {
+                    name: ranking.playerName,
+                    score: ranking.finalScore,
+                    adjustment
+                });
 
                 finalRanking.appendChild(item);
             });
@@ -235,19 +253,26 @@
          * @returns {void}
          */
         function updateGameState(game) {
+            lastGameState = game;
             currentGameStatus = game.status;
-            gameStatusElement.textContent = game.status === 'starting'
-                ? 'Starting-player draw'
-                : game.status;
+            const statusKey = {
+                lobby: 'common.lobby',
+                starting: 'common.starting',
+                playing: 'common.playing',
+                finished: 'common.finished'
+            }[game.status] ?? 'common.waiting';
+            gameStatusElement.textContent = I18n.t(statusKey);
             renderStartingPlayerDraw(
                 game.status === 'starting' ? game.startingPlayerDraw : null
             );
 
             if (game.wordValidation?.enabled) {
-                wordValidationStatus.textContent =
-                    `${game.wordValidation.dictionaryName} (${game.wordValidation.wordCount} words)`;
+                wordValidationStatus.textContent = I18n.t('admin.validationEnabled', {
+                    name: game.wordValidation.dictionaryName,
+                    count: game.wordValidation.wordCount
+                });
             } else {
-                wordValidationStatus.textContent = 'Disabled — structural validation only';
+                wordValidationStatus.textContent = I18n.t('admin.validationDisabled');
             }
 
             playerList.replaceChildren();
@@ -260,7 +285,7 @@
                 turnNumberElement.textContent = game.turnNumber;
                 turnPlayerElement.textContent = currentPlayer
                     ? currentPlayer.name
-                    : 'Waiting';
+                    : I18n.t('common.waiting');
                 turnInformation.hidden = false;
             } else {
                 turnInformation.hidden = true;
@@ -274,17 +299,18 @@
                         .map((word) => word.text)
                         .join(', ');
 
-                    lastActionSummary.textContent =
-                        `${words} — +${game.lastAction.score} pts`;
+                    lastActionSummary.textContent = I18n.t('admin.lastAction.move', {
+                        words,
+                        score: game.lastAction.score
+                    });
                 } else if (game.lastAction.type === 'exchange') {
                     const count = game.lastAction.exchangedCount;
 
-                    lastActionSummary.textContent =
-                        `exchanged ${count} tile${count === 1 ? '' : 's'}`;
+                    lastActionSummary.textContent = I18n.t('admin.lastAction.exchange', { count });
                 } else if (game.lastAction.type === 'pass') {
-                    lastActionSummary.textContent = 'passed the turn';
+                    lastActionSummary.textContent = I18n.t('admin.lastAction.pass');
                 } else {
-                    lastActionSummary.textContent = 'turn completed';
+                    lastActionSummary.textContent = I18n.t('admin.lastAction.completed');
                 }
 
                 lastActionInformation.hidden = false;
@@ -296,7 +322,7 @@
 
             game.players.forEach((player) => {
                 const item = document.createElement('li');
-                const connectionLabel = player.connected ? 'connected' : 'disconnected';
+                const connectionLabel = player.connected ? I18n.t('common.connected') : I18n.t('common.disconnected');
 
                 item.textContent = game.status === 'finished'
                     ? `${player.name} — ${player.score} pts`
@@ -325,53 +351,56 @@
             startGameButton.disabled = !canDetermineStartingPlayer && !canBeginPlay;
 
             if (game.status === 'finished') {
-                startGameButton.textContent = 'Game Finished';
-                startHelp.textContent = 'Game finished.';
+                startGameButton.textContent = I18n.t('admin.gameFinished');
+                startHelp.textContent = I18n.t('admin.finishedHelp');
                 return;
             }
 
             if (game.status === 'playing') {
-                startGameButton.textContent = 'Game Started';
-                startHelp.textContent = 'Game started.';
+                startGameButton.textContent = I18n.t('admin.gameStarted');
+                startHelp.textContent = I18n.t('admin.startedHelp');
                 return;
             }
 
             if (game.status === 'starting') {
-                startGameButton.textContent = 'Deal Tiles & Start';
+                startGameButton.textContent = I18n.t('admin.dealAndStart');
                 startHelp.textContent = allPlayersConnected
-                    ? 'First player determined. Ready to deal the racks.'
-                    : 'All players must reconnect before dealing the racks.';
+                    ? I18n.t('admin.firstDetermined')
+                    : I18n.t('admin.reconnectBeforeDeal');
                 return;
             }
 
-            startGameButton.textContent = 'Determine First Player';
+            startGameButton.textContent = I18n.t('admin.determineFirst');
 
             if (game.players.length < MIN_PLAYERS) {
-                startHelp.textContent = 'At least two connected players are required.';
+                startHelp.textContent = I18n.t('admin.minimumPlayers');
                 return;
             }
 
             if (!allPlayersConnected) {
-                startHelp.textContent = 'All players must be connected before starting.';
+                startHelp.textContent = I18n.t('admin.mustConnect');
                 return;
             }
 
-            startHelp.textContent = 'Ready to determine the first player.';
+            startHelp.textContent = I18n.t('admin.readyFirst');
         }
 
         socket.addEventListener('open', () => {
-            connectionStatus.textContent = 'Connected';
+            connectionStatusKey = 'common.connected';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
             createGameButton.disabled = false;
         });
 
         socket.addEventListener('close', () => {
-            connectionStatus.textContent = 'Disconnected';
+            connectionStatusKey = 'common.disconnected';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
             createGameButton.disabled = true;
             startGameButton.disabled = true;
         });
 
         socket.addEventListener('error', () => {
-            connectionStatus.textContent = 'Connection error';
+            connectionStatusKey = 'common.connectionError';
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
         });
 
         createGameButton.addEventListener('click', () => {
@@ -386,6 +415,14 @@
                     ? 'begin-play'
                     : 'start-game'
             }));
+        });
+
+        document.addEventListener('electronic-scrabble:language-changed', () => {
+            connectionStatus.textContent = I18n.t(connectionStatusKey);
+
+            if (lastGameState !== null) {
+                updateGameState(lastGameState);
+            }
         });
 
         socket.addEventListener('message', (event) => {
@@ -422,7 +459,7 @@
             }
 
             if (data.type === 'error') {
-                alert(data.message);
+                alert(I18n.t(`error.${data.code}`) === `error.${data.code}` ? data.message : I18n.t(`error.${data.code}`));
             }
         });
     
