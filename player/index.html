@@ -1915,6 +1915,62 @@
         }
 
         /**
+         * Challenges the currently pending move.
+         *
+         * The server remains authoritative and verifies whether the local
+         * player is allowed to challenge the move.
+         *
+         * @returns {void}
+         */
+        function challengePendingMove() {
+            if (
+                currentPendingMove === null ||
+                currentPlayerId === null ||
+                currentPendingMove.playerId === currentPlayerId ||
+                socket.readyState !== WebSocket.OPEN
+            ) {
+                return;
+            }
+
+            challengeMoveButton.disabled = true;
+            acceptPendingMoveButton.disabled = true;
+            showMoveFeedback(
+                I18n.t('player.feedback.challengeChecking'),
+                'info'
+            );
+
+            socket.send(JSON.stringify({
+                type: 'challenge-pending-move'
+            }));
+        }
+
+        /**
+         * Accepts the currently pending move without challenging it.
+         *
+         * Only the next player may accept a pending move. The server verifies
+         * this authorization before committing the move.
+         *
+         * @returns {void}
+         */
+        function acceptPendingMove() {
+            if (
+                currentPendingMove === null ||
+                currentPlayerId === null ||
+                currentPendingMove.nextPlayerId !== currentPlayerId ||
+                socket.readyState !== WebSocket.OPEN
+            ) {
+                return;
+            }
+
+            challengeMoveButton.disabled = true;
+            acceptPendingMoveButton.disabled = true;
+
+            socket.send(JSON.stringify({
+                type: 'accept-pending-move'
+            }));
+        }
+
+        /**
          * Displays move feedback using semantic status styling.
          *
          * @param {string} message Feedback message.
