@@ -19,6 +19,7 @@ PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 SERVICE_USER="${ELECTRONIC_SCRABBLE_USER:-${SUDO_USER:-}}"
 DATA_DIR="${ELECTRONIC_SCRABBLE_DATA_DIR:-/var/lib/electronic-scrabble/games}"
 CONFIGURE_AUTOLOGIN="${ELECTRONIC_SCRABBLE_CONFIGURE_AUTOLOGIN:-1}"
+CONFIGURE_ACCESS_POINT="${ELECTRONIC_SCRABBLE_CONFIGURE_ACCESS_POINT:-0}"
 
 if [[ -z "${SERVICE_USER}" || "${SERVICE_USER}" == "root" ]]; then
     echo "Unable to determine the non-root Raspberry Pi desktop user." >&2
@@ -53,9 +54,9 @@ if [[ ! -f "${PROJECT_DIR}/server/server.js" ]]; then
     exit 1
 fi
 
-if ! command -v curl >/dev/null 2>&1; then
+if ! command -v curl >/dev/null 2>&1 || ! command -v qrencode >/dev/null 2>&1; then
     apt-get update
-    apt-get install -y curl
+    apt-get install -y curl qrencode
 fi
 
 if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
@@ -95,6 +96,7 @@ set_environment_value ELECTRONIC_SCRABBLE_HTTP_HOST 0.0.0.0
 set_environment_value ELECTRONIC_SCRABBLE_HTTP_PORT 8000
 set_environment_value ELECTRONIC_SCRABBLE_SYSTEMCTL_PATH "${SYSTEMCTL_PATH}"
 set_environment_value ELECTRONIC_SCRABBLE_SUDO_PATH "${SUDO_PATH}"
+set_environment_value ELECTRONIC_SCRABBLE_QRENCODE_PATH "$(command -v qrencode)"
 
 chmod 0640 /etc/electronic-scrabble/environment
 chown root:"${SERVICE_GROUP}" /etc/electronic-scrabble/environment
@@ -122,6 +124,9 @@ render_service \
 install -m 0755 \
     "${SCRIPT_DIR}/electronic-scrabble-kiosk" \
     /usr/local/bin/electronic-scrabble-kiosk
+install -m 0755 \
+    "${SCRIPT_DIR}/configure-access-point.sh" \
+    /usr/local/sbin/electronic-scrabble-configure-access-point
 
 cat > /etc/sudoers.d/electronic-scrabble <<SUDOEOF
 ${SERVICE_USER} ALL=(root) NOPASSWD: ${SYSTEMCTL_PATH} reboot, ${SYSTEMCTL_PATH} poweroff
@@ -148,6 +153,10 @@ if [[ "${CONFIGURE_AUTOLOGIN}" == "1" ]] && command -v raspi-config >/dev/null 2
     raspi-config nonint do_boot_behaviour B4
 fi
 
+if [[ "${CONFIGURE_ACCESS_POINT}" == "1" ]]; then
+    "${SCRIPT_DIR}/configure-access-point.sh"
+fi
+
 systemctl daemon-reload
 systemctl enable --now electronic-scrabble-server.service
 systemctl enable --now electronic-scrabble-web.service
@@ -162,6 +171,12 @@ Game data:      ${DATA_DIR}
 Shared screen:  http://127.0.0.1:8000/screen/?console=1
 Administration: http://<raspberry-pi-ip>:8000/admin/
 Players:        http://<raspberry-pi-ip>:8000/player/
+
+Autonomous Wi-Fi can be configured separately with:
+
+    sudo /usr/local/sbin/electronic-scrabble-configure-access-point
+
+or during installation with ELECTRONIC_SCRABBLE_CONFIGURE_ACCESS_POINT=1.
 
 The Chromium kiosk starts when the Raspberry Pi desktop session starts.
 Reboot once to validate the complete boot-to-kiosk sequence:

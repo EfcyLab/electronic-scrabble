@@ -95,3 +95,73 @@ test('static server serves screen UI and rejects private server source', async (
         await new Promise((resolve) => server.close(resolve));
     }
 });
+
+test('static server exposes console-network metadata and offline QR endpoints', async () => {
+    const networkConfig = {
+        accessPointEnabled: true,
+        ssid: 'ElectronicScrabble',
+        password: 'Secret1234',
+        security: 'WPA',
+        address: '10.42.0.1',
+        baseUrl: 'http://10.42.0.1:8000',
+        playerBaseUrl: 'http://10.42.0.1:8000/player/',
+        adminUrl: 'http://10.42.0.1:8000/admin/'
+    };
+    const renderedPayloads = [];
+    const server = createStaticWebServer({
+        networkConfig,
+        qrRenderer: async (payload) => {
+            renderedPayloads.push(payload);
+            return '<svg viewBox="0 0 1 1"></svg>';
+        }
+    });
+
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = server.address().port;
+
+    try {
+        const infoResponse = await request(port, '/api/console-network');
+        const wifiResponse = await request(port, '/api/qr/wifi.svg');
+        const playerResponse = await request(port, '/api/qr/player.svg?game=ABCD');
+
+        assert.equal(infoResponse.statusCode, 200);
+        assert.equal(JSON.parse(infoResponse.body).ssid, 'ElectronicScrabble');
+        assert.equal(wifiResponse.statusCode, 200);
+        assert.match(wifiResponse.headers['content-type'], /image\/svg\+xml/);
+        assert.equal(playerResponse.statusCode, 200);
+        assert.match(renderedPayloads[0], /^WIFI:T:WPA;/);
+        assert.equal(
+            renderedPayloads[1],
+            'http://10.42.0.1:8000/player/?game=ABCD'
+        );
+    } finally {
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('player QR endpoint rejects malformed public game codes', async () => {
+    const server = createStaticWebServer({
+        networkConfig: {
+            accessPointEnabled: true,
+            ssid: 'ElectronicScrabble',
+            password: 'Secret1234',
+            security: 'WPA',
+            address: '10.42.0.1',
+            baseUrl: 'http://10.42.0.1:8000',
+            playerBaseUrl: 'http://10.42.0.1:8000/player/',
+            adminUrl: 'http://10.42.0.1:8000/admin/'
+        },
+        qrRenderer: async () => '<svg></svg>'
+    });
+
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = server.address().port;
+
+    try {
+        const response = await request(port, '/api/qr/player.svg?game=BAD');
+
+        assert.equal(response.statusCode, 400);
+    } finally {
+        await new Promise((resolve) => server.close(resolve));
+    }
+});

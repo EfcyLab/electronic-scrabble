@@ -4,7 +4,7 @@
  * English is the canonical source language for the application.
  *
  * @author Electronic Scrabble Project
- * @version 1.1.0
+ * @version 1.2.0
  */
 (function registerEnglishResources(root, factory) {
     const resources = factory();
@@ -119,6 +119,15 @@
 
         'screen.pageTitle': 'Electronic Scrabble - Shared Screen',
         'screen.gamePanel': 'Game',
+        'screen.joinGame': 'Join the game',
+        'screen.joinWifi': '1. Connect to Wi-Fi',
+        'screen.network': 'Network',
+        'screen.password': 'Password',
+        'screen.scanWifi': 'Scan to connect to the console Wi-Fi.',
+        'screen.joinRack': '2. Open your rack',
+        'screen.scanPlayer': 'Scan to open the player page.',
+        'screen.waitingForGameQr': 'Create a game to display the player QR code.',
+        'screen.adminUrl': 'Administration',
         'screen.turnClock': 'Turn clock',
         'screen.clockPlayer': '{name} · current turn',
         'screen.words': 'Words',

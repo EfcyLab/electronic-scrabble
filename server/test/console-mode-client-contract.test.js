@@ -52,3 +52,12 @@ test('server authorizes console system actions only from administrator sessions'
     assert.match(serverSource, /validateConsoleAction\(message\.action\)/);
     assert.match(serverSource, /persistAllGames\(\);/);
 });
+
+
+test('dedicated screen loads autonomous Wi-Fi details and player QR codes', () => {
+    assert.match(screenHtml, /id="join-card"/);
+    assert.match(screenHtml, /id="wifi-qr"/);
+    assert.match(screenHtml, /id="player-qr"/);
+    assert.match(screenHtml, /fetch\('\/api\/console-network'/);
+    assert.match(screenHtml, /\/api\/qr\/player\.svg\?game=/);
+});

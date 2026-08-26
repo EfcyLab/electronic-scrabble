@@ -5,7 +5,7 @@
  * Internal game codes and rules remain language-independent.
  *
  * @author Electronic Scrabble Project
- * @version 1.1.0
+ * @version 1.2.0
  */
 (function registerFrenchResources(root, factory) {
     const resources = factory();
@@ -120,6 +120,15 @@
 
         'screen.pageTitle': 'Scrabble électronique - Écran partagé',
         'screen.gamePanel': 'Partie',
+        'screen.joinGame': 'Rejoindre la partie',
+        'screen.joinWifi': '1. Se connecter au Wi-Fi',
+        'screen.network': 'Réseau',
+        'screen.password': 'Mot de passe',
+        'screen.scanWifi': 'Scannez pour vous connecter au Wi-Fi de la console.',
+        'screen.joinRack': '2. Ouvrir votre chevalet',
+        'screen.scanPlayer': 'Scannez pour ouvrir la page joueur.',
+        'screen.waitingForGameQr': 'Créez une partie pour afficher le QR code joueur.',
+        'screen.adminUrl': 'Administration',
         'screen.turnClock': 'Chronomètre du tour',
         'screen.clockPlayer': '{name} · tour en cours',
         'screen.words': 'Mots',

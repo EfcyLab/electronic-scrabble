@@ -6,6 +6,17 @@ ELECTRONIC_SCRABBLE_HTTP_HOST=0.0.0.0
 ELECTRONIC_SCRABBLE_HTTP_PORT=8000
 ELECTRONIC_SCRABBLE_SYSTEMCTL_PATH=/usr/bin/systemctl
 ELECTRONIC_SCRABBLE_SUDO_PATH=/usr/bin/sudo
+ELECTRONIC_SCRABBLE_QRENCODE_PATH=/usr/bin/qrencode
+
+# Autonomous Wi-Fi access point. The configure-access-point script writes these
+# values automatically. Do not publish a real console password in Git.
+# ELECTRONIC_SCRABBLE_WIFI_ACCESS_POINT=1
+# ELECTRONIC_SCRABBLE_WIFI_CONNECTION=electronic-scrabble-ap
+# ELECTRONIC_SCRABBLE_WIFI_INTERFACE=wlan0
+# ELECTRONIC_SCRABBLE_WIFI_SSID=ElectronicScrabble
+# ELECTRONIC_SCRABBLE_WIFI_PASSWORD=ChangeThisPassword
+# ELECTRONIC_SCRABBLE_WIFI_ADDRESS=10.42.0.1/24
+# ELECTRONIC_SCRABBLE_PUBLIC_BASE_URL=http://10.42.0.1:8000
 
 # Word validation remains optional until an authorized dictionary is supplied.
 # ELECTRONIC_SCRABBLE_DICTIONARY_MODE=required

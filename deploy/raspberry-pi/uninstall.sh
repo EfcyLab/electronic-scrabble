@@ -20,6 +20,7 @@ rm -f /etc/systemd/system/electronic-scrabble-server.service
 rm -f /etc/systemd/system/electronic-scrabble-web.service
 rm -f /etc/sudoers.d/electronic-scrabble
 rm -f /usr/local/bin/electronic-scrabble-kiosk
+rm -f /usr/local/sbin/electronic-scrabble-configure-access-point
 systemctl daemon-reload
 
 if [[ -n "${SERVICE_USER}" ]] && id "${SERVICE_USER}" >/dev/null 2>&1; then
@@ -35,3 +36,4 @@ fi
 
 echo "Electronic Scrabble console integration removed."
 echo "Persistent data under /var/lib/electronic-scrabble was preserved."
+echo "Any NetworkManager access-point profile was preserved to avoid disconnecting this session."

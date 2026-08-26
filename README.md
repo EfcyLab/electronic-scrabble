@@ -26,27 +26,37 @@ The project is designed to run on a local network and ultimately as a self-conta
 - shared themes
 - English and French interfaces
 - dedicated Raspberry Pi console mode
+- autonomous Raspberry Pi Wi-Fi access point with fixed local address
+- offline Wi-Fi and game-join QR codes on the shared screen
 - administrator-controlled safe reboot and power-off
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    Server["Authoritative Game Server\nNode.js + WebSocket"]
-    Store["Private Persistent Store\nGame snapshots"]
-    Screen["Shared Screen\nTV / HDMI"]
-    Admin["Administration\nBrowser"]
-    P1["Player 1\nSmartphone rack"]
-    P2["Player 2\nSmartphone rack"]
-    PN["Player N\nSmartphone rack"]
+    AP["Optional autonomous Wi-Fi<br/>NetworkManager access point"]
+    Server["Authoritative Game Server<br/>Node.js + WebSocket"]
+    Store["Private Persistent Store<br/>Game snapshots"]
+    Web["Restricted Web Server<br/>UI + local QR endpoints"]
+    Screen["Shared Screen<br/>TV / HDMI"]
+    Admin["Administration<br/>Browser"]
+    P1["Player 1<br/>Smartphone rack"]
+    P2["Player 2<br/>Smartphone rack"]
+    PN["Player N<br/>Smartphone rack"]
 
     Server <--> Store
+    Web --> Screen
+    AP --> Admin
+    AP --> P1
+    AP --> P2
+    AP --> PN
     Screen <-->|WebSocket| Server
     Admin <-->|WebSocket| Server
     P1 <-->|WebSocket| Server
     P2 <-->|WebSocket| Server
     PN <-->|WebSocket| Server
 ```
+
 
 The game server is authoritative. Browser clients submit intentions; they do not directly modify scores, the bag, racks, or board state.
 
@@ -90,7 +100,7 @@ Dedicated Raspberry Pi console mode:
 /screen/?console=1
 ```
 
-Console mode automatically follows the current local game and survives server restarts without embedding a changing game code in the kiosk URL.
+Console mode automatically follows the current local game and survives server restarts without embedding a changing game code in the kiosk URL. When autonomous Wi-Fi is configured, the shared screen also displays a Wi-Fi QR code and a game-specific player QR code during the lobby.
 
 ## Internationalization
 
@@ -175,13 +185,16 @@ The project includes a deployment mode for Raspberry Pi OS with Desktop.
 ```mermaid
 flowchart TB
     Boot["Raspberry Pi boot"]
+    Network["NetworkManager<br/>Autonomous Wi-Fi"]
     Systemd["systemd"]
     Game["Game server :8080"]
-    Web["Restricted web server :8000"]
+    Web["Restricted web server :8000<br/>Local QR generation"]
     Desktop["Desktop autologin"]
     Kiosk["Chromium kiosk"]
     TV["HDMI TV / Monitor"]
+    Phones["Player phones"]
 
+    Boot --> Network
     Boot --> Systemd
     Systemd --> Game
     Systemd --> Web
@@ -189,9 +202,13 @@ flowchart TB
     Desktop --> Kiosk
     Kiosk --> TV
     Kiosk --> Web
+    Phones <-->|Wi-Fi| Network
+    Phones --> Web
+    Phones <-->|WebSocket| Game
 ```
 
-Install from the repository:
+
+Basic console installation:
 
 ```bash
 sudo bash deploy/raspberry-pi/install.sh
@@ -203,11 +220,48 @@ The installer sets up:
 - `electronic-scrabble-server.service`;
 - `electronic-scrabble-web.service`;
 - private persistent storage;
+- local `qrencode` support;
 - Chromium kiosk launch through the Raspberry Pi OS Labwc desktop autostart;
 - desktop autologin;
+- the autonomous Wi-Fi configurator;
 - narrowly scoped administrator reboot and power-off permissions.
 
-Detailed instructions: [`docs/raspberry-pi-console.md`](docs/raspberry-pi-console.md).
+### Completely standalone Wi-Fi
+
+To configure the Raspberry Pi as its own access point during installation:
+
+```bash
+sudo ELECTRONIC_SCRABBLE_CONFIGURE_ACCESS_POINT=1 \
+     ELECTRONIC_SCRABBLE_WIFI_SSID="ElectronicScrabble" \
+     ELECTRONIC_SCRABBLE_WIFI_PASSWORD="MyGame1234" \
+     bash deploy/raspberry-pi/install.sh
+sudo reboot
+```
+
+The default console network address is:
+
+```text
+10.42.0.1
+```
+
+Players can then connect without a router or Internet connection. The HDMI
+screen displays two local QR codes during the lobby:
+
+1. Wi-Fi configuration QR code;
+2. game-specific player URL QR code.
+
+QR codes are generated locally with `qrencode`; no remote QR service is used.
+
+The Wi-Fi profile can also be configured after installation:
+
+```bash
+sudo /usr/local/sbin/electronic-scrabble-configure-access-point
+```
+
+Detailed documentation:
+
+- [`docs/raspberry-pi-console.md`](docs/raspberry-pi-console.md)
+- [`docs/autonomous-wifi-and-qr.md`](docs/autonomous-wifi-and-qr.md)
 
 ## Development Setup
 
@@ -255,7 +309,7 @@ From `server/`:
 npm test
 ```
 
-The test suite covers board layout, tile distribution, scoring, move validation, end-game rules, rack arrangement, internationalization, persistence, turn clock behavior, client contracts, console controls, static-server isolation, and Raspberry Pi deployment contracts.
+The test suite covers board layout, tile distribution, scoring, move validation, end-game rules, rack arrangement, internationalization, persistence, turn clock behavior, client contracts, console controls, QR/network configuration, static-server isolation, and Raspberry Pi deployment contracts.
 
 ## Project Structure
 
@@ -270,7 +324,9 @@ electronic-scrabble/
 ├── server/
 │   ├── dictionary/
 │   ├── game/
+│   ├── network/
 │   ├── persistence/
+│   ├── qr/
 │   ├── system/
 │   └── test/
 ├── shared/
@@ -310,10 +366,12 @@ console-system-action
 - private rack contents never enter the public game state;
 - recovery tokens are private;
 - persistent snapshots are stored outside browser-accessible directories;
-- the production static web service exposes only UI directories;
+- the production static web service exposes only UI directories plus fixed local console/QR endpoints;
 - console power controls accept only fixed reboot/power-off actions;
 - the application server runs as a non-root account;
 - authorized dictionary files must remain private;
+- the generated Wi-Fi password in `/etc/electronic-scrabble/environment` must remain private;
+- the QR endpoint only encodes configured Wi-Fi credentials or validated game join URLs;
 - the local services should not be exposed directly to the public Internet.
 
 ## Roadmap
@@ -323,10 +381,9 @@ Potential future work includes:
 - authorized production French dictionary integration;
 - additional languages;
 - user-created theme manifests;
-- QR-code joining on the shared screen;
+- optional captive-portal flow for one-step Wi-Fi onboarding;
 - optional timeout policy;
 - game history and statistics;
-- Raspberry Pi access-point mode for completely standalone Wi-Fi play;
 - packaging and update tooling.
 
 ## License

@@ -7,7 +7,8 @@ The console deployment has four parts:
 1. the WebSocket game server, managed by `systemd`;
 2. the restricted static web server, managed by `systemd`;
 3. Chromium in kiosk mode on the Raspberry Pi desktop;
-4. administrator-only reboot and power-off controls.
+4. optional autonomous Wi-Fi access-point mode with local QR joining;
+5. administrator-only reboot and power-off controls.
 
 ## Recommended Platform
 
@@ -32,7 +33,7 @@ sudo bash deploy/raspberry-pi/install.sh
 The installer:
 
 - detects the non-root desktop user;
-- installs missing `curl` and Chromium packages when required;
+- installs missing `curl`, `qrencode`, and Chromium packages when required;
 - installs Node dependencies when `server/package.json` is available;
 - creates `/var/lib/electronic-scrabble/games` with private permissions;
 - writes `/etc/electronic-scrabble/environment`;
@@ -40,13 +41,47 @@ The installer:
 - installs the Chromium kiosk launcher;
 - adds the kiosk launcher to Labwc autostart;
 - configures Raspberry Pi OS desktop autologin with `raspi-config B4`;
-- creates a narrowly scoped sudoers rule for reboot and power-off.
+- creates a narrowly scoped sudoers rule for reboot and power-off;
+- installs the optional NetworkManager access-point configurator.
 
 Then reboot:
 
 ```bash
 sudo reboot
 ```
+
+## Autonomous Wi-Fi
+
+The console can create its own Wi-Fi network with NetworkManager, so a router
+or Internet connection is not required. The default private console address is:
+
+```text
+10.42.0.1/24
+```
+
+Configure the profile after installation:
+
+```bash
+sudo /usr/local/sbin/electronic-scrabble-configure-access-point
+```
+
+Or configure it during installation:
+
+```bash
+sudo ELECTRONIC_SCRABBLE_CONFIGURE_ACCESS_POINT=1 \
+     ELECTRONIC_SCRABBLE_WIFI_SSID="ElectronicScrabble" \
+     ELECTRONIC_SCRABBLE_WIFI_PASSWORD="MyGame1234" \
+     bash deploy/raspberry-pi/install.sh
+```
+
+The profile is created with boot autoconnect but is not activated immediately,
+which avoids unexpectedly dropping a Wi-Fi SSH installation session.
+
+The shared HDMI screen displays a Wi-Fi QR code and, once a game exists, a
+second QR code that opens the game-specific player URL. QR generation runs
+locally through `qrencode`; no external service is used.
+
+See [`autonomous-wifi-and-qr.md`](autonomous-wifi-and-qr.md).
 
 ## Services
 
@@ -172,6 +207,7 @@ ELECTRONIC_SCRABBLE_DATA_DIR=/var/lib/electronic-scrabble/games
 ELECTRONIC_SCRABBLE_CONSOLE_CONTROL=1
 ELECTRONIC_SCRABBLE_HTTP_HOST=0.0.0.0
 ELECTRONIC_SCRABBLE_HTTP_PORT=8000
+ELECTRONIC_SCRABBLE_QRENCODE_PATH=/usr/bin/qrencode
 ```
 
 After editing it, restart the services:
