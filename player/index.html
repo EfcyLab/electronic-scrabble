@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/player.css">
+    <link rel="stylesheet" href="./css/player.css?v=14.2.0">
 
     <script src="../shared/i18n/en.js?v=14.1.0"></script>
     <script src="../shared/i18n/fr.js?v=14.1.0"></script>
@@ -1345,9 +1345,14 @@
 
             boardZoomOutButton.disabled = boardZoomIndex === 0;
             boardZoomInButton.disabled = boardZoomIndex === BOARD_ZOOM_MULTIPLIERS.length - 1;
-            boardZoomStatus.textContent = I18n.t('player.board.zoomLevel', {
-                value: Math.round(multiplier * 100)
+            const zoomPercent = Math.round(multiplier * 100);
+            const zoomLabel = I18n.t('player.board.zoomLevel', {
+                value: zoomPercent
             });
+
+            boardZoomStatus.textContent = `${zoomPercent}%`;
+            boardZoomStatus.setAttribute('aria-label', zoomLabel);
+            boardZoomStatus.title = zoomLabel;
         }
 
         /**
