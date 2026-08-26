@@ -261,3 +261,18 @@
         animation: none;
     }
 }
+
+/*
+ * Pending move challenge state.
+ */
+
+.board-cell--pending-move {
+    outline: clamp(2px, 0.25vw, 4px) dashed var(--color-warning);
+    outline-offset: clamp(-4px, -0.25vw, -2px);
+    z-index: 2;
+}
+
+.challenge-card {
+    border-color: color-mix(in srgb, var(--color-warning) 48%, var(--color-border));
+    background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
+}

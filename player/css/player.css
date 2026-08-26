@@ -895,3 +895,25 @@ body {
         grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
     }
 }
+
+/*
+ * Pending move challenge window.
+ */
+
+.challenge-panel {
+    border-color: color-mix(in srgb, var(--color-warning) 42%, var(--color-border));
+    background: color-mix(in srgb, var(--color-warning) 6%, var(--color-surface));
+}
+
+.challenge-summary {
+    margin: var(--spacing-small) 0 0;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+@media (max-width: 560px) {
+    .challenge-panel {
+        padding-top: 0.8rem;
+        padding-bottom: 0.8rem;
+    }
+}

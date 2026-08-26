@@ -47,6 +47,13 @@ const {
     loadConfiguredWordValidator,
     validateMoveWords
 } = require('./game/word-validator');
+const {
+    commitStagedMove,
+    getNextPlayerId,
+    getPublicPendingMove,
+    rollbackStagedMove,
+    stageMove
+} = require('./game/challenge-engine');
 
 const PORT = 8080;
 const MIN_PLAYERS = 2;
@@ -56,7 +63,27 @@ const GAME_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const LOBBY_RECONNECT_GRACE_MS = 30000;
 
 const wordValidator = loadConfiguredWordValidator();
-const publicWordValidationState = getPublicWordValidationState(wordValidator);
+const WORD_VALIDATION_POLICY = (
+    process.env.ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY || 'automatic'
+).trim().toLowerCase();
+const SUPPORTED_WORD_VALIDATION_POLICIES = new Set(['automatic', 'challenge']);
+
+if (!SUPPORTED_WORD_VALIDATION_POLICIES.has(WORD_VALIDATION_POLICY)) {
+    throw new Error(
+        `Unsupported word validation policy: ${WORD_VALIDATION_POLICY}. Expected automatic or challenge.`
+    );
+}
+
+if (WORD_VALIDATION_POLICY === 'challenge' && !wordValidator.enabled) {
+    throw new Error(
+        'Challenge word validation requires an enabled dictionary.'
+    );
+}
+
+const publicWordValidationState = {
+    ...getPublicWordValidationState(wordValidator),
+    policy: wordValidator.enabled ? WORD_VALIDATION_POLICY : 'structural'
+};
 const games = new Map();
 
 const server = new WebSocket.WebSocketServer({
@@ -153,6 +180,7 @@ function getPublicGameState(game) {
         turnNumber: game.turnNumber,
         lastMove: game.lastMove,
         lastAction: game.lastAction,
+        pendingMove: getPublicPendingMove(game.pendingMove),
         startingPlayerDraw: game.startingPlayerDraw,
         finalResult: game.finalResult,
         wordValidation: publicWordValidationState,
@@ -361,6 +389,7 @@ function createGame(socket) {
         turnNumber: 0,
         lastMove: null,
         lastAction: null,
+        pendingMove: null,
         startingPlayerDraw: null,
         finalResult: null,
         consecutivePasses: 0,
@@ -633,6 +662,7 @@ function startGame(socket) {
     game.turnNumber = 0;
     game.lastMove = null;
     game.lastAction = null;
+    game.pendingMove = null;
     game.finalResult = null;
     game.consecutivePasses = 0;
 
@@ -787,6 +817,222 @@ function finalizeAndBroadcastGame(game, reason, finishingPlayerId = null) {
 }
 
 /**
+ * Finalizes a move that was staged for a challenge window.
+ *
+ * @param {Object} game Mutable game instance.
+ * @param {Object} pendingMove Private pending move state.
+ * @param {Object|null} challengedBy Challenging player or null.
+ *
+ * @returns {void}
+ */
+function acceptStagedMove(game, pendingMove, challengedBy = null) {
+    const player = game.players.get(pendingMove.playerId);
+
+    if (!player) {
+        throw new Error('The player owning the pending move no longer exists.');
+    }
+
+    commitStagedMove(game.bag, player, pendingMove);
+    game.consecutivePasses = 0;
+
+    game.lastMove = {
+        playerId: player.id,
+        playerName: player.name,
+        score: pendingMove.move.score,
+        bingoBonus: pendingMove.move.bingoBonus,
+        words: pendingMove.move.words.map((word) => ({
+            text: word.text,
+            score: word.score
+        })),
+        placements: pendingMove.move.placements.map((placement) => ({
+            row: placement.row,
+            column: placement.column
+        }))
+    };
+
+    game.lastAction = {
+        type: 'move',
+        playerId: player.id,
+        playerName: player.name,
+        score: pendingMove.move.score,
+        words: game.lastMove.words,
+        challenged: challengedBy !== null,
+        challengedByPlayerName: challengedBy?.name ?? null
+    };
+
+    game.pendingMove = null;
+
+    if (player.socket !== null) {
+        send(player.socket, 'move-accepted', {
+            gameCode: game.code,
+            score: pendingMove.move.score,
+            bingoBonus: pendingMove.move.bingoBonus,
+            words: game.lastMove.words,
+            challenged: challengedBy !== null
+        });
+    }
+
+    if (shouldEndAfterRackEmptied(game.bag, player.rack)) {
+        finalizeAndBroadcastGame(
+            game,
+            END_REASON_RACK_EMPTIED,
+            player.id
+        );
+        return;
+    }
+
+    advanceTurn(game);
+    sendAllPrivatePlayerStates(game);
+    broadcastGameState(game);
+}
+
+/**
+ * Accepts a pending move without contesting its words.
+ *
+ * Only the next player may close the challenge window this way.
+ *
+ * @param {WebSocket} socket Next player's WebSocket connection.
+ *
+ * @returns {void}
+ */
+function acceptPendingMove(socket) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'player' || !session.playerId) {
+        sendError(socket, 'NOT_AUTHENTICATED_PLAYER', 'An authenticated player session is required.');
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game || game.status !== 'playing') {
+        sendError(socket, 'GAME_NOT_PLAYING', 'The game is not currently playing.');
+        return;
+    }
+
+    const pendingMove = game.pendingMove;
+
+    if (pendingMove === null) {
+        sendError(socket, 'NO_PENDING_MOVE', 'There is no move waiting for challenge resolution.');
+        return;
+    }
+
+    if (pendingMove.nextPlayerId !== session.playerId) {
+        sendError(socket, 'NOT_NEXT_PLAYER', 'Only the next player can accept the pending move.');
+        return;
+    }
+
+    send(socket, 'challenge-window-closed', {
+        gameCode: game.code
+    });
+
+    acceptStagedMove(game, pendingMove);
+}
+
+/**
+ * Challenges every word created by the pending move.
+ *
+ * If at least one word is invalid, the complete move is rolled back and the
+ * moving player loses the turn. If all words are valid, the move is committed.
+ * No unsuccessful-challenge point penalty is applied in this milestone.
+ *
+ * @param {WebSocket} socket Challenging player's WebSocket connection.
+ *
+ * @returns {void}
+ */
+function challengePendingMove(socket) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'player' || !session.playerId) {
+        sendError(socket, 'NOT_AUTHENTICATED_PLAYER', 'An authenticated player session is required.');
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game || game.status !== 'playing') {
+        sendError(socket, 'GAME_NOT_PLAYING', 'The game is not currently playing.');
+        return;
+    }
+
+    const pendingMove = game.pendingMove;
+
+    if (pendingMove === null) {
+        sendError(socket, 'NO_PENDING_MOVE', 'There is no move waiting for challenge resolution.');
+        return;
+    }
+
+    if (pendingMove.playerId === session.playerId) {
+        sendError(socket, 'CANNOT_CHALLENGE_OWN_MOVE', 'A player cannot challenge their own move.');
+        return;
+    }
+
+    const challenger = game.players.get(session.playerId);
+    const movingPlayer = game.players.get(pendingMove.playerId);
+
+    if (!challenger || !movingPlayer) {
+        sendError(socket, 'PLAYER_NOT_FOUND', 'The player session no longer exists.');
+        return;
+    }
+
+    const invalidWords = wordValidator.findInvalidWords(
+        pendingMove.move.words.map((word) => word.text)
+    );
+
+    if (invalidWords.length === 0) {
+        send(socket, 'challenge-result', {
+            gameCode: game.code,
+            successful: false,
+            invalidWords: []
+        });
+
+        acceptStagedMove(game, pendingMove, challenger);
+        return;
+    }
+
+    rollbackStagedMove(game.board, movingPlayer, pendingMove);
+    game.pendingMove = null;
+    game.consecutivePasses += 1;
+    game.lastAction = {
+        type: 'challenge-success',
+        playerId: challenger.id,
+        playerName: challenger.name,
+        challengedPlayerId: movingPlayer.id,
+        challengedPlayerName: movingPlayer.name,
+        invalidWords
+    };
+
+    send(socket, 'challenge-result', {
+        gameCode: game.code,
+        successful: true,
+        invalidWords
+    });
+
+    if (movingPlayer.socket !== null) {
+        send(movingPlayer.socket, 'move-rejected-after-challenge', {
+            gameCode: game.code,
+            invalidWords
+        });
+    }
+
+    if (shouldEndAfterConsecutivePasses(
+        game.bag.length,
+        game.consecutivePasses,
+        game.players.size
+    )) {
+        finalizeAndBroadcastGame(
+            game,
+            END_REASON_CONSECUTIVE_PASSES
+        );
+        return;
+    }
+
+    advanceTurn(game);
+    sendAllPrivatePlayerStates(game);
+    broadcastGameState(game);
+}
+
+/**
  * Validates and applies a player's proposed board move.
  *
  * Every formed word is validated when a configured dictionary is enabled.
@@ -832,6 +1078,15 @@ function submitMove(socket, message) {
         return;
     }
 
+    if (game.pendingMove !== null) {
+        sendError(
+            socket,
+            'PENDING_MOVE_REQUIRES_RESOLUTION',
+            'The previous move must be accepted or challenged first.'
+        );
+        return;
+    }
+
     let move;
 
     try {
@@ -847,6 +1102,34 @@ function submitMove(socket, message) {
         }
 
         throw error;
+    }
+
+    if (WORD_VALIDATION_POLICY === 'challenge' && wordValidator.enabled) {
+        const nextPlayerId = getNextPlayerId(
+            game.turnOrder,
+            game.currentPlayerId
+        );
+
+        game.pendingMove = stageMove(
+            game.board,
+            player,
+            move,
+            nextPlayerId
+        );
+
+        send(socket, 'move-pending-challenge', {
+            gameCode: game.code,
+            score: move.score,
+            bingoBonus: move.bingoBonus,
+            words: move.words.map((word) => ({
+                text: word.text,
+                score: word.score
+            }))
+        });
+
+        sendAllPrivatePlayerStates(game);
+        broadcastGameState(game);
+        return;
     }
 
     try {
@@ -976,6 +1259,15 @@ function getCurrentTurnContext(socket) {
 
     if (game.currentPlayerId !== player.id) {
         sendError(socket, 'NOT_YOUR_TURN', 'It is not your turn.');
+        return null;
+    }
+
+    if (game.pendingMove !== null) {
+        sendError(
+            socket,
+            'PENDING_MOVE_REQUIRES_RESOLUTION',
+            'The pending move must be accepted or challenged first.'
+        );
         return null;
     }
 
@@ -1135,6 +1427,14 @@ function handleMessage(socket, message) {
 
         case 'submit-move':
             submitMove(socket, message);
+            break;
+
+        case 'accept-pending-move':
+            acceptPendingMove(socket);
+            break;
+
+        case 'challenge-pending-move':
+            challengePendingMove(socket);
             break;
 
         case 'pass-turn':

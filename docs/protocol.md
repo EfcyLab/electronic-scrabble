@@ -441,3 +441,77 @@ sequenceDiagram
     Server-->>Players: player-state (private racks)
     Server-->>Screen: game-state (status: playing)
 ```
+
+## Challenge-mode messages
+
+Challenge mode is enabled with:
+
+```text
+ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY=challenge
+```
+
+It requires an enabled dictionary.
+
+### Move pending challenge
+
+```json
+{
+    "type": "move-pending-challenge",
+    "gameCode": "ABCD",
+    "score": 18,
+    "bingoBonus": 0,
+    "words": [
+        {
+            "text": "ARBRE",
+            "score": 18
+        }
+    ]
+}
+```
+
+The public `game-state` additionally contains a safe `pendingMove` object while
+the challenge window is open.
+
+### Accept a pending move
+
+Only the next player can explicitly close the challenge window without checking
+the words.
+
+```json
+{
+    "type": "accept-pending-move"
+}
+```
+
+### Challenge a pending move
+
+Any opponent can challenge the pending move.
+
+```json
+{
+    "type": "challenge-pending-move"
+}
+```
+
+Successful challenge response:
+
+```json
+{
+    "type": "challenge-result",
+    "gameCode": "ABCD",
+    "successful": true,
+    "invalidWords": ["XYZ"]
+}
+```
+
+The moving player also receives:
+
+```json
+{
+    "type": "move-rejected-after-challenge",
+    "gameCode": "ABCD",
+    "invalidWords": ["XYZ"]
+}
+```
+
+If the challenge fails, the staged move is committed and normal play continues.

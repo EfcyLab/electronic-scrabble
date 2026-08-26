@@ -62,6 +62,10 @@
                     <span data-i18n="common.turn">Turn</span> <strong id="turn-number">0</strong> — <strong id="turn-player" data-i18n="common.waiting">Waiting</strong>
                 </p>
 
+                <p id="challenge-information" hidden>
+                    <span data-i18n="admin.challengeWindow">Challenge window</span>: <strong id="challenge-summary"></strong>
+                </p>
+
                 <p id="last-action-information" hidden>
                     <span data-i18n="admin.lastActionLabel">Last action</span>: <strong id="last-action-player"></strong> —
                     <span id="last-action-summary"></span>
@@ -126,6 +130,8 @@
         const turnInformation = document.getElementById('turn-information');
         const turnNumberElement = document.getElementById('turn-number');
         const turnPlayerElement = document.getElementById('turn-player');
+        const challengeInformation = document.getElementById('challenge-information');
+        const challengeSummary = document.getElementById('challenge-summary');
         const lastActionInformation = document.getElementById('last-action-information');
         const lastActionPlayer = document.getElementById('last-action-player');
         const lastActionSummary = document.getElementById('last-action-summary');
@@ -267,7 +273,11 @@
             );
 
             if (game.wordValidation?.enabled) {
-                wordValidationStatus.textContent = I18n.t('admin.validationEnabled', {
+                const validationKey = game.wordValidation.policy === 'challenge'
+                    ? 'admin.validationEnabledChallenge'
+                    : 'admin.validationEnabled';
+
+                wordValidationStatus.textContent = I18n.t(validationKey, {
                     name: game.wordValidation.dictionaryName,
                     count: game.wordValidation.wordCount
                 });
@@ -291,6 +301,18 @@
                 turnInformation.hidden = true;
             }
 
+
+            if (game.pendingMove !== null) {
+                challengeSummary.textContent = I18n.t('admin.challengePending', {
+                    name: game.pendingMove.playerName,
+                    words: game.pendingMove.words.map((word) => word.text).join(', '),
+                    score: game.pendingMove.score
+                });
+                challengeInformation.hidden = false;
+            } else {
+                challengeInformation.hidden = true;
+            }
+
             if (game.lastAction !== null) {
                 lastActionPlayer.textContent = game.lastAction.playerName;
 
@@ -309,6 +331,12 @@
                     lastActionSummary.textContent = I18n.t('admin.lastAction.exchange', { count });
                 } else if (game.lastAction.type === 'pass') {
                     lastActionSummary.textContent = I18n.t('admin.lastAction.pass');
+                } else if (game.lastAction.type === 'challenge-success') {
+                    lastActionSummary.textContent = I18n.t('admin.lastAction.challengeSuccess', {
+                        challenger: game.lastAction.playerName,
+                        player: game.lastAction.challengedPlayerName,
+                        words: game.lastAction.invalidWords.join(', ')
+                    });
                 } else {
                     lastActionSummary.textContent = I18n.t('admin.lastAction.completed');
                 }

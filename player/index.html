@@ -188,6 +188,33 @@
 
             </div>
 
+
+            <section id="challenge-section" class="player-panel challenge-panel" hidden>
+                <div class="row row--between">
+                    <div>
+                        <h3 class="card__title" data-i18n="player.challenge.title">Challenge window</h3>
+                        <p class="muted panel-help" data-i18n="player.challenge.help">
+                            A submitted move remains provisional until the next player accepts it or an opponent challenges it.
+                        </p>
+                    </div>
+
+                    <span class="status status--warning" data-i18n="common.waiting">Waiting</span>
+                </div>
+
+                <p id="challenge-summary" class="challenge-summary"></p>
+                <p id="challenge-help" class="muted panel-help"></p>
+
+                <div id="challenge-actions" class="turn-action-buttons">
+                    <button id="challenge-move" class="button button--danger" type="button" disabled>
+                        <span data-i18n="player.challenge.button">Challenge</span>
+                    </button>
+
+                    <button id="accept-pending-move" class="button button--primary" type="button" disabled>
+                        <span data-i18n="player.challenge.accept">Accept Move</span>
+                    </button>
+                </div>
+            </section>
+
             <section id="turn-actions-section" class="player-panel" hidden>
                 <div class="row row--between">
                     <div>
@@ -321,6 +348,11 @@
         const submitMoveButton = document.getElementById('submit-move');
         const pendingCount = document.getElementById('pending-count');
         const moveFeedback = document.getElementById('move-feedback');
+        const challengeSection = document.getElementById('challenge-section');
+        const challengeSummary = document.getElementById('challenge-summary');
+        const challengeHelp = document.getElementById('challenge-help');
+        const challengeMoveButton = document.getElementById('challenge-move');
+        const acceptPendingMoveButton = document.getElementById('accept-pending-move');
         const turnActionsSection = document.getElementById('turn-actions-section');
         const turnActionHelp = document.getElementById('turn-action-help');
         const bagStatus = document.getElementById('bag-status');
@@ -348,6 +380,7 @@
         let currentTurnPlayerId = null;
         let currentBagRemaining = null;
         let currentWordValidation = null;
+        let currentPendingMove = null;
         let gameStatus = 'lobby';
         let selectedTileId = null;
         let pendingPlacements = new Map();
@@ -724,13 +757,57 @@
          */
         function updateWordValidationStatus() {
             if (currentWordValidation?.enabled) {
-                wordValidationNote.textContent = I18n.t('player.validation.enabled', {
+                const key = currentWordValidation.policy === 'challenge'
+                    ? 'player.validation.challenge'
+                    : 'player.validation.enabled';
+
+                wordValidationNote.textContent = I18n.t(key, {
                     name: currentWordValidation.dictionaryName
                 });
                 return;
             }
 
             wordValidationNote.textContent = I18n.t('player.validation.disabled');
+        }
+
+        /**
+         * Returns whether a challenge window is currently active.
+         *
+         * @returns {boolean} True when a move is pending resolution.
+         */
+        function hasPendingChallenge() {
+            return currentPendingMove !== null;
+        }
+
+        /**
+         * Renders the current move challenge window.
+         *
+         * @returns {void}
+         */
+        function renderChallengeWindow() {
+            if (currentPendingMove === null || gameStatus !== 'playing') {
+                challengeSection.hidden = true;
+                return;
+            }
+
+            const words = currentPendingMove.words
+                .map((word) => word.text)
+                .join(', ');
+            const isOwnMove = currentPendingMove.playerId === currentPlayerId;
+            const canChallenge = !isOwnMove;
+            const canAccept = currentPendingMove.nextPlayerId === currentPlayerId;
+
+            challengeSummary.textContent = I18n.t('player.challenge.pending', {
+                name: currentPendingMove.playerName,
+                words,
+                score: currentPendingMove.score
+            });
+            challengeHelp.textContent = isOwnMove
+                ? I18n.t('player.challenge.waitingOwn')
+                : I18n.t('player.challenge.waitingOther');
+            challengeMoveButton.disabled = !canChallenge;
+            acceptPendingMoveButton.disabled = !canAccept;
+            challengeSection.hidden = false;
         }
 
         /**
@@ -742,7 +819,8 @@
             return (
                 gameStatus === 'playing' &&
                 currentPlayerId !== null &&
-                currentTurnPlayerId === currentPlayerId
+                currentTurnPlayerId === currentPlayerId &&
+                !hasPendingChallenge()
             );
         }
 
@@ -768,8 +846,9 @@
                 ? 'status status--warning'
                 : (isTurn ? 'status status--success' : 'status');
 
-            moveSection.hidden = gameStatus !== 'playing';
-            turnActionsSection.hidden = gameStatus !== 'playing';
+            moveSection.hidden = gameStatus !== 'playing' || hasPendingChallenge();
+            turnActionsSection.hidden = gameStatus !== 'playing' || hasPendingChallenge();
+            renderChallengeWindow();
 
             if (!isTurn) {
                 pendingPlacements.clear();
@@ -1930,6 +2009,8 @@
 
         clearMoveButton.addEventListener('click', clearPendingMove);
         submitMoveButton.addEventListener('click', submitPendingMove);
+        challengeMoveButton.addEventListener('click', challengePendingMove);
+        acceptPendingMoveButton.addEventListener('click', acceptPendingMove);
         exchangeModeButton.addEventListener('click', beginExchangeMode);
         cancelExchangeButton.addEventListener('click', cancelExchangeMode);
         confirmExchangeButton.addEventListener('click', submitExchange);
@@ -1980,6 +2061,7 @@
             updateMoveControls();
             updateTurnActionControls();
             updateTurnState();
+            renderChallengeWindow();
             applyBoardView();
 
             if (lastGameState !== null) {
@@ -2039,6 +2121,7 @@
                 currentTurnPlayerId = data.game.currentPlayerId;
                 currentBagRemaining = data.game.bagRemaining;
                 currentWordValidation = data.game.wordValidation ?? null;
+                currentPendingMove = data.game.pendingMove ?? null;
 
                 renderStartingPlayerDraw(
                     data.game.status === 'starting' ? data.game.startingPlayerDraw : null
@@ -2060,6 +2143,56 @@
                 rackSection.hidden = false;
                 renderRack();
                 updateMoveControls();
+                return;
+            }
+
+            if (data.type === 'move-pending-challenge') {
+                pendingPlacements.clear();
+                selectedTileId = null;
+                exchangeMode = false;
+                exchangeTileIds.clear();
+                renderRack();
+                renderPlayerBoard();
+                updateMoveControls();
+                updateTurnActionControls();
+                showMoveFeedback(
+                    I18n.t('player.feedback.movePendingChallenge'),
+                    'info'
+                );
+                return;
+            }
+
+            if (data.type === 'challenge-result') {
+                const words = Array.isArray(data.invalidWords)
+                    ? data.invalidWords.join(', ')
+                    : '';
+
+                showMoveFeedback(
+                    data.successful
+                        ? I18n.t('player.feedback.challengeSuccess', { words })
+                        : I18n.t('player.feedback.challengeFailed'),
+                    data.successful ? 'success' : 'warning'
+                );
+                return;
+            }
+
+            if (data.type === 'move-rejected-after-challenge') {
+                const words = Array.isArray(data.invalidWords)
+                    ? data.invalidWords.join(', ')
+                    : '';
+
+                showMoveFeedback(
+                    I18n.t('player.feedback.moveRejectedChallenge', { words }),
+                    'error'
+                );
+                return;
+            }
+
+            if (data.type === 'challenge-window-closed') {
+                showMoveFeedback(
+                    I18n.t('player.feedback.challengeAccepted'),
+                    'success'
+                );
                 return;
             }
 

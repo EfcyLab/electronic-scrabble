@@ -75,6 +75,13 @@
                     <p id="starting-player-winner" class="starting-player-winner"></p>
                 </section>
 
+
+                <section id="challenge-card" class="screen-card challenge-card" hidden>
+                    <h2 class="card__title" data-i18n="screen.challengeWindow">Challenge window</h2>
+                    <p id="challenge-summary" class="last-move-words"></p>
+                    <p class="status status--warning" data-i18n="screen.challengeWaiting">Waiting for acceptance or challenge</p>
+                </section>
+
                 <section id="last-action-card" class="screen-card" hidden>
                     <h2 class="card__title" data-i18n="screen.lastAction">Last action</h2>
                     <p><strong id="last-action-player"></strong></p>
@@ -137,6 +144,8 @@
         const startingPlayerCard = document.getElementById('starting-player-card');
         const startingDrawRounds = document.getElementById('starting-draw-rounds');
         const startingPlayerWinner = document.getElementById('starting-player-winner');
+        const challengeCard = document.getElementById('challenge-card');
+        const challengeSummary = document.getElementById('challenge-summary');
         const lastActionCard = document.getElementById('last-action-card');
         const lastActionPlayer = document.getElementById('last-action-player');
         const lastActionSummary = document.getElementById('last-action-summary');
@@ -199,7 +208,7 @@
          *
          * @returns {HTMLDivElement} Board cell element.
          */
-        function createBoardCell(cell, lastMoveCoordinates) {
+        function createBoardCell(cell, lastMoveCoordinates, pendingMoveCoordinates) {
             const cellElement = document.createElement('div');
             const isCenter = cell.row === 7 && cell.column === 7;
             const coordinateKey = getCoordinateKey(cell.row, cell.column);
@@ -213,7 +222,9 @@
                 );
             }
 
-            if (lastMoveCoordinates.has(coordinateKey)) {
+            if (pendingMoveCoordinates.has(coordinateKey)) {
+                cellElement.classList.add('board-cell--pending-move');
+            } else if (lastMoveCoordinates.has(coordinateKey)) {
                 cellElement.classList.add('board-cell--last-move');
             }
 
@@ -239,10 +250,11 @@
          *
          * @param {Array<Array<Object>>} board Public board matrix.
          * @param {Object|null} lastMove Last accepted public move.
+         * @param {Object|null} pendingMove Move waiting for challenge resolution.
          *
          * @returns {void}
          */
-        function renderBoard(board, lastMove) {
+        function renderBoard(board, lastMove, pendingMove) {
             const fragment = document.createDocumentFragment();
             const lastMoveCoordinates = new Set(
                 (lastMove?.placements ?? []).map((placement) => (
@@ -250,9 +262,19 @@
                 ))
             );
 
+            const pendingMoveCoordinates = new Set(
+                (pendingMove?.placements ?? []).map((placement) => (
+                    getCoordinateKey(placement.row, placement.column)
+                ))
+            );
+
             board.flat().forEach((cell) => {
                 fragment.appendChild(
-                    createBoardCell(cell, lastMoveCoordinates)
+                    createBoardCell(
+                        cell,
+                        lastMoveCoordinates,
+                        pendingMoveCoordinates
+                    )
                 );
             });
 
@@ -346,11 +368,38 @@
                 lastActionSummary.textContent = I18n.t('screen.lastAction.exchange', { count });
             } else if (lastAction.type === 'pass') {
                 lastActionSummary.textContent = I18n.t('screen.lastAction.pass');
+            } else if (lastAction.type === 'challenge-success') {
+                lastActionSummary.textContent = I18n.t('screen.lastAction.challengeSuccess', {
+                    challenger: lastAction.playerName,
+                    player: lastAction.challengedPlayerName,
+                    words: lastAction.invalidWords.join(', ')
+                });
             } else {
                 lastActionSummary.textContent = I18n.t('screen.lastAction.completed');
             }
 
             lastActionCard.hidden = false;
+        }
+
+        /**
+         * Renders a move waiting for acceptance or challenge.
+         *
+         * @param {Object|null} pendingMove Public pending move state.
+         *
+         * @returns {void}
+         */
+        function renderPendingChallenge(pendingMove) {
+            if (pendingMove === null) {
+                challengeCard.hidden = true;
+                return;
+            }
+
+            challengeSummary.textContent = I18n.t('screen.challengePending', {
+                name: pendingMove.playerName,
+                words: pendingMove.words.map((word) => word.text).join(', '),
+                score: pendingMove.score
+            });
+            challengeCard.hidden = false;
         }
 
         /**
@@ -437,7 +486,11 @@
                 game.status === 'starting' ? game.startingPlayerDraw : null
             );
             wordValidationStatus.textContent = game.wordValidation?.enabled
-                ? game.wordValidation.dictionaryName
+                ? (game.wordValidation.policy === 'challenge'
+                    ? I18n.t('screen.validationChallenge', {
+                        name: game.wordValidation.dictionaryName
+                    })
+                    : game.wordValidation.dictionaryName)
                 : I18n.t('screen.structuralOnly');
             playerList.replaceChildren();
 
@@ -463,9 +516,10 @@
             }
 
             if (Array.isArray(game.board)) {
-                renderBoard(game.board, game.lastMove);
+                renderBoard(game.board, game.lastMove, game.pendingMove);
             }
 
+            renderPendingChallenge(game.pendingMove ?? null);
             renderLastAction(game.lastAction);
             renderFinalResult(game.finalResult);
 
