@@ -59,3 +59,31 @@ test('mobile board can calculate a centered coordinate', () => {
     assert.equal(Number.isFinite(pan.x), true);
     assert.equal(Number.isFinite(pan.y), true);
 });
+
+
+test('turn clock translations are available in English and French', () => {
+    assert.equal(english['screen.turnClock'], 'Turn clock');
+    assert.equal(english['clock.elapsed'], 'Elapsed time');
+    assert.equal(english['screen.clockPlayer'], '{name} · current turn');
+
+    assert.equal(french['screen.turnClock'], 'Chronomètre du tour');
+    assert.equal(french['clock.elapsed'], 'Temps écoulé');
+    assert.equal(french['screen.clockPlayer'], '{name} · tour en cours');
+});
+
+test('application pages cache-bust internationalization resources', () => {
+    const fs = require('node:fs');
+    const pagePaths = [
+        path.resolve(__dirname, '../../admin/index.html'),
+        path.resolve(__dirname, '../../player/index.html'),
+        path.resolve(__dirname, '../../screen/index.html')
+    ];
+
+    for (const pagePath of pagePaths) {
+        const source = fs.readFileSync(pagePath, 'utf8');
+
+        assert.match(source, /shared\/i18n\/en\.js\?v=14\.1\.0/);
+        assert.match(source, /shared\/i18n\/fr\.js\?v=14\.1\.0/);
+        assert.match(source, /shared\/js\/i18n-manager\.js\?v=14\.1\.0/);
+    }
+});
