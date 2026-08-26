@@ -9,10 +9,10 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/admin.css?v=15.0.0">
-    <script src="../shared/i18n/en.js?v=17.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=17.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=17.0.0"></script>
+    <link rel="stylesheet" href="./css/admin.css?v=18.0.0">
+    <script src="../shared/i18n/en.js?v=18.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=18.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=18.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
@@ -112,7 +112,10 @@
                     <ol id="final-ranking" class="final-ranking"></ol>
                 </section>
 
-                <button id="start-game" type="button" disabled data-i18n="admin.startGame">Start Game</button>
+                <div class="admin-game-actions">
+                    <button id="start-game" class="button button--primary" type="button" disabled data-i18n="admin.startGame">Start Game</button>
+                    <button id="stop-game" class="button button--danger" type="button" disabled data-i18n="admin.stopGame">Stop Game</button>
+                </div>
                 <p id="start-help" class="muted" data-i18n="admin.minimumPlayers">At least two connected players are required.</p>
 
                 <section id="console-control" class="console-control">
@@ -154,6 +157,7 @@
         const connectionStatus = document.getElementById('connection-status');
         const createGameButton = document.getElementById('create-game');
         const startGameButton = document.getElementById('start-game');
+        const stopGameButton = document.getElementById('stop-game');
         const startHelp = document.getElementById('start-help');
         const gameInformation = document.getElementById('game-information');
         const gameCodeElement = document.getElementById('game-code');
@@ -491,7 +495,8 @@
                 lobby: 'common.lobby',
                 starting: 'common.starting',
                 playing: 'common.playing',
-                finished: 'common.finished'
+                finished: 'common.finished',
+                stopped: 'common.stopped'
             }[game.status] ?? 'common.waiting';
             gameStatusElement.textContent = I18n.t(statusKey);
             renderStartingPlayerDraw(
@@ -578,7 +583,7 @@
                 const item = document.createElement('li');
                 const connectionLabel = player.connected ? I18n.t('common.connected') : I18n.t('common.disconnected');
 
-                item.textContent = game.status === 'finished'
+                item.textContent = ['finished', 'stopped'].includes(game.status)
                     ? `${player.name} — ${player.score} pts`
                     : `${player.name} — ${connectionLabel}`;
                 playerList.appendChild(item);
@@ -603,6 +608,14 @@
                 allPlayersConnected;
 
             startGameButton.disabled = !canDetermineStartingPlayer && !canBeginPlay;
+            stopGameButton.disabled = !['lobby', 'starting', 'playing'].includes(game.status);
+            createGameButton.disabled = !['finished', 'stopped'].includes(game.status);
+
+            if (game.status === 'stopped') {
+                startGameButton.textContent = I18n.t('admin.gameStopped');
+                startHelp.textContent = I18n.t('admin.stoppedHelp');
+                return;
+            }
 
             if (game.status === 'finished') {
                 startGameButton.textContent = I18n.t('admin.gameFinished');
@@ -670,6 +683,7 @@
             connectionStatus.textContent = I18n.t(connectionStatusKey);
             createGameButton.disabled = true;
             startGameButton.disabled = true;
+            stopGameButton.disabled = true;
             consoleRebootButton.disabled = true;
             consolePoweroffButton.disabled = true;
         });
@@ -690,6 +704,25 @@
                 type: currentGameStatus === 'starting'
                     ? 'begin-play'
                     : 'start-game'
+            }));
+        });
+
+        stopGameButton.addEventListener('click', () => {
+            if (
+                !currentGameCode ||
+                !['lobby', 'starting', 'playing'].includes(currentGameStatus) ||
+                socket.readyState !== WebSocket.OPEN
+            ) {
+                return;
+            }
+
+            if (!window.confirm(I18n.t('admin.confirmStopGame'))) {
+                return;
+            }
+
+            stopGameButton.disabled = true;
+            socket.send(JSON.stringify({
+                type: 'stop-game'
             }));
         });
 

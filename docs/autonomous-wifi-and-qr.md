@@ -110,11 +110,9 @@ The static server provides three local endpoints:
 /api/qr/player.svg?game=ABCD
 ```
 
-QR generation is completely local. The Raspberry Pi installer installs the
-`qrencode` utility and the Node static server invokes it directly without a
-shell.
+QR generation is completely local. The static server uses the Node.js `qrcode` dependency directly, so the same implementation works on a Raspberry Pi, a Linux VM, or another supported Node.js platform.
 
-No remote QR service is required.
+No operating-system QR executable or remote QR service is required.
 
 ### Wi-Fi QR
 
@@ -141,7 +139,7 @@ The game code is therefore already filled in when the player's browser opens.
 Before a game exists, the HDMI screen can show:
 
 ```text
-1. Connect to Wi-Fi
+Connect to Wi-Fi
    [ Wi-Fi QR ]
    Network: ElectronicScrabble
    Password: ********
@@ -153,7 +151,7 @@ http://10.42.0.1:8000/admin/
 After an administrator creates a game:
 
 ```text
-2. Open your rack
+Open your rack
    [ Player QR ]
    http://10.42.0.1:8000/player/?game=ABCD
 ```
@@ -234,6 +232,21 @@ curl --fail http://127.0.0.1:8000/api/qr/wifi.svg >/tmp/wifi.svg
 - Do not expose the console HTTP service directly to the public Internet.
 - The QR API cannot encode arbitrary user-provided strings; it only generates
   the configured Wi-Fi payload and validated game-specific player URLs.
-- QR generation uses `execFile` rather than a shell command.
+- QR generation uses the Node.js `qrcode` dependency and does not invoke a shell command.
 - Persistent game snapshots and dictionary files remain outside the public HTTP
   tree.
+
+
+## Development on a VM or ordinary LAN
+
+QR generation is not Raspberry Pi-specific. The shared-screen player QR code is available whenever the restricted Node.js web server is running. When access-point mode is disabled, the server detects a non-loopback IPv4 address and builds the player URL from that LAN address.
+
+If a VM uses NAT or another address that phones cannot reach, configure the address explicitly:
+
+```bash
+export ELECTRONIC_SCRABBLE_PUBLIC_BASE_URL="http://192.168.1.50:8000"
+```
+
+Then restart `static-web-server.js`. The Wi-Fi configuration QR is intentionally absent unless autonomous access-point mode is enabled, because the application does not know the credentials of an arbitrary external Wi-Fi network.
+
+QR SVG rendering is performed by the Node.js `qrcode` dependency. Run `npm install` in `server/` after updating the project.

@@ -651,3 +651,27 @@ Accepted request:
 The server persists all games before invoking the fixed host command.
 
 No arbitrary shell command, executable path, or extra command argument is accepted from the browser.
+
+
+## Stop Game
+
+An authenticated administrator can explicitly terminate an active game without applying normal end-game scoring.
+
+```json
+{
+    "type": "stop-game"
+}
+```
+
+The server rolls back any still-provisional challenge move, pauses the turn clock, persists the game with `status: "stopped"`, clears `currentPlayerId`, and broadcasts the new public state. A stopped game does not resume automatically on the dedicated console after a server restart.
+
+The public game state includes:
+
+```json
+{
+    "status": "stopped",
+    "stopReason": "administrator",
+    "stoppedAt": 1770000000000,
+    "currentPlayerId": null
+}
+```

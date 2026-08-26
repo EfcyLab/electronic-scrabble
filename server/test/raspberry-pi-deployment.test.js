@@ -64,8 +64,9 @@ test('installer limits passwordless sudo to reboot and poweroff commands', () =>
 });
 
 
-test('installer provides offline QR rendering and an optional autonomous Wi-Fi setup', () => {
-    assert.match(installer, /apt-get install -y curl qrencode/);
+test('installer provides Node.js QR rendering and an optional autonomous Wi-Fi setup', () => {
+    assert.match(installer, /npm.*install --omit=dev|npm.*ci --omit=dev/s);
+    assert.doesNotMatch(installer, /qrencode/);
     assert.match(installer, /ELECTRONIC_SCRABBLE_CONFIGURE_ACCESS_POINT/);
     assert.match(installer, /configure-access-point\.sh/);
 });

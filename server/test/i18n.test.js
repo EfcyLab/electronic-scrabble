@@ -68,16 +68,16 @@ test('application pages cache-bust internationalization resources', () => {
     for (const pagePath of pagePaths) {
         const source = fs.readFileSync(pagePath, 'utf8');
 
-        assert.match(source, /shared\/i18n\/en\.js\?v=17\.0\.0/);
-        assert.match(source, /shared\/i18n\/fr\.js\?v=17\.0\.0/);
-        assert.match(source, /shared\/js\/i18n-manager\.js\?v=17\.0\.0/);
+        assert.match(source, /shared\/i18n\/en\.js\?v=18\.0\.0/);
+        assert.match(source, /shared\/i18n\/fr\.js\?v=18\.0\.0/);
+        assert.match(source, /shared\/js\/i18n-manager\.js\?v=18\.0\.0/);
     }
 });
 
 
 test('shared-screen autonomous Wi-Fi and QR labels are translated', () => {
     assert.equal(english['screen.joinGame'], 'Join the game');
-    assert.equal(english['screen.joinWifi'], '1. Connect to Wi-Fi');
+    assert.equal(english['screen.joinWifi'], 'Connect to Wi-Fi');
     assert.equal(french['screen.joinGame'], 'Rejoindre la partie');
-    assert.equal(french['screen.joinWifi'], '1. Se connecter au Wi-Fi');
+    assert.equal(french['screen.joinWifi'], 'Se connecter au Wi-Fi');
 });

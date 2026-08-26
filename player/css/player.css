@@ -861,3 +861,10 @@ body {
         padding-bottom: 0.8rem;
     }
 }
+
+/* Selected provisional tile awaiting relocation on the board. */
+.player-board-cell--pending-selected {
+    outline: max(3px, calc(var(--board-cell-size) * 0.11)) dashed var(--color-primary-strong);
+    outline-offset: calc(max(3px, calc(var(--board-cell-size) * 0.11)) * -1);
+    z-index: 2;
+}

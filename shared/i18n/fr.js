@@ -5,7 +5,7 @@
  * Internal game codes and rules remain language-independent.
  *
  * @author Electronic Scrabble Project
- * @version 1.2.0
+ * @version 1.3.0
  */
 (function registerFrenchResources(root, factory) {
     const resources = factory();
@@ -34,6 +34,7 @@
         'common.starting': 'Tirage du premier joueur',
         'common.playing': 'En cours',
         'common.finished': 'Terminée',
+        'common.stopped': 'Arrêtée',
         'common.connected': 'Connecté',
         'common.disconnected': 'Déconnecté',
         'common.connecting': 'Connexion...',
@@ -77,6 +78,10 @@
         'admin.startingDraw': 'Tirage du premier joueur',
         'admin.finalResult': 'Résultat final',
         'admin.startGame': 'Démarrer la partie',
+        'admin.stopGame': 'Arrêter la partie',
+        'admin.confirmStopGame': 'Arrêter cette partie maintenant ? Son état actuel sera conservé comme partie arrêtée.',
+        'admin.gameStopped': 'Partie arrêtée',
+        'admin.stoppedHelp': 'Partie arrêtée par l’administrateur. Vous pouvez créer une nouvelle partie.',
         'admin.minimumPlayers': 'Au moins deux joueurs connectés sont nécessaires.',
         'admin.determineFirst': 'Déterminer le premier joueur',
         'admin.dealAndStart': 'Distribuer et démarrer',
@@ -121,11 +126,11 @@
         'screen.pageTitle': 'Scrabble électronique - Écran partagé',
         'screen.gamePanel': 'Partie',
         'screen.joinGame': 'Rejoindre la partie',
-        'screen.joinWifi': '1. Se connecter au Wi-Fi',
+        'screen.joinWifi': 'Se connecter au Wi-Fi',
         'screen.network': 'Réseau',
         'screen.password': 'Mot de passe',
         'screen.scanWifi': 'Scannez pour vous connecter au Wi-Fi de la console.',
-        'screen.joinRack': '2. Ouvrir votre chevalet',
+        'screen.joinRack': 'Ouvrir votre chevalet',
         'screen.scanPlayer': 'Scannez pour ouvrir la page joueur.',
         'screen.waitingForGameQr': 'Créez une partie pour afficher le QR code joueur.',
         'screen.adminUrl': 'Administration',
@@ -180,7 +185,7 @@
         'player.rack.updated': 'Ordre du chevalet modifié.',
         'player.rack.shuffled': 'Chevalet mélangé localement.',
         'player.move.title': 'Préparer votre coup',
-        'player.move.help': 'Sélectionnez une tuile du chevalet, puis touchez sa case de destination sur le plateau complet.',
+        'player.move.help': 'Sélectionnez une tuile du chevalet puis touchez une case. Pour déplacer une tuile provisoire, touchez-la une fois puis touchez sa nouvelle case. Touchez-la de nouveau pour la remettre sur le chevalet.',
         'player.board.aria': 'Plateau de Scrabble',
         'player.coordinate.column': 'Colonne',
         'player.coordinate.row': 'Ligne',
@@ -213,6 +218,7 @@
         'player.exchange.confirm': 'Confirmer l’échange',
         'player.finalResult': 'Résultat final',
         'player.turn.finished': 'Partie terminée',
+        'player.turn.stopped': 'Partie arrêtée',
         'player.turn.starting': 'Tirage du premier joueur',
         'player.turn.yours': 'À vous de jouer',
         'player.turn.waiting': 'En attente',
@@ -233,6 +239,8 @@
         'player.feedback.selectTileFirst': 'Sélectionnez d’abord une tuile de votre chevalet.',
         'player.feedback.squareOccupied': 'Cette case est déjà occupée.',
         'player.feedback.tilePlaced': 'Tuile placée en {coordinate}.',
+        'player.feedback.tileSelectedForMove': 'Tuile en {coordinate} sélectionnée. Touchez une autre case libre pour la déplacer, ou retouchez-la pour la remettre sur le chevalet.',
+        'player.feedback.tileMoved': 'Tuile déplacée en {coordinate}.',
         'player.feedback.tileReturned': 'Tuile remise sur votre chevalet.',
         'player.feedback.moveCleared': 'Coup provisoire effacé.',
         'player.feedback.exchangeUnavailable': 'L’échange de tuiles n’est pas disponible.',
@@ -309,6 +317,7 @@
         'error.INTERNAL_SERVER_ERROR': 'Le serveur n’a pas pu traiter la demande.',
         'error.CONSOLE_CONTROL_DISABLED': 'Les commandes système de la console sont désactivées.',
         'error.CONSOLE_ACTION_PENDING': 'Une commande système de la console est déjà en attente.',
+        'error.GAME_NOT_ACTIVE': 'Cette partie n’est plus active.',
         'error.INVALID_CONSOLE_ACTION': 'La commande système demandée pour la console est invalide.'
     });
 });

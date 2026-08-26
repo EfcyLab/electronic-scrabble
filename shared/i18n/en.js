@@ -4,7 +4,7 @@
  * English is the canonical source language for the application.
  *
  * @author Electronic Scrabble Project
- * @version 1.2.0
+ * @version 1.3.0
  */
 (function registerEnglishResources(root, factory) {
     const resources = factory();
@@ -33,6 +33,7 @@
         'common.starting': 'Starting-player draw',
         'common.playing': 'Playing',
         'common.finished': 'Finished',
+        'common.stopped': 'Stopped',
         'common.connected': 'Connected',
         'common.disconnected': 'Disconnected',
         'common.connecting': 'Connecting...',
@@ -76,6 +77,10 @@
         'admin.startingDraw': 'Starting-player draw',
         'admin.finalResult': 'Final result',
         'admin.startGame': 'Start Game',
+        'admin.stopGame': 'Stop Game',
+        'admin.confirmStopGame': 'Stop this game now? The current game state will be preserved as stopped.',
+        'admin.gameStopped': 'Game Stopped',
+        'admin.stoppedHelp': 'Game stopped by the administrator. You can create a new game.',
         'admin.minimumPlayers': 'At least two connected players are required.',
         'admin.determineFirst': 'Determine First Player',
         'admin.dealAndStart': 'Deal Tiles & Start',
@@ -120,11 +125,11 @@
         'screen.pageTitle': 'Electronic Scrabble - Shared Screen',
         'screen.gamePanel': 'Game',
         'screen.joinGame': 'Join the game',
-        'screen.joinWifi': '1. Connect to Wi-Fi',
+        'screen.joinWifi': 'Connect to Wi-Fi',
         'screen.network': 'Network',
         'screen.password': 'Password',
         'screen.scanWifi': 'Scan to connect to the console Wi-Fi.',
-        'screen.joinRack': '2. Open your rack',
+        'screen.joinRack': 'Open your rack',
         'screen.scanPlayer': 'Scan to open the player page.',
         'screen.waitingForGameQr': 'Create a game to display the player QR code.',
         'screen.adminUrl': 'Administration',
@@ -179,7 +184,7 @@
         'player.rack.updated': 'Rack order updated.',
         'player.rack.shuffled': 'Rack shuffled locally.',
         'player.move.title': 'Prepare your move',
-        'player.move.help': 'Select a rack tile, then tap the destination square on the complete board.',
+        'player.move.help': 'Select a rack tile and tap a square. To reposition a provisional tile, tap it once, then tap its new square. Tap it again to return it to the rack.',
         'player.board.aria': 'Scrabble board',
         'player.coordinate.column': 'Column',
         'player.coordinate.row': 'Row',
@@ -212,6 +217,7 @@
         'player.exchange.confirm': 'Confirm Exchange',
         'player.finalResult': 'Final result',
         'player.turn.finished': 'Game finished',
+        'player.turn.stopped': 'Game stopped',
         'player.turn.starting': 'Starting-player draw',
         'player.turn.yours': 'Your turn',
         'player.turn.waiting': 'Waiting',
@@ -232,6 +238,8 @@
         'player.feedback.selectTileFirst': 'Select a tile from your rack first.',
         'player.feedback.squareOccupied': 'This square is already occupied.',
         'player.feedback.tilePlaced': 'Tile placed at {coordinate}.',
+        'player.feedback.tileSelectedForMove': 'Tile at {coordinate} selected. Tap another empty square to move it, or tap it again to return it to the rack.',
+        'player.feedback.tileMoved': 'Tile moved to {coordinate}.',
         'player.feedback.tileReturned': 'Tile returned to your rack.',
         'player.feedback.moveCleared': 'Move cleared.',
         'player.feedback.exchangeUnavailable': 'Tile exchange is not available.',
@@ -308,6 +316,7 @@
         'error.INTERNAL_SERVER_ERROR': 'The server could not process the request.',
         'error.CONSOLE_CONTROL_DISABLED': 'Console system controls are disabled.',
         'error.CONSOLE_ACTION_PENDING': 'A console system action is already pending.',
+        'error.GAME_NOT_ACTIVE': 'This game is no longer active.',
         'error.INVALID_CONSOLE_ACTION': 'The requested console system action is invalid.'
     });
 });

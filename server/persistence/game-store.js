@@ -88,6 +88,8 @@ function serializeGame(game, now = Date.now()) {
             pendingMove: game.pendingMove,
             startingPlayerDraw: game.startingPlayerDraw,
             finalResult: game.finalResult,
+            stopReason: game.stopReason ?? null,
+            stoppedAt: game.stoppedAt ?? null,
             consecutivePasses: game.consecutivePasses,
             turnClock: serializeTurnClock(game.turnClock, now)
         }
@@ -147,6 +149,8 @@ function restoreGame(snapshot, now = Date.now()) {
         pendingMove: storedGame.pendingMove,
         startingPlayerDraw: storedGame.startingPlayerDraw,
         finalResult: storedGame.finalResult,
+        stopReason: storedGame.stopReason ?? null,
+        stoppedAt: storedGame.stoppedAt ?? null,
         consecutivePasses: storedGame.consecutivePasses,
         turnClock: restoreTurnClock(storedGame.turnClock, now),
         updatedAt: Number.isFinite(storedGame.updatedAt)

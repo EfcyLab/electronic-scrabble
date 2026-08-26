@@ -14,7 +14,7 @@ The project is designed to run on a local network and ultimately as a self-conta
 - private seven-tile smartphone racks
 - complete fit-to-width mobile board without gameplay zoom
 - local rack rearrangement and shuffle
-- move placement and structural validation
+- move placement, provisional tile repositioning, and structural validation
 - score calculation, cross words, premium squares, and 50-point seven-tile bonus
 - pass and tile exchange actions
 - first-player draw
@@ -28,7 +28,7 @@ The project is designed to run on a local network and ultimately as a self-conta
 - dedicated Raspberry Pi console mode
 - autonomous Raspberry Pi Wi-Fi access point with fixed local address
 - offline Wi-Fi and game-join QR codes on the shared screen
-- administrator-controlled safe reboot and power-off
+- administrator-controlled game stop, safe reboot, and power-off
 
 ## Architecture
 
@@ -76,7 +76,7 @@ Persistent snapshots are private server data and include information that must n
 /admin/
 ```
 
-The administration interface creates and resumes games, configures the turn clock, determines the first player, starts play, displays game status, and controls a dedicated Raspberry Pi console when console mode is enabled.
+The administration interface creates and resumes games, configures the turn clock, determines the first player, starts or stops play, displays game status, and controls a dedicated Raspberry Pi console when console mode is enabled.
 
 ### Player
 
@@ -84,7 +84,7 @@ The administration interface creates and resumes games, configures the turn cloc
 /player/?game=ABCD
 ```
 
-The smartphone interface provides the private rack, reliable touch-based tile rearrangement, a complete fit-to-width board without gameplay zoom, move preparation, exchange, pass, challenge, and final result views.
+The smartphone interface provides the private rack, reliable touch-based tile rearrangement, a complete fit-to-width board without gameplay zoom, provisional tile repositioning directly on the board, move preparation, exchange, pass, challenge, and final result views.
 
 ### Shared Screen
 
@@ -100,7 +100,7 @@ Dedicated Raspberry Pi console mode:
 /screen/?console=1
 ```
 
-Console mode automatically follows the current local game and survives server restarts without embedding a changing game code in the kiosk URL. When autonomous Wi-Fi is configured, the shared screen also displays a Wi-Fi QR code and a game-specific player QR code during the lobby.
+Console mode automatically follows the current local game and survives server restarts without embedding a changing game code in the kiosk URL. A game-specific player QR code is available on ordinary LAN/VM environments as well as on Raspberry Pi. When autonomous Wi-Fi is enabled, the shared screen additionally displays a Wi-Fi configuration QR code.
 
 ## Internationalization
 
@@ -220,7 +220,7 @@ The installer sets up:
 - `electronic-scrabble-server.service`;
 - `electronic-scrabble-web.service`;
 - private persistent storage;
-- local `qrencode` support;
+- platform-independent Node.js QR generation through the `qrcode` dependency;
 - Chromium kiosk launch through the Raspberry Pi OS Labwc desktop autostart;
 - desktop autologin;
 - the autonomous Wi-Fi configurator;
@@ -244,13 +244,14 @@ The default console network address is:
 10.42.0.1
 ```
 
-Players can then connect without a router or Internet connection. The HDMI
-screen displays two local QR codes during the lobby:
+Players can then connect without a router or Internet connection. In autonomous access-point mode the HDMI screen displays two local QR codes during the lobby:
 
 1. Wi-Fi configuration QR code;
 2. game-specific player URL QR code.
 
-QR codes are generated locally with `qrencode`; no remote QR service is used.
+Outside access-point mode, including development in a Linux VM, the player QR code is still generated using the detected LAN address. Set `ELECTRONIC_SCRABBLE_PUBLIC_BASE_URL` when the automatically detected VM address is not reachable from the phones. The Wi-Fi QR is intentionally omitted in this mode because Electronic Scrabble does not know the credentials of an arbitrary external network.
+
+QR codes are generated directly in Node.js with the MIT-licensed `qrcode` package; no remote QR service or Raspberry Pi-specific executable is required. After an upgrade that introduces QR support, run `npm install` again in `server/` so the dependency is present.
 
 The Wi-Fi profile can also be configured after installation:
 
@@ -271,7 +272,7 @@ Requirements:
 - npm
 - a modern browser
 
-Install the WebSocket dependency from the `server` directory:
+Install the server dependencies (`ws` and `qrcode`) from the `server` directory:
 
 ```bash
 cd server
@@ -288,8 +289,18 @@ For development, run the restricted static server in another terminal:
 
 ```bash
 cd server
-node static-web-server.js
+npm run web
 ```
+
+QR diagnostics:
+
+```bash
+npm ls qrcode
+curl http://127.0.0.1:8000/api/console-network
+curl --fail "http://127.0.0.1:8000/api/qr/player.svg?game=ABCD" | head
+```
+
+The final command should start with SVG markup. On a VM using NAT, the automatically detected guest address may not be reachable from a physical phone; use bridged networking or set `ELECTRONIC_SCRABBLE_PUBLIC_BASE_URL` to a reachable address before starting the web service.
 
 Open:
 
@@ -357,6 +368,7 @@ accept-pending-move
 challenge-pending-move
 pass-turn
 exchange-tiles
+stop-game
 console-system-action
 ```
 
@@ -372,6 +384,7 @@ console-system-action
 - authorized dictionary files must remain private;
 - the generated Wi-Fi password in `/etc/electronic-scrabble/environment` must remain private;
 - the QR endpoint only encodes configured Wi-Fi credentials or validated game join URLs;
+- stopping a game creates a terminal persisted state without applying final scoring;
 - the local services should not be exposed directly to the public Internet.
 
 ## Roadmap

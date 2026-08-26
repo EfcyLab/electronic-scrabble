@@ -193,3 +193,13 @@
         grid-template-columns: 1fr;
     }
 }
+
+.admin-game-actions {
+    display: flex;
+    gap: var(--spacing-medium);
+    flex-wrap: wrap;
+}
+
+.admin-game-actions .button {
+    flex: 1 1 12rem;
+}

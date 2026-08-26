@@ -10,11 +10,11 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/screen.css?v=17.0.0">
+    <link rel="stylesheet" href="./css/screen.css?v=18.0.0">
 
-    <script src="../shared/i18n/en.js?v=17.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=17.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=17.0.0"></script>
+    <script src="../shared/i18n/en.js?v=18.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=18.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=18.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
@@ -74,7 +74,7 @@
                     <h2 class="card__title" data-i18n="screen.joinGame">Join the game</h2>
 
                     <div id="wifi-join-step" class="join-step" hidden>
-                        <h3 class="join-step__title" data-i18n="screen.joinWifi">1. Connect to Wi-Fi</h3>
+                        <h3 class="join-step__title" data-i18n="screen.joinWifi">Connect to Wi-Fi</h3>
                         <div class="join-qr-frame">
                             <img
                                 id="wifi-qr"
@@ -96,7 +96,7 @@
                     </div>
 
                     <div id="player-join-step" class="join-step" hidden>
-                        <h3 class="join-step__title" data-i18n="screen.joinRack">2. Open your rack</h3>
+                        <h3 class="join-step__title" data-i18n="screen.joinRack">Open your rack</h3>
                         <div class="join-qr-frame">
                             <img id="player-qr" class="join-qr" alt="">
                         </div>
@@ -246,16 +246,24 @@
             const gameStatus = lastGameState?.status ?? 'lobby';
             const joinWindowOpen = ['lobby', 'starting'].includes(gameStatus);
 
-            if (consoleNetwork === null || !consoleNetwork.accessPointEnabled || !joinWindowOpen) {
+            if (consoleNetwork === null || !joinWindowOpen) {
                 joinCard.hidden = true;
                 return;
             }
 
-            wifiSsid.textContent = consoleNetwork.ssid ?? '';
-            wifiPassword.textContent = consoleNetwork.password ?? '';
-            wifiQr.src = '/api/qr/wifi.svg';
+            const accessPointAvailable = consoleNetwork.accessPointEnabled === true;
+
+            if (accessPointAvailable) {
+                wifiSsid.textContent = consoleNetwork.ssid ?? '';
+                wifiPassword.textContent = consoleNetwork.password ?? '';
+                wifiQr.src = '/api/qr/wifi.svg';
+                wifiJoinStep.hidden = false;
+            } else {
+                wifiQr.removeAttribute('src');
+                wifiJoinStep.hidden = true;
+            }
+
             adminUrlElement.textContent = consoleNetwork.adminUrl ?? '';
-            wifiJoinStep.hidden = false;
             adminUrlRow.hidden = !consoleNetwork.adminUrl;
             joinCard.hidden = false;
 
@@ -709,7 +717,8 @@
                 lobby: 'common.lobby',
                 starting: 'common.starting',
                 playing: 'common.playing',
-                finished: 'common.finished'
+                finished: 'common.finished',
+                stopped: 'common.stopped'
             }[game.status] ?? 'common.waiting';
             gameStatusElement.textContent = I18n.t(statusKey);
             renderStartingPlayerDraw(
@@ -765,7 +774,7 @@
 
                 if (game.status === 'playing') {
                     metadata.textContent = I18n.t('screen.player.playing', { score: player.score, count: player.rackCount });
-                } else if (game.status === 'finished') {
+                } else if (['finished', 'stopped'].includes(game.status)) {
                     metadata.textContent = I18n.t('screen.player.final', { score: player.score });
                 } else {
                     metadata.textContent = player.connected ? I18n.t('common.connected') : I18n.t('common.disconnected');
@@ -850,6 +859,16 @@
                 connectionStatus.textContent = I18n.t(connectionStatusKey);
                 connectionStatus.className = 'status status--warning';
                 lastGameState = null;
+                synchronizedTurnClock = null;
+                gameStatusElement.textContent = I18n.t('common.waiting');
+                playerList.replaceChildren();
+                boardElement.replaceChildren();
+                turnInformation.hidden = true;
+                bagInformation.hidden = true;
+                pendingChallengeCard.hidden = true;
+                lastActionCard.hidden = true;
+                finalResultCard.hidden = true;
+                turnClockCard.hidden = true;
                 renderJoinInformation();
                 return;
             }

@@ -67,6 +67,7 @@ const {
     resetTurnClock
 } = require('./game/turn-clock');
 const { createGameStore } = require('./persistence/game-store');
+const { stopGame: stopGameState } = require('./game/game-lifecycle');
 const {
     ACTION_POWEROFF,
     ACTION_REBOOT,
@@ -262,6 +263,8 @@ function getPublicGameState(game) {
         pendingMove: getPublicPendingMove(game.pendingMove),
         startingPlayerDraw: game.startingPlayerDraw,
         finalResult: game.finalResult,
+        stopReason: game.stopReason ?? null,
+        stoppedAt: game.stoppedAt ?? null,
         turnClock: getPublicTurnClock(game.turnClock),
         wordValidation: publicWordValidationState,
         players: Array.from(game.players.values()).map((player) => ({
@@ -322,10 +325,19 @@ function getConsoleGame() {
         return null;
     }
 
-    const activeGames = allGames.filter((game) => game.status !== 'finished');
-    const candidates = activeGames.length > 0 ? activeGames : allGames;
+    const activeGames = allGames.filter(
+        (game) => ['lobby', 'starting', 'playing'].includes(game.status)
+    );
 
-    return candidates.sort(
+    if (activeGames.length > 0) {
+        return activeGames.sort(
+            (left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0)
+        )[0] ?? null;
+    }
+
+    const finishedGames = allGames.filter((game) => game.status === 'finished');
+
+    return finishedGames.sort(
         (left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0)
     )[0] ?? null;
 }
@@ -541,6 +553,8 @@ function createGame(socket) {
         pendingMove: null,
         startingPlayerDraw: null,
         finalResult: null,
+        stopReason: null,
+        stoppedAt: null,
         consecutivePasses: 0,
         turnClock: createTurnClock(),
         updatedAt: Date.now(),
@@ -724,6 +738,66 @@ function watchConsole(socket) {
     });
 
     console.log(`Dedicated console screen displaying game: ${game.code}`);
+}
+
+/**
+ * Stops the current game from an authenticated administrator session.
+ *
+ * The game is preserved as a terminal stopped state without applying final
+ * scoring. Any provisional challenged move is rolled back first.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ *
+ * @returns {void}
+ */
+function stopGame(socket) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'admin' || !session.gameCode) {
+        sendError(socket, 'NOT_AUTHORIZED', 'Only a game administrator can stop the game.');
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The game does not exist.');
+        return;
+    }
+
+    try {
+        stopGameState(game);
+    } catch (error) {
+        sendError(
+            socket,
+            error.code || 'GAME_NOT_ACTIVE',
+            error.message || 'The game is no longer active.'
+        );
+        return;
+    }
+
+    getGameSockets(game).forEach((participantSocket) => {
+        send(participantSocket, 'game-stopped', {
+            gameCode: game.code,
+            reason: game.stopReason
+        });
+    });
+
+    broadcastGameState(game);
+
+    consoleScreenSockets.forEach((consoleSocket) => {
+        if (consoleSocket.session?.gameCode !== game.code) {
+            return;
+        }
+
+        consoleSocket.session = {
+            role: 'console-screen',
+            gameCode: null
+        };
+        send(consoleSocket, 'console-idle');
+    });
+
+    console.log(`Game ${game.code} stopped by administrator.`);
 }
 
 /**
@@ -1029,6 +1103,8 @@ function startGame(socket) {
     game.lastAction = null;
     game.pendingMove = null;
     game.finalResult = null;
+    game.stopReason = null;
+    game.stoppedAt = null;
     game.consecutivePasses = 0;
     game.turnClock.elapsedMs = 0;
     game.turnClock.startedAt = null;
@@ -1827,6 +1903,10 @@ function handleMessage(socket, message) {
 
         case 'exchange-tiles':
             exchangePlayerTiles(socket, message);
+            break;
+
+        case 'stop-game':
+            stopGame(socket);
             break;
 
         case 'console-system-action':

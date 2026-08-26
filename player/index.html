@@ -10,16 +10,16 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/player.css?v=17.0.0">
+    <link rel="stylesheet" href="./css/player.css?v=18.0.0">
 
-    <script src="../shared/i18n/en.js?v=17.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=17.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=17.0.0"></script>
+    <script src="../shared/i18n/en.js?v=18.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=18.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=18.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
-    <script src="./js/rack-order.js?v=17.0.0"></script>
-    <script src="./js/board-navigation.js?v=17.0.0"></script>
-    <script src="./js/mobile-layout.js?v=17.0.0"></script>
+    <script src="./js/rack-order.js?v=18.0.0"></script>
+    <script src="./js/board-navigation.js?v=18.0.0"></script>
+    <script src="./js/mobile-layout.js?v=18.0.0"></script>
 </head>
 <body data-i18n-page-title="player.pageTitle">
     <main class="app-shell">
@@ -368,6 +368,7 @@
         let gameStatus = 'lobby';
         let selectedTileId = null;
         let pendingPlacements = new Map();
+        let selectedPendingPlacementKey = null;
         let exchangeMode = false;
         let exchangeTileIds = new Set();
         let rackDragState = null;
@@ -813,15 +814,17 @@
 
             turnStatus.textContent = gameStatus === 'finished'
                 ? I18n.t('player.turn.finished')
-                : (gameStatus === 'starting'
-                    ? I18n.t('player.turn.starting')
-                    : (isTurn
-                        ? I18n.t('player.turn.yours')
-                        : (gameStatus === 'playing'
-                            ? I18n.t('player.turn.waiting')
-                            : I18n.t('player.turn.lobby'))));
+                : (gameStatus === 'stopped'
+                    ? I18n.t('player.turn.stopped')
+                    : (gameStatus === 'starting'
+                        ? I18n.t('player.turn.starting')
+                        : (isTurn
+                            ? I18n.t('player.turn.yours')
+                            : (gameStatus === 'playing'
+                                ? I18n.t('player.turn.waiting')
+                                : I18n.t('player.turn.lobby')))));
 
-            turnStatus.className = gameStatus === 'finished'
+            turnStatus.className = ['finished', 'stopped'].includes(gameStatus)
                 ? 'status status--warning'
                 : (isTurn ? 'status status--success' : 'status');
 
@@ -831,6 +834,7 @@
 
             if (!isTurn) {
                 pendingPlacements.clear();
+                selectedPendingPlacementKey = null;
                 exchangeMode = false;
                 exchangeTileIds.clear();
             }
@@ -1114,6 +1118,7 @@
                 return;
             }
 
+            selectedPendingPlacementKey = null;
             selectedTileId = selectedTileId === tileId ? null : tileId;
             renderRack();
             updateMoveControls();
@@ -1337,7 +1342,11 @@
             if (cell.tile !== null) {
                 button.appendChild(createPreviewTile(cell.tile, false));
                 button.addEventListener('click', () => {
-                    if (selectedTileId !== null && canPlay() && !exchangeMode) {
+                    if (
+                        (selectedTileId !== null || selectedPendingPlacementKey !== null) &&
+                        canPlay() &&
+                        !exchangeMode
+                    ) {
                         showMoveFeedback(I18n.t('player.feedback.squareOccupied'), 'error');
                     }
                 });
@@ -1355,8 +1364,16 @@
                 }
 
                 button.classList.add('player-board-cell--pending');
+
+                if (selectedPendingPlacementKey === coordinateKey) {
+                    button.classList.add('player-board-cell--pending-selected');
+                    button.setAttribute('aria-pressed', 'true');
+                } else {
+                    button.setAttribute('aria-pressed', 'false');
+                }
+
                 button.addEventListener('click', () => {
-                    removePendingPlacement(cell.row, cell.column);
+                    selectPendingPlacement(cell.row, cell.column);
                 });
 
                 return button;
@@ -1369,11 +1386,18 @@
             }
 
             button.addEventListener('click', () => {
-                if (selectedTileId === null || !canPlay() || exchangeMode) {
+                if (!canPlay() || exchangeMode) {
                     return;
                 }
 
-                placeSelectedTile(cell.row, cell.column);
+                if (selectedPendingPlacementKey !== null) {
+                    movePendingPlacement(cell.row, cell.column);
+                    return;
+                }
+
+                if (selectedTileId !== null) {
+                    placeSelectedTile(cell.row, cell.column);
+                }
             });
 
             return button;
@@ -1447,6 +1471,7 @@
                 ? blankLetterSelect.value
                 : null;
 
+            selectedPendingPlacementKey = null;
             pendingPlacements.set(coordinateKey, {
                 tileId: tile.id,
                 row,
@@ -1465,6 +1490,88 @@
         }
 
         /**
+         * Selects a provisional board tile for relocation.
+         *
+         * Tapping the selected provisional tile a second time returns it to
+         * the rack. Tapping another empty square moves it without touching the
+         * rack, which mirrors repositioning tiles before committing a move.
+         *
+         * @param {number} row Board row.
+         * @param {number} column Board column.
+         *
+         * @returns {void}
+         */
+        function selectPendingPlacement(row, column) {
+            const coordinateKey = getCoordinateKey(row, column);
+
+            if (!pendingPlacements.has(coordinateKey) || !canPlay() || exchangeMode) {
+                return;
+            }
+
+            if (selectedPendingPlacementKey === coordinateKey) {
+                removePendingPlacement(row, column);
+                return;
+            }
+
+            selectedTileId = null;
+            selectedPendingPlacementKey = coordinateKey;
+            renderRack();
+            renderPlayerBoard();
+            updateMoveControls();
+            showMoveFeedback(I18n.t('player.feedback.tileSelectedForMove', {
+                coordinate: `${COLUMN_LABELS[column]}${row + 1}`
+            }), 'info');
+        }
+
+        /**
+         * Moves the selected provisional tile to an empty board square.
+         *
+         * @param {number} row Destination board row.
+         * @param {number} column Destination board column.
+         *
+         * @returns {void}
+         */
+        function movePendingPlacement(row, column) {
+            if (selectedPendingPlacementKey === null || !canPlay() || exchangeMode) {
+                return;
+            }
+
+            if (currentBoard[row]?.[column]?.tile !== null) {
+                showMoveFeedback(I18n.t('player.feedback.squareOccupied'), 'error');
+                return;
+            }
+
+            const destinationKey = getCoordinateKey(row, column);
+
+            if (pendingPlacements.has(destinationKey)) {
+                showMoveFeedback(I18n.t('player.feedback.squareOccupied'), 'error');
+                return;
+            }
+
+            const placement = pendingPlacements.get(selectedPendingPlacementKey);
+
+            if (!placement) {
+                selectedPendingPlacementKey = null;
+                renderPlayerBoard();
+                return;
+            }
+
+            pendingPlacements.delete(selectedPendingPlacementKey);
+            pendingPlacements.set(destinationKey, {
+                ...placement,
+                row,
+                column
+            });
+            selectedPendingPlacementKey = null;
+
+            renderPlayerBoard();
+            updateMoveControls();
+            showMoveFeedback(I18n.t('player.feedback.tileMoved', {
+                coordinate: `${COLUMN_LABELS[column]}${row + 1}`
+            }), 'info');
+        }
+
+        /**
          * Removes a pending tile from the local board preview.
          *
          * @param {number} row Board row.
@@ -1473,7 +1580,14 @@
          * @returns {void}
          */
         function removePendingPlacement(row, column) {
-            pendingPlacements.delete(getCoordinateKey(row, column));
+            const coordinateKey = getCoordinateKey(row, column);
+
+            pendingPlacements.delete(coordinateKey);
+
+            if (selectedPendingPlacementKey === coordinateKey) {
+                selectedPendingPlacementKey = null;
+            }
+
             renderRack();
             renderPlayerBoard();
             updateMoveControls();
@@ -1487,6 +1601,7 @@
          */
         function clearPendingMove() {
             pendingPlacements.clear();
+            selectedPendingPlacementKey = null;
             selectedTileId = null;
             renderRack();
             renderPlayerBoard();
@@ -1505,7 +1620,11 @@
             pendingCount.textContent = I18n.tp('common.tile', count);
             clearMoveButton.disabled = count === 0 || exchangeMode;
             submitMoveButton.disabled = !canPlay() || exchangeMode || count === 0;
-            coordinatePlace.disabled = !canPlay() || exchangeMode || selectedTileId === null;
+            coordinatePlace.disabled = (
+                !canPlay() ||
+                exchangeMode ||
+                (selectedTileId === null && selectedPendingPlacementKey === null)
+            );
         }
 
         /**
@@ -1567,6 +1686,7 @@
             }
 
             pendingPlacements.clear();
+            selectedPendingPlacementKey = null;
             selectedTileId = null;
             exchangeTileIds.clear();
             exchangeMode = true;
@@ -1655,6 +1775,7 @@
             }
 
             pendingPlacements.clear();
+            selectedPendingPlacementKey = null;
             selectedTileId = null;
             exchangeMode = false;
             exchangeTileIds.clear();
@@ -1811,10 +1932,15 @@
         coordinateForm.addEventListener('submit', (event) => {
             event.preventDefault();
 
-            placeSelectedTile(
-                Number.parseInt(coordinateRow.value, 10),
-                Number.parseInt(coordinateColumn.value, 10)
-            );
+            const row = Number.parseInt(coordinateRow.value, 10);
+            const column = Number.parseInt(coordinateColumn.value, 10);
+
+            if (selectedPendingPlacementKey !== null) {
+                movePendingPlacement(row, column);
+                return;
+            }
+
+            placeSelectedTile(row, column);
         });
 
         clearMoveButton.addEventListener('click', clearPendingMove);
@@ -1951,6 +2077,7 @@
 
             if (data.type === 'move-pending-challenge') {
                 pendingPlacements.clear();
+                selectedPendingPlacementKey = null;
                 selectedTileId = null;
                 exchangeMode = false;
                 exchangeTileIds.clear();
@@ -2005,6 +2132,7 @@
                     .join(', ');
 
                 pendingPlacements.clear();
+                selectedPendingPlacementKey = null;
                 selectedTileId = null;
                 exchangeMode = false;
                 exchangeTileIds.clear();
@@ -2023,6 +2151,7 @@
                 exchangeTileIds.clear();
                 selectedTileId = null;
                 pendingPlacements.clear();
+                selectedPendingPlacementKey = null;
 
                 renderRack();
                 renderPlayerBoard();
@@ -2042,6 +2171,7 @@
                 exchangeTileIds.clear();
                 selectedTileId = null;
                 pendingPlacements.clear();
+                selectedPendingPlacementKey = null;
 
                 renderRack();
                 renderPlayerBoard();

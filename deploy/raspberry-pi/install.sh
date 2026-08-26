@@ -54,9 +54,9 @@ if [[ ! -f "${PROJECT_DIR}/server/server.js" ]]; then
     exit 1
 fi
 
-if ! command -v curl >/dev/null 2>&1 || ! command -v qrencode >/dev/null 2>&1; then
+if ! command -v curl >/dev/null 2>&1; then
     apt-get update
-    apt-get install -y curl qrencode
+    apt-get install -y curl
 fi
 
 if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
@@ -96,7 +96,6 @@ set_environment_value ELECTRONIC_SCRABBLE_HTTP_HOST 0.0.0.0
 set_environment_value ELECTRONIC_SCRABBLE_HTTP_PORT 8000
 set_environment_value ELECTRONIC_SCRABBLE_SYSTEMCTL_PATH "${SYSTEMCTL_PATH}"
 set_environment_value ELECTRONIC_SCRABBLE_SUDO_PATH "${SUDO_PATH}"
-set_environment_value ELECTRONIC_SCRABBLE_QRENCODE_PATH "$(command -v qrencode)"
 
 chmod 0640 /etc/electronic-scrabble/environment
 chown root:"${SERVICE_GROUP}" /etc/electronic-scrabble/environment

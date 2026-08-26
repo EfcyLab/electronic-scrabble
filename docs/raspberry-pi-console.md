@@ -33,7 +33,7 @@ sudo bash deploy/raspberry-pi/install.sh
 The installer:
 
 - detects the non-root desktop user;
-- installs missing `curl`, `qrencode`, and Chromium packages when required;
+- installs missing `curl` and Chromium packages when required;
 - installs Node dependencies when `server/package.json` is available;
 - creates `/var/lib/electronic-scrabble/games` with private permissions;
 - writes `/etc/electronic-scrabble/environment`;
@@ -78,8 +78,7 @@ The profile is created with boot autoconnect but is not activated immediately,
 which avoids unexpectedly dropping a Wi-Fi SSH installation session.
 
 The shared HDMI screen displays a Wi-Fi QR code and, once a game exists, a
-second QR code that opens the game-specific player URL. QR generation runs
-locally through `qrencode`; no external service is used.
+second QR code that opens the game-specific player URL. QR generation runs locally through the Node.js `qrcode` dependency; no external service or Raspberry Pi-specific executable is required.
 
 See [`autonomous-wifi-and-qr.md`](autonomous-wifi-and-qr.md).
 
@@ -207,7 +206,6 @@ ELECTRONIC_SCRABBLE_DATA_DIR=/var/lib/electronic-scrabble/games
 ELECTRONIC_SCRABBLE_CONSOLE_CONTROL=1
 ELECTRONIC_SCRABBLE_HTTP_HOST=0.0.0.0
 ELECTRONIC_SCRABBLE_HTTP_PORT=8000
-ELECTRONIC_SCRABBLE_QRENCODE_PATH=/usr/bin/qrencode
 ```
 
 After editing it, restart the services:
