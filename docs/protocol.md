@@ -583,3 +583,71 @@ The public game state contains a synchronized clock snapshot:
 
 Clock expiration is informational in this milestone. It does not automatically
 pass a turn or apply a score penalty.
+
+## Dedicated Raspberry Pi Console
+
+The HDMI kiosk uses a game-code-independent screen mode.
+
+### Watch Console
+
+```json
+{
+    "type": "watch-console"
+}
+```
+
+When a game is available, the server selects it for the dedicated console:
+
+```json
+{
+    "type": "console-game-selected",
+    "gameCode": "ABCD"
+}
+```
+
+The normal public `game-state` message follows.
+
+If no game exists:
+
+```json
+{
+    "type": "console-idle"
+}
+```
+
+Creating a new game automatically selects it on every connected dedicated console screen.
+
+## Raspberry Pi System Control
+
+System actions require an authenticated administrator session and server-side console control to be explicitly enabled.
+
+### Request Reboot
+
+```json
+{
+    "type": "console-system-action",
+    "action": "reboot"
+}
+```
+
+### Request Power Off
+
+```json
+{
+    "type": "console-system-action",
+    "action": "poweroff"
+}
+```
+
+Accepted request:
+
+```json
+{
+    "type": "console-system-action-accepted",
+    "action": "reboot"
+}
+```
+
+The server persists all games before invoking the fixed host command.
+
+No arbitrary shell command, executable path, or extra command argument is accepted from the browser.

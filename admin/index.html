@@ -9,10 +9,10 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/admin.css">
-    <script src="../shared/i18n/en.js?v=14.1.0"></script>
-    <script src="../shared/i18n/fr.js?v=14.1.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=14.1.0"></script>
+    <link rel="stylesheet" href="./css/admin.css?v=15.0.0">
+    <script src="../shared/i18n/en.js?v=15.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=15.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=15.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
@@ -114,6 +114,19 @@
 
                 <button id="start-game" type="button" disabled data-i18n="admin.startGame">Start Game</button>
                 <p id="start-help" class="muted" data-i18n="admin.minimumPlayers">At least two connected players are required.</p>
+
+                <section id="console-control" class="console-control">
+                    <div class="row row--between">
+                        <h3 data-i18n="admin.console.title">Raspberry Pi console</h3>
+                        <span id="console-control-status" class="status" data-i18n="admin.console.disabled">Console controls unavailable</span>
+                    </div>
+                    <p class="muted" data-i18n="admin.console.help">Safely reboot or power off the dedicated console. All games are persisted before the system command is requested.</p>
+                    <div class="console-control-actions">
+                        <button id="console-reboot" class="button button--secondary" type="button" disabled data-i18n="admin.console.reboot">Restart console</button>
+                        <button id="console-poweroff" class="button button--danger" type="button" disabled data-i18n="admin.console.poweroff">Power off console</button>
+                    </div>
+                    <p id="console-control-feedback" class="muted" hidden></p>
+                </section>
             </section>
         </section>
     </main>
@@ -125,7 +138,7 @@
          * Creates game sessions, displays the lobby state,
          * and starts a game when all players are ready.
          *
-         * @version 1.1.0
+         * @version 1.2.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -165,6 +178,10 @@
         const finalResultSection = document.getElementById('final-result');
         const endReasonElement = document.getElementById('end-reason');
         const finalRanking = document.getElementById('final-ranking');
+        const consoleControlStatus = document.getElementById('console-control-status');
+        const consoleRebootButton = document.getElementById('console-reboot');
+        const consolePoweroffButton = document.getElementById('console-poweroff');
+        const consoleControlFeedback = document.getElementById('console-control-feedback');
 
         const socket = new window.ElectronicScrabbleReconnectingWebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
@@ -173,6 +190,8 @@
         let currentGameStatus = 'lobby';
         let lastGameState = null;
         let connectionStatusKey = 'common.connecting';
+        let consoleControlsEnabled = false;
+        let consoleActionPending = false;
 
 
         /**
@@ -182,6 +201,61 @@
          *
          * @returns {string} Storage key.
          */
+        /**
+         * Updates Raspberry Pi console-control availability.
+         *
+         * @param {Object} state Public console-control state.
+         *
+         * @returns {void}
+         */
+        function updateConsoleControlState(state) {
+            consoleControlsEnabled = state.enabled === true;
+            consoleActionPending = state.busy === true;
+
+            const controlsAvailable = consoleControlsEnabled && !consoleActionPending;
+
+            consoleRebootButton.disabled = !controlsAvailable;
+            consolePoweroffButton.disabled = !controlsAvailable;
+            consoleControlStatus.textContent = I18n.t(
+                consoleControlsEnabled
+                    ? 'admin.console.enabled'
+                    : 'admin.console.disabled'
+            );
+            consoleControlStatus.className = consoleControlsEnabled
+                ? 'status status--success'
+                : 'status status--warning';
+        }
+
+        /**
+         * Requests a safe Raspberry Pi system action after user confirmation.
+         *
+         * @param {'reboot'|'poweroff'} action Requested system action.
+         *
+         * @returns {void}
+         */
+        function requestConsoleSystemAction(action) {
+            if (!consoleControlsEnabled || consoleActionPending) {
+                return;
+            }
+
+            const confirmationKey = action === 'reboot'
+                ? 'admin.console.confirmReboot'
+                : 'admin.console.confirmPoweroff';
+
+            if (!window.confirm(I18n.t(confirmationKey))) {
+                return;
+            }
+
+            consoleActionPending = true;
+            consoleRebootButton.disabled = true;
+            consolePoweroffButton.disabled = true;
+
+            socket.send(JSON.stringify({
+                type: 'console-system-action',
+                action
+            }));
+        }
+
         function getAdminSessionStorageKey(gameCode) {
             return `${ADMIN_SESSION_STORAGE_PREFIX}${gameCode}`;
         }
@@ -596,6 +670,8 @@
             connectionStatus.textContent = I18n.t(connectionStatusKey);
             createGameButton.disabled = true;
             startGameButton.disabled = true;
+            consoleRebootButton.disabled = true;
+            consolePoweroffButton.disabled = true;
         });
 
         socket.addEventListener('error', () => {
@@ -630,8 +706,20 @@
             }));
         });
 
+        consoleRebootButton.addEventListener('click', () => {
+            requestConsoleSystemAction('reboot');
+        });
+
+        consolePoweroffButton.addEventListener('click', () => {
+            requestConsoleSystemAction('poweroff');
+        });
+
         document.addEventListener('electronic-scrabble:language-changed', () => {
             connectionStatus.textContent = I18n.t(connectionStatusKey);
+            updateConsoleControlState({
+                enabled: consoleControlsEnabled,
+                busy: consoleActionPending
+            });
 
             if (lastGameState !== null) {
                 updateGameState(lastGameState);
@@ -650,6 +738,35 @@
 
             if (data.type === 'admin-session-resumed') {
                 showAdminGame(data.gameCode);
+                return;
+            }
+
+            if (data.type === 'console-control-state') {
+                updateConsoleControlState(data);
+                return;
+            }
+
+            if (data.type === 'console-system-action-accepted') {
+                consoleActionPending = true;
+                consoleControlFeedback.textContent = I18n.t(
+                    data.action === 'reboot'
+                        ? 'admin.console.rebootAccepted'
+                        : 'admin.console.poweroffAccepted'
+                );
+                consoleControlFeedback.hidden = false;
+                consoleRebootButton.disabled = true;
+                consolePoweroffButton.disabled = true;
+                return;
+            }
+
+            if (data.type === 'console-system-action-failed') {
+                consoleActionPending = false;
+                consoleControlFeedback.textContent = I18n.t('admin.console.failed');
+                consoleControlFeedback.hidden = false;
+                updateConsoleControlState({
+                    enabled: consoleControlsEnabled,
+                    busy: false
+                });
                 return;
             }
 

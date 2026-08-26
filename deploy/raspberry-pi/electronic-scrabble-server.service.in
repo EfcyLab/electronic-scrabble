@@ -1,0 +1,24 @@
+[Unit]
+Description=Electronic Scrabble WebSocket Server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+Group=__SERVICE_GROUP__
+WorkingDirectory=__PROJECT_DIR__/server
+EnvironmentFile=-/etc/electronic-scrabble/environment
+ExecStart=__NODE_PATH__ __PROJECT_DIR__/server/server.js
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=10
+UMask=0077
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=__DATA_DIR__
+
+[Install]
+WantedBy=multi-user.target

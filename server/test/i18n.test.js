@@ -82,8 +82,8 @@ test('application pages cache-bust internationalization resources', () => {
     for (const pagePath of pagePaths) {
         const source = fs.readFileSync(pagePath, 'utf8');
 
-        assert.match(source, /shared\/i18n\/en\.js\?v=14\.1\.0/);
-        assert.match(source, /shared\/i18n\/fr\.js\?v=14\.1\.0/);
-        assert.match(source, /shared\/js\/i18n-manager\.js\?v=14\.1\.0/);
+        assert.match(source, /shared\/i18n\/en\.js\?v=15\.0\.0/);
+        assert.match(source, /shared\/i18n\/fr\.js\?v=15\.0\.0/);
+        assert.match(source, /shared\/js\/i18n-manager\.js\?v=15\.0\.0/);
     }
 });

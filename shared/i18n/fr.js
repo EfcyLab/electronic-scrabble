@@ -103,6 +103,17 @@
         'admin.lastAction.challengeSuccess': '{challenger} a contesté avec succès le coup de {player} : {words}',
         'admin.challengeWindow': 'Fenêtre de contestation',
         'admin.challengePending': '{name} a joué {words} pour {score} pts. En attente d’acceptation ou de contestation.',
+        'admin.console.title': 'Console Raspberry Pi',
+        'admin.console.help': 'Redémarre ou éteint proprement la console dédiée. Toutes les parties sont sauvegardées avant la demande système.',
+        'admin.console.enabled': 'Commandes de la console actives',
+        'admin.console.disabled': 'Commandes de la console indisponibles',
+        'admin.console.reboot': 'Redémarrer la console',
+        'admin.console.poweroff': 'Éteindre la console',
+        'admin.console.confirmReboot': 'Redémarrer le Raspberry Pi maintenant ?',
+        'admin.console.confirmPoweroff': 'Éteindre le Raspberry Pi maintenant ?',
+        'admin.console.rebootAccepted': 'Redémarrage demandé. La console va se déconnecter.',
+        'admin.console.poweroffAccepted': 'Arrêt demandé. La console va se déconnecter.',
+        'admin.console.failed': 'La commande système de la console a échoué.',
         'admin.player.final': '{score} pts · final',
         'admin.player.lobby': '{status}',
         'admin.player.playing': '{score} pts{turn}',
@@ -119,6 +130,7 @@
         'screen.tilesRemainingLabel': 'Tuiles restantes',
         'screen.currentPlayer': 'À {name} de jouer',
         'screen.missingGameCode': 'Code de partie manquant',
+        'screen.consoleWaiting': 'Console prête · en attente d’une partie',
         'screen.blankRedraw': '★ joker retiré ×{count}',
         'screen.playerFirst': '{name} commence',
         'screen.structuralOnly': 'Validation structurelle uniquement',
@@ -291,6 +303,9 @@
         'error.INVALID_MESSAGE': 'Le message est invalide.',
         'error.INVALID_JSON': 'Le message reçu est invalide.',
         'error.UNKNOWN_MESSAGE_TYPE': 'Ce type de message n’est pas pris en charge.',
-        'error.INTERNAL_SERVER_ERROR': 'Le serveur n’a pas pu traiter la demande.'
+        'error.INTERNAL_SERVER_ERROR': 'Le serveur n’a pas pu traiter la demande.',
+        'error.CONSOLE_CONTROL_DISABLED': 'Les commandes système de la console sont désactivées.',
+        'error.CONSOLE_ACTION_PENDING': 'Une commande système de la console est déjà en attente.',
+        'error.INVALID_CONSOLE_ACTION': 'La commande système demandée pour la console est invalide.'
     });
 });

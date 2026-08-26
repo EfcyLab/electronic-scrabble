@@ -5,7 +5,7 @@
  * rename. Runtime sockets and timers are intentionally excluded.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 const fs = require('node:fs');
@@ -68,6 +68,7 @@ function serializeGame(game, now = Date.now()) {
         savedAt: now,
         game: {
             code: game.code,
+            updatedAt: game.updatedAt ?? now,
             adminToken: game.adminToken,
             status: game.status,
             bag: game.bag,
@@ -148,6 +149,9 @@ function restoreGame(snapshot, now = Date.now()) {
         finalResult: storedGame.finalResult,
         consecutivePasses: storedGame.consecutivePasses,
         turnClock: restoreTurnClock(storedGame.turnClock, now),
+        updatedAt: Number.isFinite(storedGame.updatedAt)
+            ? storedGame.updatedAt
+            : (Number.isFinite(snapshot.savedAt) ? snapshot.savedAt : now),
         adminSockets: new Set(),
         screenSockets: new Set()
     };

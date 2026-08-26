@@ -1,0 +1,14 @@
+# Electronic Scrabble Raspberry Pi console configuration.
+
+ELECTRONIC_SCRABBLE_DATA_DIR=/var/lib/electronic-scrabble/games
+ELECTRONIC_SCRABBLE_CONSOLE_CONTROL=1
+ELECTRONIC_SCRABBLE_HTTP_HOST=0.0.0.0
+ELECTRONIC_SCRABBLE_HTTP_PORT=8000
+ELECTRONIC_SCRABBLE_SYSTEMCTL_PATH=/usr/bin/systemctl
+ELECTRONIC_SCRABBLE_SUDO_PATH=/usr/bin/sudo
+
+# Word validation remains optional until an authorized dictionary is supplied.
+# ELECTRONIC_SCRABBLE_DICTIONARY_MODE=required
+# ELECTRONIC_SCRABBLE_DICTIONARY_PATH=/var/lib/electronic-scrabble/dictionary/authorized-words.txt
+# ELECTRONIC_SCRABBLE_DICTIONARY_NAME=Authorized French dictionary
+# ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY=challenge

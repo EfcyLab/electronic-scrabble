@@ -12,9 +12,9 @@
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
     <link rel="stylesheet" href="./css/screen.css">
 
-    <script src="../shared/i18n/en.js?v=14.1.0"></script>
-    <script src="../shared/i18n/fr.js?v=14.1.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=14.1.0"></script>
+    <script src="../shared/i18n/en.js?v=15.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=15.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=15.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
@@ -124,7 +124,7 @@
          * and the standard board without receiving private player racks.
          *
          * @author Electronic Scrabble Project
-         * @version 1.1.0
+         * @version 1.2.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -140,7 +140,9 @@
         });
 
         const parameters = new URLSearchParams(window.location.search);
-        const gameCode = parameters.get('game')?.toUpperCase() ?? '';
+        const consoleMode = parameters.get('console') === '1';
+        const initialGameCode = parameters.get('game')?.toUpperCase() ?? '';
+        let currentGameCode = initialGameCode;
 
         const connectionStatus = document.getElementById('connection-status');
         const gameCodeElement = document.getElementById('game-code');
@@ -172,7 +174,7 @@
         const playerList = document.getElementById('player-list');
         const boardElement = document.getElementById('board');
 
-        gameCodeElement.textContent = gameCode || '----';
+        gameCodeElement.textContent = currentGameCode || '----';
 
         const socket = new window.ElectronicScrabbleReconnectingWebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
         let lastGameState = null;
@@ -666,7 +668,14 @@
             connectionStatus.textContent = I18n.t(connectionStatusKey);
             connectionStatus.className = 'status status--success';
 
-            if (!gameCode) {
+            if (consoleMode) {
+                socket.send(JSON.stringify({
+                    type: 'watch-console'
+                }));
+                return;
+            }
+
+            if (!currentGameCode) {
                 connectionStatusKey = 'screen.missingGameCode';
                 connectionStatus.textContent = I18n.t(connectionStatusKey);
                 connectionStatus.className = 'status status--danger';
@@ -675,7 +684,7 @@
 
             socket.send(JSON.stringify({
                 type: 'watch-game',
-                gameCode
+                gameCode: currentGameCode
             }));
         });
 
@@ -702,9 +711,27 @@
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
 
+            if (data.type === 'console-game-selected') {
+                currentGameCode = data.gameCode;
+                gameCodeElement.textContent = currentGameCode;
+                connectionStatusKey = 'common.connected';
+                connectionStatus.textContent = I18n.t(connectionStatusKey);
+                connectionStatus.className = 'status status--success';
+                return;
+            }
+
+            if (data.type === 'console-idle') {
+                currentGameCode = '';
+                gameCodeElement.textContent = '----';
+                connectionStatusKey = 'screen.consoleWaiting';
+                connectionStatus.textContent = I18n.t(connectionStatusKey);
+                connectionStatus.className = 'status status--warning';
+                return;
+            }
+
             if (
                 data.type === 'game-state' &&
-                data.game.code === gameCode
+                data.game.code === currentGameCode
             ) {
                 updateGameState(data.game);
                 return;

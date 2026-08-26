@@ -102,6 +102,17 @@
         'admin.lastAction.challengeSuccess': '{challenger} successfully challenged {player}: {words}',
         'admin.challengeWindow': 'Challenge window',
         'admin.challengePending': '{name} played {words} for {score} pts. Waiting for acceptance or challenge.',
+        'admin.console.title': 'Raspberry Pi console',
+        'admin.console.help': 'Safely reboot or power off the dedicated console. All games are persisted before the system command is requested.',
+        'admin.console.enabled': 'Console controls enabled',
+        'admin.console.disabled': 'Console controls unavailable',
+        'admin.console.reboot': 'Restart console',
+        'admin.console.poweroff': 'Power off console',
+        'admin.console.confirmReboot': 'Restart the Raspberry Pi now?',
+        'admin.console.confirmPoweroff': 'Power off the Raspberry Pi now?',
+        'admin.console.rebootAccepted': 'Restart requested. The console will disconnect shortly.',
+        'admin.console.poweroffAccepted': 'Power-off requested. The console will disconnect shortly.',
+        'admin.console.failed': 'The console system action failed.',
         'admin.player.final': '{score} pts · final',
         'admin.player.lobby': '{status}',
         'admin.player.playing': '{score} pts{turn}',
@@ -118,6 +129,7 @@
         'screen.tilesRemainingLabel': 'Tiles remaining',
         'screen.currentPlayer': '{name} to play',
         'screen.missingGameCode': 'Missing game code',
+        'screen.consoleWaiting': 'Console ready · waiting for a game',
         'screen.blankRedraw': '★ redraw ×{count}',
         'screen.playerFirst': '{name} plays first',
         'screen.structuralOnly': 'Structural only',
@@ -290,6 +302,9 @@
         'error.INVALID_MESSAGE': 'The message is invalid.',
         'error.INVALID_JSON': 'The received message is invalid.',
         'error.UNKNOWN_MESSAGE_TYPE': 'The message type is not supported.',
-        'error.INTERNAL_SERVER_ERROR': 'The server could not process the request.'
+        'error.INTERNAL_SERVER_ERROR': 'The server could not process the request.',
+        'error.CONSOLE_CONTROL_DISABLED': 'Console system controls are disabled.',
+        'error.CONSOLE_ACTION_PENDING': 'A console system action is already pending.',
+        'error.INVALID_CONSOLE_ACTION': 'The requested console system action is invalid.'
     });
 });

@@ -7,7 +7,7 @@
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 1.2.0
+ * @version 1.3.0
  */
 
 const WebSocket = require('ws');
@@ -67,6 +67,13 @@ const {
     resetTurnClock
 } = require('./game/turn-clock');
 const { createGameStore } = require('./persistence/game-store');
+const {
+    ACTION_POWEROFF,
+    ACTION_REBOOT,
+    executeConsoleAction,
+    isConsoleControlEnabled,
+    validateConsoleAction
+} = require('./system/console-control');
 
 const PORT = 8080;
 const MIN_PLAYERS = 2;
@@ -101,6 +108,10 @@ if (WORD_VALIDATION_POLICY === 'challenge' && !wordValidator.enabled) {
     );
 }
 
+const consoleControlEnabled = isConsoleControlEnabled();
+let consoleSystemActionPending = false;
+const consoleScreenSockets = new Set();
+
 const publicWordValidationState = {
     ...getPublicWordValidationState(wordValidator),
     policy: wordValidator.enabled ? WORD_VALIDATION_POLICY : 'structural'
@@ -113,6 +124,7 @@ const gameStore = createGameStore(
 const restoredGames = gameStore.loadGames();
 
 restoredGames.games.forEach((game) => {
+    game.updatedAt = game.updatedAt ?? Date.now();
     games.set(game.code, game);
 });
 
@@ -205,8 +217,12 @@ function getGame(gameCode) {
  *
  * @returns {void}
  */
-function persistGame(game) {
+function persistGame(game, { touch = true } = {}) {
     try {
+        if (touch) {
+            game.updatedAt = Date.now();
+        }
+
         gameStore.saveGame(game);
     } catch (error) {
         console.error(`Unable to persist game ${game.code}:`, error);
@@ -214,13 +230,13 @@ function persistGame(game) {
 }
 
 /**
- * Persists every known game.
+ * Persists every known game without changing console-selection recency.
  *
  * @returns {void}
  */
 function persistAllGames() {
     games.forEach((game) => {
-        persistGame(game);
+        persistGame(game, { touch: false });
     });
 }
 
@@ -276,6 +292,12 @@ function getGameSockets(game) {
         sockets.add(socket);
     });
 
+    consoleScreenSockets.forEach((socket) => {
+        if (socket.session?.gameCode === game.code) {
+            sockets.add(socket);
+        }
+    });
+
     game.players.forEach((player) => {
         if (player.socket !== null) {
             sockets.add(player.socket);
@@ -283,6 +305,54 @@ function getGameSockets(game) {
     });
 
     return sockets;
+}
+
+/**
+ * Returns the most recently updated game for the dedicated console screen.
+ *
+ * Active games are preferred over finished games. This allows the HDMI
+ * display to recover automatically after a reboot without a fixed game code.
+ *
+ * @returns {Object|null} Selected game or null when no game exists.
+ */
+function getConsoleGame() {
+    const allGames = Array.from(games.values());
+
+    if (allGames.length === 0) {
+        return null;
+    }
+
+    const activeGames = allGames.filter((game) => game.status !== 'finished');
+    const candidates = activeGames.length > 0 ? activeGames : allGames;
+
+    return candidates.sort(
+        (left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0)
+    )[0] ?? null;
+}
+
+/**
+ * Selects a game for every dedicated console screen.
+ *
+ * @param {Object} game Game to display.
+ *
+ * @returns {void}
+ */
+function selectGameForConsoleScreens(game) {
+    const gameState = getPublicGameState(game);
+
+    consoleScreenSockets.forEach((socket) => {
+        socket.session = {
+            role: 'console-screen',
+            gameCode: game.code
+        };
+
+        send(socket, 'console-game-selected', {
+            gameCode: game.code
+        });
+        send(socket, 'game-state', {
+            game: gameState
+        });
+    });
 }
 
 /**
@@ -399,7 +469,18 @@ function schedulePlayerRemoval(game, player) {
 function detachSocket(socket) {
     const session = socket.session;
 
-    if (!session || !session.gameCode) {
+    if (!session) {
+        return;
+    }
+
+    if (session.role === 'console-screen') {
+        consoleScreenSockets.delete(socket);
+        socket.session = null;
+        return;
+    }
+
+    if (!session.gameCode) {
+        socket.session = null;
         return;
     }
 
@@ -417,6 +498,7 @@ function detachSocket(socket) {
     if (session.role === 'screen') {
         game.screenSockets.delete(socket);
     }
+
 
     if (session.role === 'player' && session.playerId) {
         const player = game.players.get(session.playerId);
@@ -461,6 +543,7 @@ function createGame(socket) {
         finalResult: null,
         consecutivePasses: 0,
         turnClock: createTurnClock(),
+        updatedAt: Date.now(),
         adminSockets: new Set(),
         screenSockets: new Set()
     };
@@ -479,6 +562,8 @@ function createGame(socket) {
     });
 
     broadcastGameState(game);
+    selectGameForConsoleScreens(game);
+    sendConsoleControlState(socket);
 
     console.log(`Game created: ${gameCode}`);
 }
@@ -533,6 +618,7 @@ function resumeAdmin(socket, message) {
     });
 
     broadcastGameState(game);
+    sendConsoleControlState(socket);
 
     console.log(`Administrator resumed game ${game.code}`);
 }
@@ -587,6 +673,118 @@ function configureGameClock(socket, message) {
     );
 
     broadcastGameState(game);
+}
+
+/**
+ * Sends console-control capability state to an authenticated administrator.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ *
+ * @returns {void}
+ */
+function sendConsoleControlState(socket) {
+    send(socket, 'console-control-state', {
+        enabled: consoleControlEnabled,
+        busy: consoleSystemActionPending
+    });
+}
+
+/**
+ * Registers the dedicated Raspberry Pi HDMI screen.
+ *
+ * The console screen follows the most recently updated active game and does
+ * not require a game code in its URL.
+ *
+ * @param {WebSocket} socket Shared screen WebSocket connection.
+ *
+ * @returns {void}
+ */
+function watchConsole(socket) {
+    detachSocket(socket);
+    consoleScreenSockets.add(socket);
+
+    const game = getConsoleGame();
+
+    socket.session = {
+        role: 'console-screen',
+        gameCode: game?.code ?? null
+    };
+
+    if (!game) {
+        send(socket, 'console-idle');
+        console.log('Dedicated console screen connected; waiting for a game.');
+        return;
+    }
+
+    send(socket, 'console-game-selected', {
+        gameCode: game.code
+    });
+    send(socket, 'game-state', {
+        game: getPublicGameState(game)
+    });
+
+    console.log(`Dedicated console screen displaying game: ${game.code}`);
+}
+
+/**
+ * Requests a Raspberry Pi reboot or power-off from an authenticated admin.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function requestConsoleSystemAction(socket, message) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'admin' || !session.gameCode) {
+        sendError(socket, 'NOT_AUTHORIZED', 'Only a game administrator can control the console.');
+        return;
+    }
+
+    if (!consoleControlEnabled) {
+        sendError(socket, 'CONSOLE_CONTROL_DISABLED', 'Console system controls are disabled.');
+        return;
+    }
+
+    if (consoleSystemActionPending) {
+        sendError(socket, 'CONSOLE_ACTION_PENDING', 'A console system action is already pending.');
+        return;
+    }
+
+    let action;
+
+    try {
+        action = validateConsoleAction(message.action);
+    } catch (error) {
+        sendError(socket, 'INVALID_CONSOLE_ACTION', 'Unsupported console system action.');
+        return;
+    }
+
+    consoleSystemActionPending = true;
+    persistAllGames();
+
+    send(socket, 'console-system-action-accepted', {
+        action
+    });
+    sendConsoleControlState(socket);
+
+    setTimeout(() => {
+        executeConsoleAction(action, {}, (error) => {
+            if (!error) {
+                return;
+            }
+
+            consoleSystemActionPending = false;
+            console.error(`Unable to execute console system action ${action}:`, error);
+
+            send(socket, 'console-system-action-failed', {
+                action,
+                message: error.message
+            });
+            sendConsoleControlState(socket);
+        });
+    }, 500).unref();
 }
 
 function watchGame(socket, message) {
@@ -1591,6 +1789,10 @@ function handleMessage(socket, message) {
             watchGame(socket, message);
             break;
 
+        case 'watch-console':
+            watchConsole(socket);
+            break;
+
         case 'join-game':
             joinGame(socket, message);
             break;
@@ -1625,6 +1827,10 @@ function handleMessage(socket, message) {
 
         case 'exchange-tiles':
             exchangePlayerTiles(socket, message);
+            break;
+
+        case 'console-system-action':
+            requestConsoleSystemAction(socket, message);
             break;
 
         default:
@@ -1722,6 +1928,9 @@ console.log(
 );
 console.log(
     `Restored ${restoredGames.games.length} persisted game(s).`
+);
+console.log(
+    `Console system controls: ${consoleControlEnabled ? 'enabled' : 'disabled'}.`
 );
 console.log(`Electronic Scrabble WebSocket server listening on port ${PORT}`);
 

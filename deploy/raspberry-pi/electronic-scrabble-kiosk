@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# Electronic Scrabble Chromium kiosk launcher.
+#
+# Waits for the local static web service, then opens the dedicated shared
+# screen in Chromium kiosk mode. The screen uses console mode so it can follow
+# the current game without embedding a changing game code in the kiosk URL.
+
+set -euo pipefail
+
+KIOSK_URL="${ELECTRONIC_SCRABBLE_KIOSK_URL:-http://127.0.0.1:8000/screen/?console=1}"
+
+if command -v chromium >/dev/null 2>&1; then
+    BROWSER="$(command -v chromium)"
+elif command -v chromium-browser >/dev/null 2>&1; then
+    BROWSER="$(command -v chromium-browser)"
+else
+    echo "Chromium is not installed." >&2
+    exit 1
+fi
+
+until curl --fail --silent --show-error --max-time 2 "${KIOSK_URL}" >/dev/null 2>&1; do
+    sleep 2
+done
+
+exec "${BROWSER}" \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-first-run \
+    --enable-features=OverlayScrollbar \
+    --start-maximized \
+    "${KIOSK_URL}"
