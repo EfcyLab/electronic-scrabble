@@ -18,6 +18,7 @@
     <script src="../shared/js/theme-manager.js" defer></script>
     <script src="./js/rack-order.js"></script>
     <script src="./js/board-navigation.js"></script>
+    <script src="./js/mobile-layout.js"></script>
 </head>
 <body data-i18n-page-title="player.pageTitle">
     <main class="app-shell">
@@ -85,101 +86,107 @@
                 <p class="muted panel-help" data-i18n="player.drawHelp">All drawn tiles return to the bag before racks are dealt.</p>
             </section>
 
-            <section id="rack-section" class="player-panel" hidden>
-                <div class="row row--between">
-                    <div>
-                        <h3 class="card__title" data-i18n="player.rack.title">Your rack</h3>
-                        <p class="muted panel-help" data-i18n="player.rack.help">Drag tiles to rearrange your rack, or select one before placing it.</p>
+            <div class="gameplay-workspace">
+                <section id="rack-section" class="player-panel" hidden>
+                    <div class="row row--between">
+                        <div>
+                            <h3 class="card__title" data-i18n="player.rack.title">Your rack</h3>
+                            <p class="muted panel-help" data-i18n="player.rack.help">Drag tiles to rearrange your rack, or select one before placing it.</p>
+                        </div>
+
+                        <label id="blank-letter-field" class="field blank-letter-field" hidden>
+                            <span class="field__label" data-i18n="player.rack.blankLetter">Blank letter</span>
+                            <select id="blank-letter" class="select" aria-label="Blank tile assigned letter" data-i18n-aria-label="player.rack.blankAria"></select>
+                        </label>
+
+                        <div class="rack-arrangement" aria-label="Rack arrangement controls" data-i18n-aria-label="player.rack.arrangementAria">
+                            <button id="move-rack-left" class="button button--secondary" type="button" disabled data-i18n-aria-label="player.rack.moveLeft">
+                                <span class="rack-arrangement__symbol" aria-hidden="true">←</span>
+                                <span class="rack-arrangement__label" data-i18n="player.rack.moveLeft">Move Left</span>
+                            </button>
+
+                            <button id="shuffle-rack" class="button button--secondary" type="button" disabled data-i18n-aria-label="player.rack.shuffle">
+                                <span class="rack-arrangement__symbol" aria-hidden="true">↻</span>
+                                <span class="rack-arrangement__label" data-i18n="player.rack.shuffle">Shuffle Rack</span>
+                            </button>
+
+                            <button id="move-rack-right" class="button button--secondary" type="button" disabled data-i18n-aria-label="player.rack.moveRight">
+                                <span class="rack-arrangement__symbol" aria-hidden="true">→</span>
+                                <span class="rack-arrangement__label" data-i18n="player.rack.moveRight">Move Right</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <label id="blank-letter-field" class="field blank-letter-field" hidden>
-                        <span class="field__label" data-i18n="player.rack.blankLetter">Blank letter</span>
-                        <select id="blank-letter" class="select" aria-label="Blank tile assigned letter" data-i18n-aria-label="player.rack.blankAria"></select>
-                    </label>
-                </div>
+                    <p id="rack-arrangement-status" class="muted rack-arrangement-status" aria-live="polite">
+                        <span data-i18n="player.rack.arrangementHelp">Drag a tile, or select it and use the arrangement buttons.</span>
+                    </p>
 
-                <div id="rack" class="rack" aria-label="Private tile rack" data-i18n-aria-label="player.rack.aria"></div>
+                    <div id="rack" class="rack" aria-label="Private tile rack" data-i18n-aria-label="player.rack.aria"></div>
+                </section>
 
-                <div class="rack-arrangement" aria-label="Rack arrangement controls" data-i18n-aria-label="player.rack.arrangementAria">
-                    <button id="move-rack-left" class="button button--secondary" type="button" disabled>
-                        <span data-i18n="player.rack.moveLeft">Move Left</span>
-                    </button>
+                <section id="move-section" class="player-panel" hidden>
+                    <div class="row row--between move-section__header">
+                        <div>
+                            <h3 class="card__title" data-i18n="player.move.title">Prepare your move</h3>
+                            <p class="muted panel-help">
+                                <span data-i18n="player.move.help">Tap a square to place a selected tile. Tap the board without a selected tile to zoom into that area.</span>
+                            </p>
+                        </div>
 
-                    <button id="shuffle-rack" class="button button--secondary" type="button" disabled>
-                        <span data-i18n="player.rack.shuffle">Shuffle Rack</span>
-                    </button>
+                        <span id="pending-count" class="status">0 tiles</span>
+                    </div>
 
-                    <button id="move-rack-right" class="button button--secondary" type="button" disabled>
-                        <span data-i18n="player.rack.moveRight">Move Right</span>
-                    </button>
-                </div>
+                    <div class="board-navigation">
+                        <div id="player-board-viewport" class="player-board-viewport">
+                            <div id="player-board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
+                        </div>
 
-                <p id="rack-arrangement-status" class="muted rack-arrangement-status" aria-live="polite">
-                    <span data-i18n="player.rack.arrangementHelp">Drag a tile, or select it and use the arrangement buttons.</span>
-                </p>
-            </section>
+                        <div class="board-navigation__controls">
+                            <button id="board-zoom-out" class="button button--secondary board-navigation__button" type="button" data-i18n-aria-label="player.board.zoomOut" aria-label="Zoom out">−</button>
+                            <button id="board-fit" class="button button--secondary" type="button" data-i18n="player.board.fit">Fit board</button>
+                            <button id="board-zoom-in" class="button button--secondary board-navigation__button" type="button" data-i18n-aria-label="player.board.zoomIn" aria-label="Zoom in">+</button>
+                            <span id="board-zoom-status" class="status" aria-live="polite">100%</span>
+                        </div>
 
-            <section id="move-section" class="player-panel" hidden>
-                <div class="row row--between">
-                    <div>
-                        <h3 class="card__title" data-i18n="player.move.title">Prepare your move</h3>
-                        <p class="muted panel-help">
-                            <span data-i18n="player.move.help">Tap a square to place a selected tile. Tap the board without a selected tile to zoom into that area.</span>
+                        <p class="muted board-navigation__help" data-i18n="player.board.panHelp">
+                            When zoomed, drag the board to move around it.
                         </p>
                     </div>
 
-                    <span id="pending-count" class="status">0 tiles</span>
-                </div>
+                    <form id="coordinate-form" class="coordinate-form">
+                        <label class="field">
+                            <span class="field__label" data-i18n="player.coordinate.column">Column</span>
+                            <select id="coordinate-column" class="select"></select>
+                        </label>
 
-                <div class="board-navigation">
-                    <div class="board-navigation__controls">
-                        <button id="board-zoom-out" class="button button--secondary board-navigation__button" type="button" data-i18n-aria-label="player.board.zoomOut" aria-label="Zoom out">−</button>
-                        <button id="board-fit" class="button button--secondary" type="button" data-i18n="player.board.fit">Fit board</button>
-                        <span id="board-zoom-status" class="status" aria-live="polite">100%</span>
-                        <button id="board-zoom-in" class="button button--secondary board-navigation__button" type="button" data-i18n-aria-label="player.board.zoomIn" aria-label="Zoom in">+</button>
+                        <label class="field">
+                            <span class="field__label" data-i18n="player.coordinate.row">Row</span>
+                            <select id="coordinate-row" class="select"></select>
+                        </label>
+
+                        <button id="coordinate-place" class="button button--secondary" type="submit">
+                            <span data-i18n="player.coordinate.place">Place Selected Tile</span>
+                        </button>
+                    </form>
+
+                    <div class="move-actions">
+                        <button id="clear-move" class="button button--secondary" type="button" disabled>
+                            <span data-i18n="player.move.clear">Clear Move</span>
+                        </button>
+
+                        <button id="submit-move" class="button button--primary" type="button" disabled>
+                            <span data-i18n="player.move.submit">Submit Move</span>
+                        </button>
                     </div>
 
-                    <div id="player-board-viewport" class="player-board-viewport">
-                        <div id="player-board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
-                    </div>
-
-                    <p class="muted board-navigation__help" data-i18n="player.board.panHelp">
-                        When zoomed, drag the board to move around it.
+                    <p id="word-validation-note" class="validation-note">
+                        <span data-i18n="player.validation.loading">Word validation status is loading.</span>
                     </p>
-                </div>
 
-                <form id="coordinate-form" class="coordinate-form">
-                    <label class="field">
-                        <span class="field__label" data-i18n="player.coordinate.column">Column</span>
-                        <select id="coordinate-column" class="select"></select>
-                    </label>
+                    <p id="move-feedback" class="move-feedback" aria-live="polite"></p>
+                </section>
 
-                    <label class="field">
-                        <span class="field__label" data-i18n="player.coordinate.row">Row</span>
-                        <select id="coordinate-row" class="select"></select>
-                    </label>
-
-                    <button id="coordinate-place" class="button button--secondary" type="submit">
-                        <span data-i18n="player.coordinate.place">Place Selected Tile</span>
-                    </button>
-                </form>
-
-                <div class="move-actions">
-                    <button id="clear-move" class="button button--secondary" type="button" disabled>
-                        <span data-i18n="player.move.clear">Clear Move</span>
-                    </button>
-
-                    <button id="submit-move" class="button button--primary" type="button" disabled>
-                        <span data-i18n="player.move.submit">Submit Move</span>
-                    </button>
-                </div>
-
-                <p id="word-validation-note" class="validation-note">
-                    <span data-i18n="player.validation.loading">Word validation status is loading.</span>
-                </p>
-
-                <p id="move-feedback" class="move-feedback" aria-live="polite"></p>
-            </section>
+            </div>
 
             <section id="turn-actions-section" class="player-panel" hidden>
                 <div class="row row--between">
@@ -264,6 +271,8 @@
         const COLUMN_LABELS = 'ABCDEFGHIJKLMNO'.split('');
         const RackOrder = window.ElectronicScrabbleRackOrder;
         const BoardNavigation = window.ElectronicScrabbleBoardNavigation;
+        const MobileLayout = window.ElectronicScrabbleMobileLayout;
+        const BOARD_FOCUS_ZOOM_INDEX = 3;
 
         const PREMIUM_LABELS = Object.freeze({
             DL: { key: 'premium.DL.short', longKey: 'premium.DL.long', className: 'player-board-cell--dl' },
@@ -1047,6 +1056,54 @@
             selectedTileId = selectedTileId === tileId ? null : tileId;
             renderRack();
             updateMoveControls();
+
+            if (
+                selectedTileId !== null &&
+                boardZoomIndex === 0 &&
+                currentBoard.length > 0
+            ) {
+                const focus = getSuggestedBoardFocus();
+
+                requestAnimationFrame(() => {
+                    focusBoardCell(focus.row, focus.column, true);
+                });
+            }
+        }
+
+        /**
+         * Updates rack tile sizing so all seven slots fit in portrait mode.
+         *
+         * @returns {void}
+         */
+        function updateRackLayout() {
+            const rackWidth = rackElement.clientWidth;
+
+            if (rackWidth <= 0) {
+                return;
+            }
+
+            const gap = MobileLayout.calculateRackGap(rackWidth);
+            const tileSize = MobileLayout.calculateRackTileSize(
+                rackWidth,
+                7,
+                gap,
+                72
+            );
+
+            rackElement.style.setProperty('--rack-gap', `${gap}px`);
+            rackElement.style.setProperty('--rack-tile-size', `${tileSize}px`);
+        }
+
+        /**
+         * Returns a useful board coordinate for precision mode.
+         *
+         * The focus follows the centroid of already played tiles. On an empty
+         * board it falls back to the center square.
+         *
+         * @returns {{row: number, column: number}} Suggested board coordinate.
+         */
+        function getSuggestedBoardFocus() {
+            return MobileLayout.calculateBoardFocus(currentBoard, 7, 7);
         }
 
         /**
@@ -1129,6 +1186,8 @@
             );
 
             updateRackArrangementControls();
+
+            requestAnimationFrame(updateRackLayout);
         }
 
         /**
@@ -1222,7 +1281,7 @@
          */
         function focusBoardCell(row, column, zoomFromOverview = true) {
             if (zoomFromOverview && boardZoomIndex === 0) {
-                boardZoomIndex = BOARD_ZOOM_MULTIPLIERS.length - 1;
+                boardZoomIndex = BOARD_FOCUS_ZOOM_INDEX;
             }
 
             const fitCellSize = getFitBoardCellSize();
@@ -1887,12 +1946,25 @@
         playerBoardViewport.addEventListener('pointercancel', finishBoardPan);
 
         if (typeof ResizeObserver === 'function') {
-            const boardResizeObserver = new ResizeObserver(() => {
-                applyBoardView();
+            const gameplayResizeObserver = new ResizeObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.target === playerBoardViewport) {
+                        applyBoardView();
+                    }
+
+                    if (entry.target === rackElement) {
+                        updateRackLayout();
+                    }
+                });
             });
-            boardResizeObserver.observe(playerBoardViewport);
+
+            gameplayResizeObserver.observe(playerBoardViewport);
+            gameplayResizeObserver.observe(rackElement);
         } else {
-            window.addEventListener('resize', applyBoardView);
+            window.addEventListener('resize', () => {
+                applyBoardView();
+                updateRackLayout();
+            });
         }
 
         document.addEventListener('electronic-scrabble:language-changed', () => {
