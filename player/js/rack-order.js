@@ -8,7 +8,7 @@
  * authoritative server-side game state.
  *
  * @author Electronic Scrabble Project
- * @version 0.8.0
+ * @version 0.9.0
  */
 
 (function initializeRackOrderModule(root, factory) {
@@ -140,6 +140,31 @@
     }
 
     /**
+     * Returns the insertion index for a horizontal pointer position.
+     *
+     * The centers array must describe the non-dragged rack tiles from left
+     * to right. Returning centers.length means append after the last tile.
+     *
+     * @param {number} pointerX Pointer horizontal coordinate.
+     * @param {Array<number>} centers Horizontal center coordinates.
+     *
+     * @returns {number} Insertion index.
+     */
+    function getRackInsertionIndex(pointerX, centers) {
+        if (!Number.isFinite(pointerX) || !Array.isArray(centers)) {
+            return 0;
+        }
+
+        for (let index = 0; index < centers.length; index += 1) {
+            if (pointerX < centers[index]) {
+                return index;
+            }
+        }
+
+        return centers.length;
+    }
+
+    /**
      * Returns a shuffled copy of the rack using Fisher-Yates.
      *
      * @param {Array<Object>} rack Current private rack.
@@ -171,6 +196,7 @@
     }
 
     return Object.freeze({
+        getRackInsertionIndex,
         moveRackTile,
         moveRackTileByOffset,
         orderRackByIds,

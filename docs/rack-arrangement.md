@@ -13,7 +13,7 @@ state and is never sent to the authoritative server.
 
 The player interface supports:
 
-- pointer drag-and-drop with a mouse, stylus, or touch screen;
+- pointer drag-and-drop with a mouse, stylus, or touch screen, using sibling midpoint calculations for reliable mobile reordering;
 - **Move Left** and **Move Right** controls for the selected tile;
 - **Shuffle Rack** for a random local ordering;
 - local persistence across page reloads.

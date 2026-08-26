@@ -12,6 +12,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+    getRackInsertionIndex,
     moveRackTile,
     moveRackTileByOffset,
     orderRackByIds,
@@ -131,4 +132,18 @@ test('shuffle returns a deterministic reordered copy with injected randomness', 
 
     assert.deepEqual(ids(shuffledRack), ['B', 'C', 'D', 'A']);
     assert.deepEqual(ids(rack), ['A', 'B', 'C', 'D']);
+});
+
+test('drag insertion index follows horizontal tile midpoints', () => {
+    const centers = [40, 85, 130, 175];
+
+    assert.equal(getRackInsertionIndex(10, centers), 0);
+    assert.equal(getRackInsertionIndex(84, centers), 1);
+    assert.equal(getRackInsertionIndex(130, centers), 3);
+    assert.equal(getRackInsertionIndex(250, centers), 4);
+});
+
+test('invalid drag pointer coordinates fall back to the first position', () => {
+    assert.equal(getRackInsertionIndex(Number.NaN, [40, 80]), 0);
+    assert.equal(getRackInsertionIndex(50, null), 0);
 });

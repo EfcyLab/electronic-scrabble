@@ -1,47 +1,37 @@
-# Mobile Player Navigation
+# Mobile Board Layout
 
-The player interface uses a compact portrait workspace designed to keep the rack and board close together without horizontal page scrolling.
+The player interface always displays the complete 15 × 15 board inside the
+available smartphone width.
 
-## Rack Layout
+## No Gameplay Zoom
 
-All seven rack slots are sized from the available container width. The interface reduces or removes inter-tile gaps on narrow devices so the complete rack remains visible in portrait orientation.
+The player board does not use zoom or pan while preparing a move. Every board
+coordinate remains visible at all times.
 
-Rack order remains local to the player's browser and does not affect the authoritative game state.
+To place a tile:
 
-## Compact Gameplay Workspace
+1. select a tile from the private rack;
+2. tap its destination square on the board;
+3. repeat for the remaining tiles;
+4. submit the move.
 
-The rack and board are visually connected on narrow screens. Secondary explanatory text is reduced while accessible labels remain available to assistive technologies.
+The coordinate form remains available as an alternative input method when a
+precise touch target is inconvenient on a very small display.
 
-The rack arrangement controls appear beside the rack title on mobile. The board itself is the first visible element in the move section, directly beneath the rack.
+## Responsive Sizing
 
-## Overview Mode
+The board cell size is calculated from the actual viewport width. The board is
+then centered inside its square viewport.
 
-The complete 15 × 15 board fits inside the available phone width. This mode provides context for the full game.
+The page itself never needs horizontal scrolling for gameplay.
 
-## Precision Mode
+## Rack Proximity
 
-Selecting a rack tile from overview mode automatically switches to precision mode. The viewport centers on the centroid of already played tiles, or on the center square when the board is empty.
+On portrait smartphones the private rack is placed immediately above the
+board so the player can select and place tiles without repeatedly scrolling
+between distant sections.
 
-Tapping a board square without a selected rack tile also enters precision mode and centers that square.
+## Server Independence
 
-When zoomed, the board can be panned with touch, mouse, or stylus input.
-
-## Controls
-
-The player interface provides explicit controls for:
-
-- zoom out;
-- fit the complete board;
-- zoom in.
-
-These controls remain available as an alternative to touch panning.
-
-## Page Scrolling
-
-The player page disables horizontal page overflow. Board navigation remains contained inside the square board viewport.
-
-Vertical spacing between the rack and board is minimized so the two primary gameplay elements remain visually adjacent on portrait phones.
-
-## Game Independence
-
-Rack sizing, zoom, pan, and compact-layout values are local UI state. They are never sent to the game server and cannot affect gameplay.
+Board sizing and rack ordering are local presentation state only. They are
+never sent to the authoritative game server and cannot change the game rules.

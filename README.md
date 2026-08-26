@@ -12,7 +12,7 @@ The project is designed to run on a local network and ultimately as a self-conta
 - 15 × 15 board with standard premium-square layout
 - French 102-tile distribution with two blanks
 - private seven-tile smartphone racks
-- touch-friendly mobile board navigation
+- complete fit-to-width mobile board without gameplay zoom
 - local rack rearrangement and shuffle
 - move placement and structural validation
 - score calculation, cross words, premium squares, and 50-point seven-tile bonus
@@ -74,7 +74,7 @@ The administration interface creates and resumes games, configures the turn cloc
 /player/?game=ABCD
 ```
 
-The smartphone interface provides the private rack, tile rearrangement, mobile board navigation, move preparation, exchange, pass, challenge, and final result views.
+The smartphone interface provides the private rack, reliable touch-based tile rearrangement, a complete fit-to-width board without gameplay zoom, move preparation, exchange, pass, challenge, and final result views.
 
 ### Shared Screen
 
@@ -277,6 +277,7 @@ electronic-scrabble/
 │   ├── css/
 │   ├── i18n/
 │   └── js/
+├── LICENSE
 └── README.md
 ```
 
@@ -330,4 +331,4 @@ Potential future work includes:
 
 ## License
 
-A project license has not yet been selected.
+Electronic Scrabble is released under the MIT License. See [`LICENSE`](LICENSE).

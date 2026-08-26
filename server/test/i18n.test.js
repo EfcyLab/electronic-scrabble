@@ -46,20 +46,6 @@ test('mobile board fit calculation keeps the full board inside the viewport', ()
     assert.ok(boardSize <= 360.000001);
 });
 
-test('mobile board pan is clamped to the viewport edges', () => {
-    assert.deepEqual(
-        BoardNavigation.clampPan(-900, 400, 600, 360, 360),
-        { x: -240, y: 0 }
-    );
-});
-
-test('mobile board can calculate a centered coordinate', () => {
-    const pan = BoardNavigation.calculateCenteredPan(7, 7, 40, 360, 360, 2, 6);
-
-    assert.equal(Number.isFinite(pan.x), true);
-    assert.equal(Number.isFinite(pan.y), true);
-});
-
 
 test('turn clock translations are available in English and French', () => {
     assert.equal(english['screen.turnClock'], 'Turn clock');
@@ -82,8 +68,8 @@ test('application pages cache-bust internationalization resources', () => {
     for (const pagePath of pagePaths) {
         const source = fs.readFileSync(pagePath, 'utf8');
 
-        assert.match(source, /shared\/i18n\/en\.js\?v=15\.0\.0/);
-        assert.match(source, /shared\/i18n\/fr\.js\?v=15\.0\.0/);
-        assert.match(source, /shared\/js\/i18n-manager\.js\?v=15\.0\.0/);
+        assert.match(source, /shared\/i18n\/en\.js\?v=16\.0\.0/);
+        assert.match(source, /shared\/i18n\/fr\.js\?v=16\.0\.0/);
+        assert.match(source, /shared\/js\/i18n-manager\.js\?v=16\.0\.0/);
     }
 });

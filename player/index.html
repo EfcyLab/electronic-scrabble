@@ -10,16 +10,16 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/player.css?v=14.2.0">
+    <link rel="stylesheet" href="./css/player.css?v=16.0.0">
 
-    <script src="../shared/i18n/en.js?v=15.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=15.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=15.0.0"></script>
+    <script src="../shared/i18n/en.js?v=16.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=16.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=16.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
-    <script src="./js/rack-order.js"></script>
-    <script src="./js/board-navigation.js"></script>
-    <script src="./js/mobile-layout.js"></script>
+    <script src="./js/rack-order.js?v=16.0.0"></script>
+    <script src="./js/board-navigation.js?v=16.0.0"></script>
+    <script src="./js/mobile-layout.js?v=16.0.0"></script>
 </head>
 <body data-i18n-page-title="player.pageTitle">
     <main class="app-shell">
@@ -130,7 +130,7 @@
                         <div>
                             <h3 class="card__title" data-i18n="player.move.title">Prepare your move</h3>
                             <p class="muted panel-help">
-                                <span data-i18n="player.move.help">Tap a square to place a selected tile. Tap the board without a selected tile to zoom into that area.</span>
+                                <span data-i18n="player.move.help">Select a rack tile, then tap the destination square on the complete board.</span>
                             </p>
                         </div>
 
@@ -141,17 +141,6 @@
                         <div id="player-board-viewport" class="player-board-viewport">
                             <div id="player-board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
                         </div>
-
-                        <div class="board-navigation__controls">
-                            <button id="board-zoom-out" class="button button--secondary board-navigation__button" type="button" data-i18n-aria-label="player.board.zoomOut" aria-label="Zoom out">−</button>
-                            <button id="board-fit" class="button button--secondary" type="button" data-i18n="player.board.fit">Fit board</button>
-                            <button id="board-zoom-in" class="button button--secondary board-navigation__button" type="button" data-i18n-aria-label="player.board.zoomIn" aria-label="Zoom in">+</button>
-                            <span id="board-zoom-status" class="status" aria-live="polite">100%</span>
-                        </div>
-
-                        <p class="muted board-navigation__help" data-i18n="player.board.panHelp">
-                            When zoomed, drag the board to move around it.
-                        </p>
                     </div>
 
                     <form id="coordinate-form" class="coordinate-form">
@@ -283,7 +272,7 @@
          * authoritative game server.
          *
          * @author Electronic Scrabble Project
-         * @version 1.1.0
+         * @version 1.2.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -293,14 +282,12 @@
         const STORAGE_PREFIX = 'electronicScrabble.player.';
         const RACK_ORDER_STORAGE_PREFIX = 'electronicScrabble.rackOrder.';
         const BOARD_SIZE = 15;
-        const BOARD_ZOOM_MULTIPLIERS = Object.freeze([1, 1.35, 1.7, 2.05, 2.4]);
         const BOARD_GAP = 2;
         const BOARD_PADDING = 6;
         const COLUMN_LABELS = 'ABCDEFGHIJKLMNO'.split('');
         const RackOrder = window.ElectronicScrabbleRackOrder;
         const BoardNavigation = window.ElectronicScrabbleBoardNavigation;
         const MobileLayout = window.ElectronicScrabbleMobileLayout;
-        const BOARD_FOCUS_ZOOM_INDEX = 3;
 
         const PREMIUM_LABELS = Object.freeze({
             DL: { key: 'premium.DL.short', longKey: 'premium.DL.long', className: 'player-board-cell--dl' },
@@ -337,10 +324,6 @@
         const moveSection = document.getElementById('move-section');
         const playerBoard = document.getElementById('player-board');
         const playerBoardViewport = document.getElementById('player-board-viewport');
-        const boardZoomOutButton = document.getElementById('board-zoom-out');
-        const boardFitButton = document.getElementById('board-fit');
-        const boardZoomInButton = document.getElementById('board-zoom-in');
-        const boardZoomStatus = document.getElementById('board-zoom-status');
         const coordinateForm = document.getElementById('coordinate-form');
         const coordinateColumn = document.getElementById('coordinate-column');
         const coordinateRow = document.getElementById('coordinate-row');
@@ -389,11 +372,6 @@
         let exchangeTileIds = new Set();
         let rackDragState = null;
         let suppressRackClickUntil = 0;
-        let boardZoomIndex = 0;
-        let boardPanX = 0;
-        let boardPanY = 0;
-        let boardPanPointer = null;
-        let suppressBoardClickUntil = 0;
         let lastGameState = null;
         let connectionStatusKey = 'common.connecting';
 
@@ -1028,6 +1006,10 @@
         /**
          * Reorders rack tile elements during a pointer drag operation.
          *
+         * The target index is calculated from sibling midpoints instead of
+         * hit-testing APIs, which can be unreliable on some mobile
+         * browsers while pointer capture is active.
+         *
          * @param {PointerEvent} event Pointer move event.
          *
          * @returns {void}
@@ -1053,31 +1035,30 @@
             event.preventDefault();
 
             const draggedButton = rackDragState.button;
+            const siblings = Array.from(
+                rackElement.querySelectorAll('.rack-tile')
+            ).filter((button) => button !== draggedButton);
+            const centers = siblings.map((button) => {
+                const rectangle = button.getBoundingClientRect();
 
-            draggedButton.style.pointerEvents = 'none';
-            const target = document.elementFromPoint(
+                return rectangle.left + (rectangle.width / 2);
+            });
+            const targetIndex = RackOrder.getRackInsertionIndex(
                 event.clientX,
-                event.clientY
-            )?.closest('.rack-tile');
-            draggedButton.style.pointerEvents = '';
+                centers
+            );
+            const referenceButton = siblings[targetIndex] ?? null;
 
-            if (
-                !target ||
-                target === draggedButton ||
-                !rackElement.contains(target)
-            ) {
+            if (referenceButton === null) {
+                if (rackElement.lastElementChild !== draggedButton) {
+                    rackElement.appendChild(draggedButton);
+                }
+
                 return;
             }
 
-            const targetRect = target.getBoundingClientRect();
-            const placeAfter = event.clientX > targetRect.left + (targetRect.width / 2);
-
-            if (placeAfter) {
-                if (target.nextSibling !== draggedButton) {
-                    rackElement.insertBefore(draggedButton, target.nextSibling);
-                }
-            } else if (target.previousSibling !== draggedButton) {
-                rackElement.insertBefore(draggedButton, target);
+            if (referenceButton.previousElementSibling !== draggedButton) {
+                rackElement.insertBefore(draggedButton, referenceButton);
             }
         }
 
@@ -1137,17 +1118,6 @@
             renderRack();
             updateMoveControls();
 
-            if (
-                selectedTileId !== null &&
-                boardZoomIndex === 0 &&
-                currentBoard.length > 0
-            ) {
-                const focus = getSuggestedBoardFocus();
-
-                requestAnimationFrame(() => {
-                    focusBoardCell(focus.row, focus.column, true);
-                });
-            }
         }
 
         /**
@@ -1172,18 +1142,6 @@
 
             rackElement.style.setProperty('--rack-gap', `${gap}px`);
             rackElement.style.setProperty('--rack-tile-size', `${tileSize}px`);
-        }
-
-        /**
-         * Returns a useful board coordinate for precision mode.
-         *
-         * The focus follows the centroid of already played tiles. On an empty
-         * board it falls back to the center square.
-         *
-         * @returns {{row: number, column: number}} Suggested board coordinate.
-         */
-        function getSuggestedBoardFocus() {
-            return MobileLayout.calculateBoardFocus(currentBoard, 7, 7);
         }
 
         /**
@@ -1301,216 +1259,17 @@
         }
 
         /**
-         * Clamps board pan offsets to the visible viewport.
+         * Fits the complete board inside the player viewport.
          *
-         * @param {number} x Requested horizontal offset.
-         * @param {number} y Requested vertical offset.
-         * @param {number} boardSize Rendered board size.
-         *
-         * @returns {{x: number, y: number}} Clamped offsets.
-         */
-        function clampBoardPan(x, y, boardSize) {
-            return BoardNavigation.clampPan(
-                x,
-                y,
-                boardSize,
-                playerBoardViewport.clientWidth,
-                playerBoardViewport.clientHeight
-            );
-        }
-
-        /**
-         * Applies the current board zoom and pan state.
+         * The player board intentionally has no zoom or pan state. This keeps
+         * all coordinates visible while a move is being prepared.
          *
          * @returns {void}
          */
         function applyBoardView() {
-            const fitCellSize = getFitBoardCellSize();
-            const multiplier = BOARD_ZOOM_MULTIPLIERS[boardZoomIndex];
-            const cellSize = fitCellSize * multiplier;
-            const boardSize = getBoardRenderedSize(cellSize);
-            const clampedPan = clampBoardPan(boardPanX, boardPanY, boardSize);
-
-            boardPanX = clampedPan.x;
-            boardPanY = clampedPan.y;
+            const cellSize = getFitBoardCellSize();
 
             playerBoard.style.setProperty('--board-cell-size', `${cellSize}px`);
-            playerBoard.style.setProperty('--board-pan-x', `${boardPanX}px`);
-            playerBoard.style.setProperty('--board-pan-y', `${boardPanY}px`);
-
-            playerBoardViewport.classList.toggle(
-                'player-board-viewport--zoomed',
-                boardZoomIndex > 0
-            );
-
-            boardZoomOutButton.disabled = boardZoomIndex === 0;
-            boardZoomInButton.disabled = boardZoomIndex === BOARD_ZOOM_MULTIPLIERS.length - 1;
-            const zoomPercent = Math.round(multiplier * 100);
-            const zoomLabel = I18n.t('player.board.zoomLevel', {
-                value: zoomPercent
-            });
-
-            boardZoomStatus.textContent = `${zoomPercent}%`;
-            boardZoomStatus.setAttribute('aria-label', zoomLabel);
-            boardZoomStatus.title = zoomLabel;
-        }
-
-        /**
-         * Centers a board coordinate in the viewport.
-         *
-         * @param {number} row Board row.
-         * @param {number} column Board column.
-         * @param {boolean} zoomFromOverview Whether overview mode should zoom first.
-         *
-         * @returns {void}
-         */
-        function focusBoardCell(row, column, zoomFromOverview = true) {
-            if (zoomFromOverview && boardZoomIndex === 0) {
-                boardZoomIndex = BOARD_FOCUS_ZOOM_INDEX;
-            }
-
-            const fitCellSize = getFitBoardCellSize();
-            const cellSize = fitCellSize * BOARD_ZOOM_MULTIPLIERS[boardZoomIndex];
-            const boardSize = getBoardRenderedSize(cellSize);
-            const centeredPan = BoardNavigation.calculateCenteredPan(
-                row,
-                column,
-                cellSize,
-                playerBoardViewport.clientWidth,
-                playerBoardViewport.clientHeight,
-                BOARD_GAP,
-                BOARD_PADDING
-            );
-
-            boardPanX = centeredPan.x;
-            boardPanY = centeredPan.y;
-
-            const clampedPan = clampBoardPan(boardPanX, boardPanY, boardSize);
-            boardPanX = clampedPan.x;
-            boardPanY = clampedPan.y;
-            applyBoardView();
-        }
-
-        /**
-         * Changes the board zoom while keeping a board coordinate focused.
-         *
-         * @param {number} nextIndex Requested zoom index.
-         *
-         * @returns {void}
-         */
-        function setBoardZoom(nextIndex) {
-            const clampedIndex = Math.min(
-                BOARD_ZOOM_MULTIPLIERS.length - 1,
-                Math.max(0, nextIndex)
-            );
-
-            if (clampedIndex === 0) {
-                boardZoomIndex = 0;
-                boardPanX = 0;
-                boardPanY = 0;
-                applyBoardView();
-                return;
-            }
-
-            const currentFitSize = getFitBoardCellSize();
-            const currentCellSize = currentFitSize * BOARD_ZOOM_MULTIPLIERS[boardZoomIndex];
-            const viewportCenterX = (playerBoardViewport.clientWidth / 2) - boardPanX;
-            const viewportCenterY = (playerBoardViewport.clientHeight / 2) - boardPanY;
-            const focusedColumn = Math.max(0, Math.min(
-                BOARD_SIZE - 1,
-                Math.floor((viewportCenterX - BOARD_PADDING) / (currentCellSize + BOARD_GAP))
-            ));
-            const focusedRow = Math.max(0, Math.min(
-                BOARD_SIZE - 1,
-                Math.floor((viewportCenterY - BOARD_PADDING) / (currentCellSize + BOARD_GAP))
-            ));
-
-            boardZoomIndex = clampedIndex;
-            focusBoardCell(focusedRow, focusedColumn, false);
-        }
-
-        /**
-         * Starts touch or pointer panning of a zoomed board.
-         *
-         * @param {PointerEvent} event Pointer event.
-         *
-         * @returns {void}
-         */
-        function startBoardPan(event) {
-            if (boardZoomIndex === 0 || event.button !== 0) {
-                return;
-            }
-
-            boardPanPointer = {
-                pointerId: event.pointerId,
-                startX: event.clientX,
-                startY: event.clientY,
-                initialPanX: boardPanX,
-                initialPanY: boardPanY,
-                moved: false
-            };
-
-            if (typeof playerBoardViewport.setPointerCapture === 'function') {
-                playerBoardViewport.setPointerCapture(event.pointerId);
-            }
-        }
-
-        /**
-         * Updates a board pan gesture.
-         *
-         * @param {PointerEvent} event Pointer event.
-         *
-         * @returns {void}
-         */
-        function moveBoardPan(event) {
-            if (boardPanPointer?.pointerId !== event.pointerId) {
-                return;
-            }
-
-            const deltaX = event.clientX - boardPanPointer.startX;
-            const deltaY = event.clientY - boardPanPointer.startY;
-
-            if (Math.hypot(deltaX, deltaY) > 6) {
-                boardPanPointer.moved = true;
-                playerBoardViewport.classList.add('player-board-viewport--panning');
-            }
-
-            if (!boardPanPointer.moved) {
-                return;
-            }
-
-            const cellSize = getFitBoardCellSize() * BOARD_ZOOM_MULTIPLIERS[boardZoomIndex];
-            const boardSize = getBoardRenderedSize(cellSize);
-            const clampedPan = clampBoardPan(
-                boardPanPointer.initialPanX + deltaX,
-                boardPanPointer.initialPanY + deltaY,
-                boardSize
-            );
-
-            boardPanX = clampedPan.x;
-            boardPanY = clampedPan.y;
-            playerBoard.style.setProperty('--board-pan-x', `${boardPanX}px`);
-            playerBoard.style.setProperty('--board-pan-y', `${boardPanY}px`);
-        }
-
-        /**
-         * Ends a board pan gesture.
-         *
-         * @param {PointerEvent} event Pointer event.
-         *
-         * @returns {void}
-         */
-        function finishBoardPan(event) {
-            if (boardPanPointer?.pointerId !== event.pointerId) {
-                return;
-            }
-
-            if (boardPanPointer.moved) {
-                suppressBoardClickUntil = Date.now() + 250;
-            }
-
-            playerBoardViewport.classList.remove('player-board-viewport--panning');
-            boardPanPointer = null;
         }
 
         /**
@@ -1578,16 +1337,9 @@
             if (cell.tile !== null) {
                 button.appendChild(createPreviewTile(cell.tile, false));
                 button.addEventListener('click', () => {
-                    if (Date.now() < suppressBoardClickUntil) {
-                        return;
-                    }
-
                     if (selectedTileId !== null && canPlay() && !exchangeMode) {
                         showMoveFeedback(I18n.t('player.feedback.squareOccupied'), 'error');
-                        return;
                     }
-
-                    focusBoardCell(cell.row, cell.column, true);
                 });
                 return button;
             }
@@ -1617,12 +1369,7 @@
             }
 
             button.addEventListener('click', () => {
-                if (Date.now() < suppressBoardClickUntil) {
-                    return;
-                }
-
                 if (selectedTileId === null || !canPlay() || exchangeMode) {
-                    focusBoardCell(cell.row, cell.column, true);
                     return;
                 }
 
@@ -1715,7 +1462,6 @@
             renderRack();
             renderPlayerBoard();
             updateMoveControls();
-            focusBoardCell(row, column, true);
         }
 
         /**
@@ -2082,13 +1828,6 @@
         moveRackLeftButton.addEventListener('click', () => moveSelectedRackTile(-1));
         moveRackRightButton.addEventListener('click', () => moveSelectedRackTile(1));
         shuffleRackButton.addEventListener('click', shuffleCurrentRack);
-        boardZoomOutButton.addEventListener('click', () => setBoardZoom(boardZoomIndex - 1));
-        boardZoomInButton.addEventListener('click', () => setBoardZoom(boardZoomIndex + 1));
-        boardFitButton.addEventListener('click', () => setBoardZoom(0));
-        playerBoardViewport.addEventListener('pointerdown', startBoardPan);
-        playerBoardViewport.addEventListener('pointermove', moveBoardPan);
-        playerBoardViewport.addEventListener('pointerup', finishBoardPan);
-        playerBoardViewport.addEventListener('pointercancel', finishBoardPan);
 
         if (typeof ResizeObserver === 'function') {
             const gameplayResizeObserver = new ResizeObserver((entries) => {

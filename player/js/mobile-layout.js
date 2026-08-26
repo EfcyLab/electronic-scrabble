@@ -5,7 +5,7 @@
  * visible in portrait mode without horizontal scrolling.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 (function exposeMobileLayout(root, factory) {
     const api = factory();
@@ -76,44 +76,8 @@
         return Math.min(maximumTileSize, calculatedSize);
     }
 
-    /**
-     * Returns a useful focus coordinate for the occupied board area.
-     *
-     * @param {Array<Object>} cells Public board cells.
-     * @param {number} defaultRow Default row when the board is empty.
-     * @param {number} defaultColumn Default column when the board is empty.
-     *
-     * @returns {{row: number, column: number}} Suggested focus coordinate.
-     */
-    function calculateBoardFocus(cells, defaultRow = 7, defaultColumn = 7) {
-        const occupiedCells = Array.isArray(cells)
-            ? cells.filter((cell) => cell?.tile !== null && cell?.tile !== undefined)
-            : [];
-
-        if (occupiedCells.length === 0) {
-            return {
-                row: defaultRow,
-                column: defaultColumn
-            };
-        }
-
-        const totals = occupiedCells.reduce((accumulator, cell) => ({
-            row: accumulator.row + cell.row,
-            column: accumulator.column + cell.column
-        }), {
-            row: 0,
-            column: 0
-        });
-
-        return {
-            row: Math.round(totals.row / occupiedCells.length),
-            column: Math.round(totals.column / occupiedCells.length)
-        };
-    }
-
     return Object.freeze({
         calculateRackGap,
-        calculateRackTileSize,
-        calculateBoardFocus
+        calculateRackTileSize
     });
 });

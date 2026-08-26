@@ -1,10 +1,10 @@
 /**
  * Electronic Scrabble mobile gameplay layout tests.
  *
- * Verifies portrait rack sizing and automatic board focus calculations.
+ * Verifies portrait rack sizing for the compact player interface.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 const test = require('node:test');
@@ -40,23 +40,3 @@ test('rack tiles do not grow beyond the desktop maximum size', () => {
     );
 });
 
-test('empty board precision mode focuses the center square', () => {
-    assert.deepEqual(
-        MobileLayout.calculateBoardFocus([], 7, 7),
-        { row: 7, column: 7 }
-    );
-});
-
-test('precision mode focuses the centroid of occupied board cells', () => {
-    const board = [
-        { row: 7, column: 7, tile: { letter: 'A' } },
-        { row: 7, column: 8, tile: { letter: 'R' } },
-        { row: 7, column: 9, tile: { letter: 'B' } },
-        { row: 1, column: 1, tile: null }
-    ];
-
-    assert.deepEqual(
-        MobileLayout.calculateBoardFocus(board, 7, 7),
-        { row: 7, column: 8 }
-    );
-});

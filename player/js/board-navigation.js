@@ -1,11 +1,11 @@
 /**
- * Electronic Scrabble mobile board navigation utilities.
+ * Electronic Scrabble board sizing utilities.
  *
- * Provides pure calculations for fit-to-screen sizing, board panning,
- * coordinate focusing, and viewport navigation.
+ * Provides deterministic calculations used to keep the complete 15 × 15
+ * board inside the player viewport without zooming or panning.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 (function exposeBoardNavigation(root, factory) {
     const api = factory();
@@ -35,10 +35,14 @@
         padding = 6,
         minimumCellSize = 14
     ) {
-        const gapsWidth = (boardSize - 1) * gap;
-        const availableWidth = viewportSize - (padding * 2) - gapsWidth;
+        const safeViewportSize = Number.isFinite(viewportSize)
+            ? Math.max(0, viewportSize)
+            : 0;
+        const gapsWidth = Math.max(0, boardSize - 1) * gap;
+        const availableWidth = safeViewportSize - (padding * 2) - gapsWidth;
+        const calculatedSize = boardSize > 0 ? availableWidth / boardSize : 0;
 
-        return Math.max(minimumCellSize, availableWidth / boardSize);
+        return Math.max(minimumCellSize, calculatedSize);
     }
 
     /**
@@ -59,69 +63,8 @@
         );
     }
 
-    /**
-     * Clamps pan offsets so the board remains inside the viewport.
-     *
-     * @param {number} x Requested horizontal offset.
-     * @param {number} y Requested vertical offset.
-     * @param {number} renderedBoardSize Rendered board edge length.
-     * @param {number} viewportWidth Viewport width.
-     * @param {number} viewportHeight Viewport height.
-     *
-     * @returns {{x: number, y: number}} Clamped pan offsets.
-     */
-    function clampPan(x, y, renderedBoardSize, viewportWidth, viewportHeight) {
-        if (
-            renderedBoardSize <= viewportWidth &&
-            renderedBoardSize <= viewportHeight
-        ) {
-            return {
-                x: (viewportWidth - renderedBoardSize) / 2,
-                y: (viewportHeight - renderedBoardSize) / 2
-            };
-        }
-
-        return {
-            x: Math.min(0, Math.max(viewportWidth - renderedBoardSize, x)),
-            y: Math.min(0, Math.max(viewportHeight - renderedBoardSize, y))
-        };
-    }
-
-    /**
-     * Calculates the pan offset required to center a board coordinate.
-     *
-     * @param {number} row Board row.
-     * @param {number} column Board column.
-     * @param {number} cellSize Cell size.
-     * @param {number} viewportWidth Viewport width.
-     * @param {number} viewportHeight Viewport height.
-     * @param {number} gap Gap between cells.
-     * @param {number} padding Board padding.
-     *
-     * @returns {{x: number, y: number}} Requested pan offsets.
-     */
-    function calculateCenteredPan(
-        row,
-        column,
-        cellSize,
-        viewportWidth,
-        viewportHeight,
-        gap = 2,
-        padding = 6
-    ) {
-        const cellCenterX = padding + (column * (cellSize + gap)) + (cellSize / 2);
-        const cellCenterY = padding + (row * (cellSize + gap)) + (cellSize / 2);
-
-        return {
-            x: (viewportWidth / 2) - cellCenterX,
-            y: (viewportHeight / 2) - cellCenterY
-        };
-    }
-
     return Object.freeze({
         calculateFitCellSize,
-        calculateBoardSize,
-        clampPan,
-        calculateCenteredPan
+        calculateBoardSize
     });
 });

@@ -1,9 +1,11 @@
 /**
- * Electronic Scrabble player board control layout tests.
+ * Electronic Scrabble player board layout contract tests.
  *
- * Guards the zoom control bar against narrow columns and verbose status text.
+ * Guards the smartphone player interface against reintroducing gameplay zoom
+ * or horizontal board panning.
  *
- * @version 0.1.0
+ * @author Electronic Scrabble Project
+ * @version 0.2.0
  */
 
 const assert = require('node:assert/strict');
@@ -21,34 +23,29 @@ const playerCss = fs.readFileSync(
     'utf8'
 );
 
-test('board zoom controls reserve the third fixed column for zoom in', () => {
+test('player board exposes no gameplay zoom controls', () => {
+    assert.doesNotMatch(playerHtml, /id="board-zoom-out"/);
+    assert.doesNotMatch(playerHtml, /id="board-zoom-in"/);
+    assert.doesNotMatch(playerHtml, /id="board-fit"/);
+    assert.doesNotMatch(playerHtml, /id="board-zoom-status"/);
+});
+
+test('player client contains no zoom or pan state', () => {
+    assert.doesNotMatch(playerHtml, /BOARD_ZOOM_MULTIPLIERS/);
+    assert.doesNotMatch(playerHtml, /boardZoomIndex/);
+    assert.doesNotMatch(playerHtml, /boardPanX/);
+    assert.doesNotMatch(playerHtml, /focusBoardCell/);
+});
+
+test('complete board is centered in the fixed player viewport', () => {
     assert.match(
         playerCss,
-        /grid-template-columns:\s*46px minmax\(0, 1fr\) 46px auto;/
+        /#player-board\s*\{[^}]*top:\s*50%;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%, -50%\);/s
     );
 });
 
-test('board zoom status cannot wrap into a vertical label', () => {
-    assert.match(
-        playerCss,
-        /#board-zoom-status\s*\{[^}]*white-space:\s*nowrap;/s
-    );
-});
-
-test('visible board zoom status is compact while retaining an accessible label', () => {
-    assert.match(
-        playerHtml,
-        /boardZoomStatus\.textContent = `\$\{zoomPercent\}%`;/
-    );
-    assert.match(
-        playerHtml,
-        /boardZoomStatus\.setAttribute\('aria-label', zoomLabel\);/
-    );
-});
-
-test('player stylesheet is versioned to invalidate browser cache', () => {
-    assert.match(
-        playerHtml,
-        /\.\/css\/player\.css\?v=14\.2\.0/
-    );
+test('player interaction assets are versioned to invalidate browser cache', () => {
+    assert.match(playerHtml, /\.\/css\/player\.css\?v=16\.0\.0/);
+    assert.match(playerHtml, /\.\/js\/rack-order\.js\?v=16\.0\.0/);
+    assert.match(playerHtml, /\.\/js\/board-navigation\.js\?v=16\.0\.0/);
 });
