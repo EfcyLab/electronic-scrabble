@@ -4,7 +4,7 @@
  * English is the canonical source language for the application.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 (function registerEnglishResources(root, factory) {
     const resources = factory();
@@ -39,6 +39,15 @@
         'common.connectionError': 'Connection error',
         'common.round': 'Round {round}',
         'common.turn': 'Turn',
+        'clock.off': 'Off',
+        'clock.elapsed': 'Elapsed time',
+        'clock.countdown': 'Countdown',
+        'clock.countdown60': 'Countdown · 60 s',
+        'clock.countdown90': 'Countdown · 90 s',
+        'clock.countdown120': 'Countdown · 120 s',
+        'clock.countdown180': 'Countdown · 180 s',
+        'clock.paused': 'Paused',
+        'clock.expired': 'Time expired',
         'common.cancel': 'Cancel',
         'common.final': 'Final',
         'common.tile.one': '{count} tile',
@@ -61,6 +70,9 @@
         'admin.playerAccess': 'Players',
         'admin.createGame': 'Create Game',
         'admin.wordValidation': 'Word validation',
+        'admin.turnClock': 'Turn clock',
+        'admin.turnClockHelp': 'Displayed on the shared screen. Expiration does not automatically end a turn.',
+        'admin.turnClockOffHelp': 'Turn clock disabled for this game.',
         'admin.startingDraw': 'Starting-player draw',
         'admin.finalResult': 'Final result',
         'admin.startGame': 'Start Game',
@@ -96,6 +108,8 @@
 
         'screen.pageTitle': 'Electronic Scrabble - Shared Screen',
         'screen.gamePanel': 'Game',
+        'screen.turnClock': 'Turn clock',
+        'screen.clockPlayer': '{name} · current turn',
         'screen.words': 'Words',
         'screen.whoStarts': 'Who starts?',
         'screen.lastAction': 'Last action',
@@ -244,6 +258,9 @@
         'error.GAME_NOT_PLAYING': 'The game is not currently playing.',
         'error.PLAYER_NOT_FOUND': 'The player session no longer exists.',
         'error.PLAYER_SESSION_NOT_FOUND': 'The player session no longer exists.',
+        'error.ADMIN_SESSION_NOT_FOUND': 'The administrator session is no longer available.',
+        'error.CLOCK_CONFIGURATION_LOCKED': 'The turn clock cannot be changed after play begins.',
+        'error.INVALID_CLOCK_MODE': 'The selected turn clock mode is not supported.',
         'error.NOT_YOUR_TURN': 'It is not your turn.',
         'error.EMPTY_MOVE': 'Place at least one tile before submitting.',
         'error.TOO_MANY_TILES': 'Too many tiles were submitted.',

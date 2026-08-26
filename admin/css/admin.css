@@ -2,7 +2,7 @@
  * Electronic Scrabble administration interface styles.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 #game-information {
@@ -141,4 +141,25 @@
     color: var(--color-primary-strong);
     font-size: 1.1rem;
     font-weight: 900;
+}
+
+/*
+ * Turn clock configuration.
+ */
+
+.admin-clock-settings {
+    display: grid;
+    gap: var(--spacing-small);
+    padding: var(--spacing-medium);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    background: var(--color-surface-elevated);
+}
+
+.admin-clock-settings .field {
+    margin: 0;
+}
+
+.admin-clock-settings p {
+    margin: 0;
 }

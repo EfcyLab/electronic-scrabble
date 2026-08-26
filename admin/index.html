@@ -13,6 +13,7 @@
     <script src="../shared/i18n/en.js"></script>
     <script src="../shared/i18n/fr.js"></script>
     <script src="../shared/js/i18n-manager.js"></script>
+    <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
 <body data-i18n-page-title="admin.pageTitle">
@@ -57,6 +58,21 @@
                 <p><span data-i18n="common.status">Status</span>: <strong id="game-status" data-i18n="common.lobby">Lobby</strong></p>
 
                 <p><span data-i18n="admin.wordValidation">Word validation</span>: <strong id="word-validation-status" data-i18n="common.waiting">Waiting</strong></p>
+
+                <section class="admin-clock-settings">
+                    <label class="field" for="turn-clock-setting">
+                        <span class="field__label" data-i18n="admin.turnClock">Turn clock</span>
+                        <select id="turn-clock-setting" class="select">
+                            <option value="elapsed" data-i18n="clock.elapsed">Elapsed time</option>
+                            <option value="countdown:60" data-i18n="clock.countdown60">Countdown · 60 s</option>
+                            <option value="countdown:90" data-i18n="clock.countdown90">Countdown · 90 s</option>
+                            <option value="countdown:120" data-i18n="clock.countdown120">Countdown · 120 s</option>
+                            <option value="countdown:180" data-i18n="clock.countdown180">Countdown · 180 s</option>
+                            <option value="off" data-i18n="clock.off">Off</option>
+                        </select>
+                    </label>
+                    <p id="turn-clock-help" class="muted" data-i18n="admin.turnClockHelp">The clock is displayed on the shared screen and does not automatically end a turn.</p>
+                </section>
 
                 <p id="turn-information" hidden>
                     <span data-i18n="common.turn">Turn</span> <strong id="turn-number">0</strong> — <strong id="turn-player" data-i18n="common.waiting">Waiting</strong>
@@ -109,7 +125,7 @@
          * Creates game sessions, displays the lobby state,
          * and starts a game when all players are ready.
          *
-         * @version 1.0.0
+         * @version 1.1.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -118,6 +134,9 @@
         const SERVER_PORT = 8080;
         const MIN_PLAYERS = 2;
         const MAX_PLAYERS = 4;
+        const ADMIN_SESSION_STORAGE_PREFIX = 'electronic-scrabble-admin-session:';
+        const parameters = new URLSearchParams(window.location.search);
+        const initialGameCode = parameters.get('game')?.toUpperCase() ?? '';
 
         const connectionStatus = document.getElementById('connection-status');
         const createGameButton = document.getElementById('create-game');
@@ -127,6 +146,8 @@
         const gameCodeElement = document.getElementById('game-code');
         const gameStatusElement = document.getElementById('game-status');
         const wordValidationStatus = document.getElementById('word-validation-status');
+        const turnClockSetting = document.getElementById('turn-clock-setting');
+        const turnClockHelp = document.getElementById('turn-clock-help');
         const turnInformation = document.getElementById('turn-information');
         const turnNumberElement = document.getElementById('turn-number');
         const turnPlayerElement = document.getElementById('turn-player');
@@ -145,13 +166,138 @@
         const endReasonElement = document.getElementById('end-reason');
         const finalRanking = document.getElementById('final-ranking');
 
-        const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
+        const socket = new window.ElectronicScrabbleReconnectingWebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
         let currentGameCode = null;
+        let currentAdminToken = null;
         let currentGameStatus = 'lobby';
         let lastGameState = null;
         let connectionStatusKey = 'common.connecting';
 
+
+        /**
+         * Returns the local-storage key for an administrator session.
+         *
+         * @param {string} gameCode Public game code.
+         *
+         * @returns {string} Storage key.
+         */
+        function getAdminSessionStorageKey(gameCode) {
+            return `${ADMIN_SESSION_STORAGE_PREFIX}${gameCode}`;
+        }
+
+        /**
+         * Saves an administrator recovery token locally.
+         *
+         * @param {string} gameCode Public game code.
+         * @param {string} adminToken Private administrator token.
+         *
+         * @returns {void}
+         */
+        function saveAdminSession(gameCode, adminToken) {
+            localStorage.setItem(
+                getAdminSessionStorageKey(gameCode),
+                JSON.stringify({ adminToken })
+            );
+        }
+
+        /**
+         * Loads a saved administrator recovery session.
+         *
+         * @param {string} gameCode Public game code.
+         *
+         * @returns {Object|null} Saved session or null.
+         */
+        function loadAdminSession(gameCode) {
+            try {
+                const rawSession = localStorage.getItem(
+                    getAdminSessionStorageKey(gameCode)
+                );
+
+                return rawSession ? JSON.parse(rawSession) : null;
+            } catch (error) {
+                console.warn('Unable to load administrator session:', error);
+                return null;
+            }
+        }
+
+        /**
+         * Clears a saved administrator recovery session.
+         *
+         * @param {string} gameCode Public game code.
+         *
+         * @returns {void}
+         */
+        function clearAdminSession(gameCode) {
+            localStorage.removeItem(getAdminSessionStorageKey(gameCode));
+        }
+
+        /**
+         * Displays links and metadata for an administrator game session.
+         *
+         * @param {string} gameCode Public game code.
+         *
+         * @returns {void}
+         */
+        function showAdminGame(gameCode) {
+            currentGameCode = gameCode;
+
+            const screenUrl =
+                `${window.location.origin}/screen/?game=` +
+                encodeURIComponent(currentGameCode);
+
+            const playerUrl =
+                `${window.location.origin}/player/?game=` +
+                encodeURIComponent(currentGameCode);
+
+            gameCodeElement.textContent = currentGameCode;
+            screenLink.href = screenUrl;
+            screenLink.textContent = screenUrl;
+            playerLink.href = playerUrl;
+            playerLink.textContent = playerUrl;
+
+            window.history.replaceState(
+                null,
+                '',
+                `${window.location.pathname}?game=${encodeURIComponent(currentGameCode)}`
+            );
+
+            createGameButton.disabled = true;
+            gameInformation.hidden = false;
+        }
+
+        /**
+         * Converts a public clock state to the administrator selector value.
+         *
+         * @param {Object|null} turnClock Public turn-clock state.
+         *
+         * @returns {string} Selector value.
+         */
+        function getClockSettingValue(turnClock) {
+            if (!turnClock || turnClock.mode === 'off') {
+                return 'off';
+            }
+
+            if (turnClock.mode === 'countdown') {
+                return `countdown:${turnClock.durationSeconds}`;
+            }
+
+            return 'elapsed';
+        }
+
+        /**
+         * Parses the administrator turn-clock selector.
+         *
+         * @returns {{mode: string, durationSeconds: number}} Clock configuration.
+         */
+        function getSelectedClockConfiguration() {
+            const [mode, rawDuration] = turnClockSetting.value.split(':');
+
+            return {
+                mode,
+                durationSeconds: Number.parseInt(rawDuration ?? '120', 10)
+            };
+        }
 
         /**
          * Renders the public starting-player draw.
@@ -261,6 +407,12 @@
         function updateGameState(game) {
             lastGameState = game;
             currentGameStatus = game.status;
+            turnClockSetting.value = getClockSettingValue(game.turnClock);
+            turnClockSetting.disabled = !['lobby', 'starting'].includes(game.status);
+            turnClockHelp.textContent = game.turnClock?.mode === 'off'
+                ? I18n.t('admin.turnClockOffHelp')
+                : I18n.t('admin.turnClockHelp');
+
             const statusKey = {
                 lobby: 'common.lobby',
                 starting: 'common.starting',
@@ -416,6 +568,26 @@
         socket.addEventListener('open', () => {
             connectionStatusKey = 'common.connected';
             connectionStatus.textContent = I18n.t(connectionStatusKey);
+
+            const resumableGameCode = currentGameCode || initialGameCode;
+
+            if (resumableGameCode) {
+                const savedSession = loadAdminSession(resumableGameCode);
+
+                if (savedSession?.adminToken) {
+                    currentAdminToken = savedSession.adminToken;
+                    createGameButton.disabled = true;
+
+                    socket.send(JSON.stringify({
+                        type: 'resume-admin',
+                        gameCode: resumableGameCode,
+                        adminToken: currentAdminToken
+                    }));
+
+                    return;
+                }
+            }
+
             createGameButton.disabled = false;
         });
 
@@ -445,6 +617,19 @@
             }));
         });
 
+        turnClockSetting.addEventListener('change', () => {
+            if (!currentGameCode || socket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            const configuration = getSelectedClockConfiguration();
+
+            socket.send(JSON.stringify({
+                type: 'configure-turn-clock',
+                ...configuration
+            }));
+        });
+
         document.addEventListener('electronic-scrabble:language-changed', () => {
             connectionStatus.textContent = I18n.t(connectionStatusKey);
 
@@ -457,24 +642,14 @@
             const data = JSON.parse(event.data);
 
             if (data.type === 'game-created') {
-                currentGameCode = data.gameCode;
+                currentAdminToken = data.adminToken;
+                saveAdminSession(data.gameCode, data.adminToken);
+                showAdminGame(data.gameCode);
+                return;
+            }
 
-                const screenUrl =
-                    `${window.location.origin}/screen/?game=` +
-                    encodeURIComponent(currentGameCode);
-
-                const playerUrl =
-                    `${window.location.origin}/player/?game=` +
-                    encodeURIComponent(currentGameCode);
-
-                gameCodeElement.textContent = currentGameCode;
-                screenLink.href = screenUrl;
-                screenLink.textContent = screenUrl;
-                playerLink.href = playerUrl;
-                playerLink.textContent = playerUrl;
-
-                createGameButton.disabled = true;
-                gameInformation.hidden = false;
+            if (data.type === 'admin-session-resumed') {
+                showAdminGame(data.gameCode);
                 return;
             }
 
@@ -487,6 +662,14 @@
             }
 
             if (data.type === 'error') {
+                if (data.code === 'ADMIN_SESSION_NOT_FOUND' && (currentGameCode || initialGameCode)) {
+                    const failedGameCode = currentGameCode || initialGameCode;
+
+                    clearAdminSession(failedGameCode);
+                    currentAdminToken = null;
+                    createGameButton.disabled = false;
+                }
+
                 alert(I18n.t(`error.${data.code}`) === `error.${data.code}` ? data.message : I18n.t(`error.${data.code}`));
             }
         });

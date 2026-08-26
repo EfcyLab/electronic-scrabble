@@ -5,7 +5,7 @@
  * Internal game codes and rules remain language-independent.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 (function registerFrenchResources(root, factory) {
     const resources = factory();
@@ -40,6 +40,15 @@
         'common.connectionError': 'Erreur de connexion',
         'common.round': 'Tour de tirage {round}',
         'common.turn': 'Tour',
+        'clock.off': 'Désactivé',
+        'clock.elapsed': 'Temps écoulé',
+        'clock.countdown': 'Compte à rebours',
+        'clock.countdown60': 'Compte à rebours · 60 s',
+        'clock.countdown90': 'Compte à rebours · 90 s',
+        'clock.countdown120': 'Compte à rebours · 120 s',
+        'clock.countdown180': 'Compte à rebours · 180 s',
+        'clock.paused': 'En pause',
+        'clock.expired': 'Temps écoulé',
         'common.cancel': 'Annuler',
         'common.final': 'Final',
         'common.tile.one': '{count} tuile',
@@ -62,6 +71,9 @@
         'admin.playerAccess': 'Joueurs',
         'admin.createGame': 'Créer une partie',
         'admin.wordValidation': 'Vérification des mots',
+        'admin.turnClock': 'Chronomètre du tour',
+        'admin.turnClockHelp': 'Affiché sur l’écran partagé. L’expiration ne termine pas automatiquement un tour.',
+        'admin.turnClockOffHelp': 'Chronomètre désactivé pour cette partie.',
         'admin.startingDraw': 'Tirage du premier joueur',
         'admin.finalResult': 'Résultat final',
         'admin.startGame': 'Démarrer la partie',
@@ -97,6 +109,8 @@
 
         'screen.pageTitle': 'Scrabble électronique - Écran partagé',
         'screen.gamePanel': 'Partie',
+        'screen.turnClock': 'Chronomètre du tour',
+        'screen.clockPlayer': '{name} · tour en cours',
         'screen.words': 'Mots',
         'screen.whoStarts': 'Qui commence ?',
         'screen.lastAction': 'Dernière action',
@@ -245,6 +259,9 @@
         'error.GAME_NOT_PLAYING': 'La partie n’est pas en cours.',
         'error.PLAYER_NOT_FOUND': 'La session du joueur n’existe plus.',
         'error.PLAYER_SESSION_NOT_FOUND': 'La session du joueur n’existe plus.',
+        'error.ADMIN_SESSION_NOT_FOUND': 'La session d’administration n’est plus disponible.',
+        'error.CLOCK_CONFIGURATION_LOCKED': 'Le chronomètre ne peut plus être modifié après le début de la partie.',
+        'error.INVALID_CLOCK_MODE': 'Le mode de chronomètre sélectionné n’est pas pris en charge.',
         'error.NOT_YOUR_TURN': 'Ce n’est pas votre tour.',
         'error.EMPTY_MOVE': 'Placez au moins une tuile avant de valider.',
         'error.TOO_MANY_TILES': 'Trop de tuiles ont été envoyées.',

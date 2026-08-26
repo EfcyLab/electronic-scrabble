@@ -15,6 +15,7 @@
     <script src="../shared/i18n/en.js"></script>
     <script src="../shared/i18n/fr.js"></script>
     <script src="../shared/js/i18n-manager.js"></script>
+    <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
     <script src="./js/rack-order.js"></script>
     <script src="./js/board-navigation.js"></script>
@@ -282,7 +283,7 @@
          * authoritative game server.
          *
          * @author Electronic Scrabble Project
-         * @version 1.0.0
+         * @version 1.1.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -370,7 +371,7 @@
 
         gameCodeInput.value = initialGameCode;
 
-        const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
+        const socket = new window.ElectronicScrabbleReconnectingWebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
         let currentGameCode = null;
         let currentPlayerId = null;
@@ -2009,8 +2010,10 @@
             connectionStatus.textContent = I18n.t(connectionStatusKey);
             connectionStatus.className = 'status status--success';
 
-            if (initialGameCode) {
-                const savedSession = loadPlayerSession(initialGameCode);
+            const resumableGameCode = currentGameCode || initialGameCode;
+
+            if (resumableGameCode) {
+                const savedSession = loadPlayerSession(resumableGameCode);
 
                 if (savedSession?.playerToken) {
                     connectionStatusKey = 'player.sessionRestoring';
@@ -2018,7 +2021,7 @@
 
                     socket.send(JSON.stringify({
                         type: 'resume-game',
-                        gameCode: initialGameCode,
+                        gameCode: resumableGameCode,
                         playerToken: savedSession.playerToken
                     }));
 
@@ -2311,6 +2314,7 @@
             }
 
             if (data.type === 'session-replaced') {
+                socket.close(1000, 'Session replaced on another device');
                 connectionStatusKey = 'player.sessionOtherDevice';
                 connectionStatus.textContent = I18n.t(connectionStatusKey);
                 connectionStatus.className = 'status status--warning';

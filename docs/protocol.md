@@ -515,3 +515,71 @@ The moving player also receives:
 ```
 
 If the challenge fails, the staged move is committed and normal play continues.
+
+## Persistent Recovery
+
+Game state is persisted privately by the server. Runtime WebSocket objects are
+never serialized.
+
+```mermaid
+sequenceDiagram
+    participant Browser as Player / Admin / Screen
+    participant Server
+    participant Store as Private Game Store
+
+    Server->>Store: Atomic game snapshot
+    Server--xBrowser: Server restart
+    Server->>Store: Load persisted games
+    Browser->>Server: Automatic reconnect
+    Browser->>Server: resume-game / resume-admin / watch-game
+    Server-->>Browser: Restored game-state
+```
+
+### Resume Administrator
+
+```json
+{
+    "type": "resume-admin",
+    "gameCode": "ABCD",
+    "adminToken": "PRIVATE-TOKEN"
+}
+```
+
+The administrator token is private and must never be included in a public
+`game-state` message.
+
+## Turn Clock
+
+The administrator may configure the shared-screen turn clock before play
+begins.
+
+```json
+{
+    "type": "configure-turn-clock",
+    "mode": "countdown",
+    "durationSeconds": 120
+}
+```
+
+Supported modes are:
+
+- `off`
+- `elapsed`
+- `countdown`
+
+The public game state contains a synchronized clock snapshot:
+
+```json
+{
+    "turnClock": {
+        "mode": "countdown",
+        "durationSeconds": 120,
+        "elapsedMs": 42500,
+        "running": true,
+        "expired": false
+    }
+}
+```
+
+Clock expiration is informational in this milestone. It does not automatically
+pass a turn or apply a score penalty.

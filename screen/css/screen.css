@@ -2,7 +2,7 @@
  * Electronic Scrabble shared screen styles.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 .screen-layout {
@@ -275,4 +275,50 @@
 .challenge-card {
     border-color: color-mix(in srgb, var(--color-warning) 48%, var(--color-border));
     background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
+}
+
+/*
+ * Turn clock.
+ */
+
+.turn-clock-card {
+    text-align: center;
+    border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+}
+
+.turn-clock-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-medium);
+}
+
+.turn-clock-header .card__title {
+    margin: 0;
+}
+
+.turn-clock-value {
+    margin-top: 0.35rem;
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(3rem, 7vw, 5.8rem);
+    font-weight: 950;
+    line-height: 1;
+    letter-spacing: 0.03em;
+}
+
+.turn-clock-player {
+    margin-top: 0.55rem !important;
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.turn-clock-card--expired {
+    border-color: color-mix(in srgb, var(--color-danger) 72%, var(--color-border));
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
+}
+
+.turn-clock-card--expired .turn-clock-value {
+    color: var(--color-danger);
 }

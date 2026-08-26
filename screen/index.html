@@ -15,6 +15,7 @@
     <script src="../shared/i18n/en.js"></script>
     <script src="../shared/i18n/fr.js"></script>
     <script src="../shared/js/i18n-manager.js"></script>
+    <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
 <body data-i18n-page-title="screen.pageTitle">
@@ -69,6 +70,15 @@
                     </p>
                 </section>
 
+                <section id="turn-clock-card" class="screen-card turn-clock-card" hidden>
+                    <div class="turn-clock-header">
+                        <h2 id="turn-clock-title" class="card__title" data-i18n="screen.turnClock">Turn clock</h2>
+                        <span id="turn-clock-state" class="status"></span>
+                    </div>
+                    <div id="turn-clock-value" class="turn-clock-value" aria-live="off">00:00</div>
+                    <p id="turn-clock-player" class="turn-clock-player"></p>
+                </section>
+
                 <section id="starting-player-card" class="screen-card starting-player-card" hidden>
                     <h2 class="card__title" data-i18n="screen.whoStarts">Who starts?</h2>
                     <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
@@ -114,7 +124,7 @@
          * and the standard board without receiving private player racks.
          *
          * @author Electronic Scrabble Project
-         * @version 1.0.0
+         * @version 1.1.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -141,6 +151,10 @@
         const currentPlayerNameElement = document.getElementById('current-player-name');
         const bagInformation = document.getElementById('bag-information');
         const bagRemainingElement = document.getElementById('bag-remaining');
+        const turnClockCard = document.getElementById('turn-clock-card');
+        const turnClockState = document.getElementById('turn-clock-state');
+        const turnClockValue = document.getElementById('turn-clock-value');
+        const turnClockPlayer = document.getElementById('turn-clock-player');
         const startingPlayerCard = document.getElementById('starting-player-card');
         const startingDrawRounds = document.getElementById('starting-draw-rounds');
         const startingPlayerWinner = document.getElementById('starting-player-winner');
@@ -160,9 +174,11 @@
 
         gameCodeElement.textContent = gameCode || '----';
 
-        const socket = new WebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
+        const socket = new window.ElectronicScrabbleReconnectingWebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
         let lastGameState = null;
         let connectionStatusKey = 'common.connecting';
+        let synchronizedTurnClock = null;
+        let turnClockReceivedAt = performance.now();
 
         /**
          * Returns a coordinate key used to highlight the last move.
@@ -403,6 +419,96 @@
         }
 
         /**
+         * Formats milliseconds as a compact game clock value.
+         *
+         * @param {number} milliseconds Duration in milliseconds.
+         *
+         * @returns {string} Formatted clock value.
+         */
+        function formatClock(milliseconds) {
+            const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (hours > 0) {
+                return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        /**
+         * Returns locally interpolated elapsed milliseconds for the latest
+         * server-synchronized turn clock.
+         *
+         * @returns {number} Current elapsed milliseconds.
+         */
+        function getSynchronizedElapsedMs() {
+            if (synchronizedTurnClock === null) {
+                return 0;
+            }
+
+            const localDelta = synchronizedTurnClock.running
+                ? performance.now() - turnClockReceivedAt
+                : 0;
+
+            return synchronizedTurnClock.elapsedMs + localDelta;
+        }
+
+        /**
+         * Renders the current player's turn clock.
+         *
+         * @returns {void}
+         */
+        function renderTurnClock() {
+            if (
+                lastGameState === null ||
+                lastGameState.status !== 'playing' ||
+                synchronizedTurnClock === null ||
+                synchronizedTurnClock.mode === 'off'
+            ) {
+                turnClockCard.hidden = true;
+                return;
+            }
+
+            const currentPlayer = lastGameState.players.find(
+                (player) => player.id === lastGameState.currentPlayerId
+            );
+            const elapsedMs = getSynchronizedElapsedMs();
+            const countdown = synchronizedTurnClock.mode === 'countdown';
+            const durationMs = synchronizedTurnClock.durationSeconds * 1000;
+            const remainingMs = Math.max(0, durationMs - elapsedMs);
+            const expired = countdown && elapsedMs >= durationMs;
+
+            turnClockValue.textContent = formatClock(
+                countdown ? Math.ceil(remainingMs / 1000) * 1000 : elapsedMs
+            );
+            turnClockPlayer.textContent = currentPlayer
+                ? I18n.t('screen.clockPlayer', { name: currentPlayer.name })
+                : I18n.t('common.waiting');
+
+            turnClockState.className = 'status';
+            turnClockCard.classList.toggle('turn-clock-card--expired', expired);
+
+            if (expired) {
+                turnClockState.textContent = I18n.t('clock.expired');
+                turnClockState.classList.add('status--danger');
+            } else if (!synchronizedTurnClock.running) {
+                turnClockState.textContent = I18n.t('clock.paused');
+                turnClockState.classList.add('status--warning');
+            } else if (countdown) {
+                turnClockState.textContent = I18n.t('clock.countdown');
+                turnClockState.classList.add('status--success');
+            } else {
+                turnClockState.textContent = I18n.t('clock.elapsed');
+                turnClockState.classList.add('status--success');
+            }
+
+            turnClockCard.hidden = false;
+        }
+
+        /**
          * Returns a human-readable end-game reason.
          *
          * @param {string} reason End-game reason code.
@@ -475,6 +581,10 @@
          */
         function updateGameState(game) {
             lastGameState = game;
+            synchronizedTurnClock = game.turnClock ?? null;
+            turnClockReceivedAt = performance.now();
+            renderTurnClock();
+
             const statusKey = {
                 lobby: 'common.lobby',
                 starting: 'common.starting',
@@ -548,6 +658,8 @@
                 playerList.appendChild(item);
             });
         }
+
+        setInterval(renderTurnClock, 250);
 
         socket.addEventListener('open', () => {
             connectionStatusKey = 'common.connected';

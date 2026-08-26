@@ -7,11 +7,13 @@
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 1.2.0
  */
 
 const WebSocket = require('ws');
 const { randomInt, randomUUID } = require('node:crypto');
+const path = require('node:path');
+const os = require('node:os');
 const {
     RACK_SIZE,
     createFrenchTileBag,
@@ -54,6 +56,17 @@ const {
     rollbackStagedMove,
     stageMove
 } = require('./game/challenge-engine');
+const {
+    CLOCK_MODE_COUNTDOWN,
+    CLOCK_MODE_ELAPSED,
+    CLOCK_MODE_OFF,
+    configureTurnClock,
+    createTurnClock,
+    getPublicTurnClock,
+    pauseTurnClock,
+    resetTurnClock
+} = require('./game/turn-clock');
+const { createGameStore } = require('./persistence/game-store');
 
 const PORT = 8080;
 const MIN_PLAYERS = 2;
@@ -61,6 +74,14 @@ const MAX_PLAYERS = 4;
 const GAME_CODE_LENGTH = 4;
 const GAME_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const LOBBY_RECONNECT_GRACE_MS = 30000;
+const PERSISTENCE_INTERVAL_MS = 10000;
+const DEFAULT_DATA_DIRECTORY = path.join(
+    os.homedir(),
+    '.local',
+    'share',
+    'electronic-scrabble',
+    'games'
+);
 
 const wordValidator = loadConfiguredWordValidator();
 const WORD_VALIDATION_POLICY = (
@@ -85,6 +106,19 @@ const publicWordValidationState = {
     policy: wordValidator.enabled ? WORD_VALIDATION_POLICY : 'structural'
 };
 const games = new Map();
+const gameStore = createGameStore(
+    process.env.ELECTRONIC_SCRABBLE_DATA_DIR || DEFAULT_DATA_DIRECTORY
+);
+
+const restoredGames = gameStore.loadGames();
+
+restoredGames.games.forEach((game) => {
+    games.set(game.code, game);
+});
+
+restoredGames.errors.forEach(({ path: snapshotPath, error }) => {
+    console.error(`Unable to restore persisted game ${snapshotPath}:`, error);
+});
 
 const server = new WebSocket.WebSocketServer({
     port: PORT
@@ -162,6 +196,35 @@ function getGame(gameCode) {
 }
 
 /**
+ * Persists the complete private state of a game.
+ *
+ * Persistence failures are logged without stopping the active game. The
+ * next state change or periodic snapshot will retry the write.
+ *
+ * @param {Object} game Runtime game.
+ *
+ * @returns {void}
+ */
+function persistGame(game) {
+    try {
+        gameStore.saveGame(game);
+    } catch (error) {
+        console.error(`Unable to persist game ${game.code}:`, error);
+    }
+}
+
+/**
+ * Persists every known game.
+ *
+ * @returns {void}
+ */
+function persistAllGames() {
+    games.forEach((game) => {
+        persistGame(game);
+    });
+}
+
+/**
  * Returns the public representation of a game.
  *
  * Private racks and player authentication tokens are intentionally excluded.
@@ -183,6 +246,7 @@ function getPublicGameState(game) {
         pendingMove: getPublicPendingMove(game.pendingMove),
         startingPlayerDraw: game.startingPlayerDraw,
         finalResult: game.finalResult,
+        turnClock: getPublicTurnClock(game.turnClock),
         wordValidation: publicWordValidationState,
         players: Array.from(game.players.values()).map((player) => ({
             id: player.id,
@@ -229,6 +293,8 @@ function getGameSockets(game) {
  * @returns {void}
  */
 function broadcastGameState(game) {
+    persistGame(game);
+
     const gameState = getPublicGameState(game);
 
     getGameSockets(game).forEach((socket) => {
@@ -380,6 +446,7 @@ function createGame(socket) {
 
     const game = {
         code: gameCode,
+        adminToken: randomUUID(),
         status: 'lobby',
         bag: [],
         board: createBoard(),
@@ -393,6 +460,7 @@ function createGame(socket) {
         startingPlayerDraw: null,
         finalResult: null,
         consecutivePasses: 0,
+        turnClock: createTurnClock(),
         adminSockets: new Set(),
         screenSockets: new Set()
     };
@@ -406,7 +474,8 @@ function createGame(socket) {
     };
 
     send(socket, 'game-created', {
-        gameCode
+        gameCode,
+        adminToken: game.adminToken
     });
 
     broadcastGameState(game);
@@ -422,6 +491,104 @@ function createGame(socket) {
  *
  * @returns {void}
  */
+/**
+ * Restores a previously authenticated administrator session.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function resumeAdmin(socket, message) {
+    const game = getGame(message.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The requested game does not exist.');
+        return;
+    }
+
+    const adminToken = typeof message.adminToken === 'string'
+        ? message.adminToken.trim()
+        : '';
+
+    if (!adminToken || adminToken !== game.adminToken) {
+        sendError(
+            socket,
+            'ADMIN_SESSION_NOT_FOUND',
+            'The saved administrator session is no longer available.'
+        );
+        return;
+    }
+
+    detachSocket(socket);
+    game.adminSockets.add(socket);
+
+    socket.session = {
+        role: 'admin',
+        gameCode: game.code
+    };
+
+    send(socket, 'admin-session-resumed', {
+        gameCode: game.code
+    });
+
+    broadcastGameState(game);
+
+    console.log(`Administrator resumed game ${game.code}`);
+}
+
+/**
+ * Configures the turn clock before play begins.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function configureGameClock(socket, message) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'admin' || !session.gameCode) {
+        sendError(socket, 'NOT_AUTHORIZED', 'Only a game administrator can configure the clock.');
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The game does not exist.');
+        return;
+    }
+
+    if (!['lobby', 'starting'].includes(game.status)) {
+        sendError(socket, 'CLOCK_CONFIGURATION_LOCKED', 'The turn clock cannot be changed after play begins.');
+        return;
+    }
+
+    const mode = typeof message.mode === 'string'
+        ? message.mode.trim().toLowerCase()
+        : '';
+
+    const supportedModes = new Set([
+        CLOCK_MODE_OFF,
+        CLOCK_MODE_ELAPSED,
+        CLOCK_MODE_COUNTDOWN
+    ]);
+
+    if (!supportedModes.has(mode)) {
+        sendError(socket, 'INVALID_CLOCK_MODE', 'The requested turn clock mode is not supported.');
+        return;
+    }
+
+    configureTurnClock(
+        game.turnClock,
+        mode,
+        message.durationSeconds
+    );
+
+    broadcastGameState(game);
+}
+
 function watchGame(socket, message) {
     const game = getGame(message.gameCode);
 
@@ -665,6 +832,8 @@ function startGame(socket) {
     game.pendingMove = null;
     game.finalResult = null;
     game.consecutivePasses = 0;
+    game.turnClock.elapsedMs = 0;
+    game.turnClock.startedAt = null;
 
     const playersInJoinOrder = Array.from(game.players.values());
     const joinOrderIds = playersInJoinOrder.map((player) => player.id);
@@ -747,6 +916,7 @@ function beginPlay(socket) {
     game.currentPlayerId = game.turnOrder[0] ?? null;
     game.turnNumber = 1;
     game.status = 'playing';
+    resetTurnClock(game.turnClock);
 
     getGameSockets(game).forEach((participantSocket) => {
         send(participantSocket, 'game-started', {
@@ -783,6 +953,7 @@ function advanceTurn(game) {
 
     game.currentPlayerId = game.turnOrder[nextIndex];
     game.turnNumber += 1;
+    resetTurnClock(game.turnClock);
 }
 
 /**
@@ -795,6 +966,8 @@ function advanceTurn(game) {
  * @returns {void}
  */
 function finalizeAndBroadcastGame(game, reason, finishingPlayerId = null) {
+    pauseTurnClock(game.turnClock);
+
     const finalResult = finishGame(
         game,
         reason,
@@ -1116,6 +1289,7 @@ function submitMove(socket, message) {
             move,
             nextPlayerId
         );
+        pauseTurnClock(game.turnClock);
 
         send(socket, 'move-pending-challenge', {
             gameCode: game.code,
@@ -1405,6 +1579,14 @@ function handleMessage(socket, message) {
             createGame(socket);
             break;
 
+        case 'resume-admin':
+            resumeAdmin(socket, message);
+            break;
+
+        case 'configure-turn-clock':
+            configureGameClock(socket, message);
+            break;
+
         case 'watch-game':
             watchGame(socket, message);
             break;
@@ -1504,6 +1686,10 @@ server.on('connection', (socket, request) => {
     });
 });
 
+const persistenceInterval = setInterval(() => {
+    persistAllGames();
+}, PERSISTENCE_INTERVAL_MS);
+
 const heartbeatInterval = setInterval(() => {
     server.clients.forEach((socket) => {
         if (socket.isAlive === false) {
@@ -1518,6 +1704,7 @@ const heartbeatInterval = setInterval(() => {
 
 server.on('close', () => {
     clearInterval(heartbeatInterval);
+    clearInterval(persistenceInterval);
 });
 
 if (wordValidator.enabled) {
@@ -1530,4 +1717,34 @@ if (wordValidator.enabled) {
     );
 }
 
+console.log(
+    `Persistent game data directory: ${gameStore.directory}`
+);
+console.log(
+    `Restored ${restoredGames.games.length} persisted game(s).`
+);
 console.log(`Electronic Scrabble WebSocket server listening on port ${PORT}`);
+
+/**
+ * Persists all games before a graceful process shutdown.
+ *
+ * @param {string} signal Operating-system signal name.
+ *
+ * @returns {void}
+ */
+function handleShutdown(signal) {
+    console.log(`Received ${signal}; persisting games before shutdown.`);
+    persistAllGames();
+    clearInterval(persistenceInterval);
+    clearInterval(heartbeatInterval);
+    server.close(() => {
+        process.exit(0);
+    });
+
+    setTimeout(() => {
+        process.exit(0);
+    }, 2000).unref();
+}
+
+process.once('SIGINT', () => handleShutdown('SIGINT'));
+process.once('SIGTERM', () => handleShutdown('SIGTERM'));
