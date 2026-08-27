@@ -7,7 +7,7 @@
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 1.3.0
+ * @version 1.4.0
  */
 
 const WebSocket = require('ws');
@@ -67,7 +67,10 @@ const {
     resetTurnClock
 } = require('./game/turn-clock');
 const { createGameStore } = require('./persistence/game-store');
-const { stopGame: stopGameState } = require('./game/game-lifecycle');
+const {
+    resumeStoppedGame: resumeStoppedGameState,
+    stopGame: stopGameState
+} = require('./game/game-lifecycle');
 const {
     ACTION_POWEROFF,
     ACTION_REBOOT,
@@ -125,6 +128,7 @@ const gameStore = createGameStore(
 const restoredGames = gameStore.loadGames();
 
 restoredGames.games.forEach((game) => {
+    game.createdAt = game.createdAt ?? game.updatedAt ?? Date.now();
     game.updatedAt = game.updatedAt ?? Date.now();
     games.set(game.code, game);
 });
@@ -254,6 +258,8 @@ function getPublicGameState(game) {
     return {
         code: game.code,
         status: game.status,
+        createdAt: game.createdAt ?? null,
+        updatedAt: game.updatedAt ?? null,
         bagRemaining: game.status === 'lobby' ? null : game.bag.length,
         board: getPublicBoardState(game.board),
         currentPlayerId: game.currentPlayerId,
@@ -265,6 +271,7 @@ function getPublicGameState(game) {
         finalResult: game.finalResult,
         stopReason: game.stopReason ?? null,
         stoppedAt: game.stoppedAt ?? null,
+        resumable: game.status === 'stopped' && game.stoppedState !== null,
         turnClock: getPublicTurnClock(game.turnClock),
         wordValidation: publicWordValidationState,
         players: Array.from(game.players.values()).map((player) => ({
@@ -275,6 +282,160 @@ function getPublicGameState(game) {
             connected: player.socket !== null
         }))
     };
+}
+
+/**
+ * Returns a safe management summary for an administrator-owned game.
+ *
+ * @param {Object} game Runtime game.
+ *
+ * @returns {Object} Public management summary.
+ */
+function getManagedGameSummary(game) {
+    return {
+        code: game.code,
+        status: game.status,
+        createdAt: game.createdAt ?? null,
+        updatedAt: game.updatedAt ?? null,
+        stoppedAt: game.stoppedAt ?? null,
+        resumable: game.status === 'stopped' && game.stoppedState !== null,
+        turnNumber: game.turnNumber,
+        playerCount: game.players.size,
+        players: Array.from(game.players.values()).map((player) => ({
+            name: player.name,
+            score: player.score
+        })),
+        winnerNames: game.finalResult?.rankings
+            ?.filter((ranking) => game.finalResult.winnerIds.includes(ranking.playerId))
+            .map((ranking) => ranking.playerName) ?? []
+    };
+}
+
+/**
+ * Sends the game history entries authorized by locally stored admin tokens.
+ *
+ * @param {WebSocket} socket Requesting WebSocket connection.
+ * @param {Object} message Protocol message.
+ *
+ * @returns {void}
+ */
+function listManagedGames(socket, message) {
+    const requestedSessions = Array.isArray(message.sessions)
+        ? message.sessions.slice(0, 100)
+        : [];
+    const summaries = [];
+
+    requestedSessions.forEach((session) => {
+        const game = getGame(session?.gameCode);
+        const adminToken = typeof session?.adminToken === 'string'
+            ? session.adminToken.trim()
+            : '';
+
+        if (!game || !adminToken || adminToken !== game.adminToken) {
+            return;
+        }
+
+        summaries.push(getManagedGameSummary(game));
+    });
+
+    summaries.sort(
+        (left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0)
+    );
+
+    send(socket, 'managed-games', {
+        games: summaries
+    });
+}
+
+/**
+ * Refreshes every dedicated console screen after game selection changes.
+ *
+ * @returns {void}
+ */
+function refreshConsoleScreens() {
+    const game = getConsoleGame();
+
+    consoleScreenSockets.forEach((socket) => {
+        if (!game) {
+            socket.session = {
+                role: 'console-screen',
+                gameCode: null
+            };
+            send(socket, 'console-idle');
+            return;
+        }
+
+        socket.session = {
+            role: 'console-screen',
+            gameCode: game.code
+        };
+        send(socket, 'console-game-selected', {
+            gameCode: game.code
+        });
+        send(socket, 'game-state', {
+            game: getPublicGameState(game)
+        });
+    });
+}
+
+/**
+ * Purges a finished or stopped game owned by an administrator token.
+ *
+ * @param {WebSocket} socket Requesting WebSocket connection.
+ * @param {Object} message Protocol message.
+ *
+ * @returns {void}
+ */
+function purgeManagedGame(socket, message) {
+    const game = getGame(message.gameCode);
+    const adminToken = typeof message.adminToken === 'string'
+        ? message.adminToken.trim()
+        : '';
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The requested game does not exist.');
+        return;
+    }
+
+    if (!adminToken || adminToken !== game.adminToken) {
+        sendError(socket, 'NOT_AUTHORIZED', 'The administrator token is invalid.');
+        return;
+    }
+
+    if (!['finished', 'stopped'].includes(game.status)) {
+        sendError(socket, 'GAME_PURGE_FORBIDDEN', 'Only finished or stopped games can be purged.');
+        return;
+    }
+
+    try {
+        gameStore.deleteGame(game.code);
+    } catch (error) {
+        console.error(`Unable to purge persisted game ${game.code}:`, error);
+        sendError(socket, 'GAME_PURGE_FAILED', 'The persistent game snapshot could not be deleted.');
+        return;
+    }
+
+    const affectedSockets = getGameSockets(game);
+
+    affectedSockets.forEach((participantSocket) => {
+        send(participantSocket, 'game-purged', {
+            gameCode: game.code
+        });
+        participantSocket.session = null;
+    });
+
+    game.players.forEach((player) => {
+        player.socket = null;
+    });
+    game.adminSockets.clear();
+    game.screenSockets.clear();
+    games.delete(game.code);
+
+    refreshConsoleScreens();
+    send(socket, 'game-purged', {
+        gameCode: game.code
+    });
+    console.log(`Game ${game.code} purged by administrator.`);
 }
 
 /**
@@ -555,8 +716,10 @@ function createGame(socket) {
         finalResult: null,
         stopReason: null,
         stoppedAt: null,
+        stoppedState: null,
         consecutivePasses: 0,
         turnClock: createTurnClock(),
+        createdAt: Date.now(),
         updatedAt: Date.now(),
         adminSockets: new Set(),
         screenSockets: new Set()
@@ -798,6 +961,49 @@ function stopGame(socket) {
     });
 
     console.log(`Game ${game.code} stopped by administrator.`);
+}
+
+/**
+ * Resumes the current stopped game from an authenticated administrator.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ *
+ * @returns {void}
+ */
+function resumeStoppedGame(socket) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'admin' || !session.gameCode) {
+        sendError(socket, 'NOT_AUTHORIZED', 'Only a game administrator can resume the game.');
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The game does not exist.');
+        return;
+    }
+
+    try {
+        resumeStoppedGameState(game);
+    } catch (error) {
+        sendError(
+            socket,
+            error.code || 'GAME_NOT_RESUMABLE',
+            error.message || 'The game cannot be resumed.'
+        );
+        return;
+    }
+
+    broadcastGameState(game);
+    sendAllPrivatePlayerStates(game);
+    selectGameForConsoleScreens(game);
+    send(socket, 'game-resumed', {
+        gameCode: game.code
+    });
+
+    console.log(`Game ${game.code} resumed by administrator.`);
 }
 
 /**
@@ -1857,6 +2063,14 @@ function handleMessage(socket, message) {
             resumeAdmin(socket, message);
             break;
 
+        case 'list-managed-games':
+            listManagedGames(socket, message);
+            break;
+
+        case 'purge-game':
+            purgeManagedGame(socket, message);
+            break;
+
         case 'configure-turn-clock':
             configureGameClock(socket, message);
             break;
@@ -1907,6 +2121,10 @@ function handleMessage(socket, message) {
 
         case 'stop-game':
             stopGame(socket);
+            break;
+
+        case 'resume-stopped-game':
+            resumeStoppedGame(socket);
             break;
 
         case 'console-system-action':

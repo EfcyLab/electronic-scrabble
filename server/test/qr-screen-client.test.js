@@ -2,7 +2,7 @@
  * Electronic Scrabble shared-screen QR client contract tests.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 const assert = require('node:assert/strict');
@@ -23,7 +23,7 @@ test('player QR remains available when autonomous Wi-Fi is disabled', () => {
     assert.match(screenHtml, /playerQr\.src = `\/api\/qr\/player\.svg\?game=/);
 });
 
-test('Wi-Fi QR is shown only when the autonomous access point is enabled', () => {
-    assert.match(screenHtml, /const accessPointAvailable = consoleNetwork\.accessPointEnabled === true/);
-    assert.match(screenHtml, /wifiJoinStep\.hidden = true/);
+test('Wi-Fi QR depends on configured credentials rather than Raspberry Pi access-point mode', () => {
+    assert.match(screenHtml, /const wifiQrAvailable = consoleNetwork\.wifiConfigured === true/);
+    assert.match(screenHtml, /wifiQrUnavailable\.hidden = false/);
 });

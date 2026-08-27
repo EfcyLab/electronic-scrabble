@@ -119,7 +119,7 @@ No operating-system QR executable or remote QR service is required.
 The Wi-Fi QR contains a common mobile-device Wi-Fi configuration payload:
 
 ```text
-WIFI:T:WPA;S:ElectronicScrabble;P:...;H:false;;
+WIFI:T:WPA;S:ElectronicScrabble;P:...;;
 ```
 
 Reserved characters in the SSID and password are escaped before encoding.
@@ -247,6 +247,17 @@ If a VM uses NAT or another address that phones cannot reach, configure the addr
 export ELECTRONIC_SCRABBLE_PUBLIC_BASE_URL="http://192.168.1.50:8000"
 ```
 
-Then restart `static-web-server.js`. The Wi-Fi configuration QR is intentionally absent unless autonomous access-point mode is enabled, because the application does not know the credentials of an arbitrary external Wi-Fi network.
+Then restart `static-web-server.js`.
+
+The Wi-Fi QR is independent from Raspberry Pi access-point mode. It is available whenever both of these values are explicitly configured:
+
+```bash
+export ELECTRONIC_SCRABBLE_WIFI_SSID="MyWifi"
+export ELECTRONIC_SCRABBLE_WIFI_PASSWORD="MyWifiPassword"
+```
+
+This is useful on a VM for testing a QR that joins the existing LAN Wi-Fi. These variables only describe the Wi-Fi credentials; they do not create or modify a Wi-Fi network on the VM. The Raspberry Pi access-point configurator writes the same values automatically when standalone mode is enabled.
+
+If the SSID/password are not configured, the shared screen displays an explicit “Wi-Fi QR unavailable” message rather than a broken image.
 
 QR SVG rendering is performed by the Node.js `qrcode` dependency. Run `npm install` in `server/` after updating the project.

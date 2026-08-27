@@ -4,7 +4,7 @@
  * English is the canonical source language for the application.
  *
  * @author Electronic Scrabble Project
- * @version 1.3.0
+ * @version 1.4.0
  */
 (function registerEnglishResources(root, factory) {
     const resources = factory();
@@ -66,8 +66,10 @@
         'admin.title': 'Administration',
         'admin.subtitle': 'Electronic Scrabble control room',
         'admin.session': 'Game session',
+        'admin.sessionHelp': 'Create a new game or reopen one from the history below.',
         'admin.lastActionLabel': 'Last action',
         'admin.sharedScreen': 'Shared screen',
+        'admin.accessLinks': 'Access links',
         'admin.playerAccess': 'Players',
         'admin.createGame': 'Create Game',
         'admin.wordValidation': 'Word validation',
@@ -78,9 +80,11 @@
         'admin.finalResult': 'Final result',
         'admin.startGame': 'Start Game',
         'admin.stopGame': 'Stop Game',
+        'admin.resumeGame': 'Resume Game',
         'admin.confirmStopGame': 'Stop this game now? The current game state will be preserved as stopped.',
         'admin.gameStopped': 'Game Stopped',
         'admin.stoppedHelp': 'Game stopped by the administrator. You can create a new game.',
+        'admin.stoppedResumableHelp': 'Game paused by the administrator. Resume it when the players are ready.',
         'admin.minimumPlayers': 'At least two connected players are required.',
         'admin.determineFirst': 'Determine First Player',
         'admin.dealAndStart': 'Deal Tiles & Start',
@@ -121,6 +125,15 @@
         'admin.player.final': '{score} pts · final',
         'admin.player.lobby': '{status}',
         'admin.player.playing': '{score} pts{turn}',
+        'admin.history.title': 'Game history',
+        'admin.history.help': 'Games managed from this browser are listed here. Finished or stopped games can be purged.',
+        'admin.history.refresh': 'Refresh',
+        'admin.history.empty': 'No saved game is known by this browser.',
+        'admin.history.meta': '{players} player(s) · turn {turn} · updated {updated}',
+        'admin.history.noPlayers': 'No players',
+        'admin.history.open': 'Open',
+        'admin.history.purge': 'Purge',
+        'admin.history.confirmPurge': 'Permanently delete game {code} and its saved snapshot?',
 
         'screen.pageTitle': 'Electronic Scrabble - Shared Screen',
         'screen.gamePanel': 'Game',
@@ -128,7 +141,8 @@
         'screen.joinWifi': 'Connect to Wi-Fi',
         'screen.network': 'Network',
         'screen.password': 'Password',
-        'screen.scanWifi': 'Scan to connect to the console Wi-Fi.',
+        'screen.scanWifi': 'Scan to connect to the configured Wi-Fi network.',
+        'screen.wifiQrUnavailable': 'Wi-Fi QR unavailable. Configure an SSID and password to enable it.',
         'screen.joinRack': 'Open your rack',
         'screen.scanPlayer': 'Scan to open the player page.',
         'screen.waitingForGameQr': 'Create a game to display the player QR code.',

@@ -5,7 +5,7 @@
  * Internal game codes and rules remain language-independent.
  *
  * @author Electronic Scrabble Project
- * @version 1.3.0
+ * @version 1.4.0
  */
 (function registerFrenchResources(root, factory) {
     const resources = factory();
@@ -67,8 +67,10 @@
         'admin.title': 'Administration',
         'admin.subtitle': 'Centre de contrôle du Scrabble électronique',
         'admin.session': 'Session de jeu',
+        'admin.sessionHelp': 'Créez une nouvelle partie ou rouvrez-en une depuis l’historique ci-dessous.',
         'admin.lastActionLabel': 'Dernière action',
         'admin.sharedScreen': 'Écran partagé',
+        'admin.accessLinks': 'Liens d’accès',
         'admin.playerAccess': 'Joueurs',
         'admin.createGame': 'Créer une partie',
         'admin.wordValidation': 'Vérification des mots',
@@ -79,9 +81,11 @@
         'admin.finalResult': 'Résultat final',
         'admin.startGame': 'Démarrer la partie',
         'admin.stopGame': 'Arrêter la partie',
+        'admin.resumeGame': 'Reprendre la partie',
         'admin.confirmStopGame': 'Arrêter cette partie maintenant ? Son état actuel sera conservé comme partie arrêtée.',
         'admin.gameStopped': 'Partie arrêtée',
         'admin.stoppedHelp': 'Partie arrêtée par l’administrateur. Vous pouvez créer une nouvelle partie.',
+        'admin.stoppedResumableHelp': 'Partie mise en pause par l’administrateur. Reprenez-la lorsque les joueurs sont prêts.',
         'admin.minimumPlayers': 'Au moins deux joueurs connectés sont nécessaires.',
         'admin.determineFirst': 'Déterminer le premier joueur',
         'admin.dealAndStart': 'Distribuer et démarrer',
@@ -122,6 +126,15 @@
         'admin.player.final': '{score} pts · final',
         'admin.player.lobby': '{status}',
         'admin.player.playing': '{score} pts{turn}',
+        'admin.history.title': 'Historique des parties',
+        'admin.history.help': 'Les parties administrées depuis ce navigateur sont listées ici. Les parties terminées ou arrêtées peuvent être purgées.',
+        'admin.history.refresh': 'Actualiser',
+        'admin.history.empty': 'Aucune partie sauvegardée n’est connue par ce navigateur.',
+        'admin.history.meta': '{players} joueur(s) · tour {turn} · mise à jour {updated}',
+        'admin.history.noPlayers': 'Aucun joueur',
+        'admin.history.open': 'Ouvrir',
+        'admin.history.purge': 'Purger',
+        'admin.history.confirmPurge': 'Supprimer définitivement la partie {code} et sa sauvegarde ?',
 
         'screen.pageTitle': 'Scrabble électronique - Écran partagé',
         'screen.gamePanel': 'Partie',
@@ -129,7 +142,8 @@
         'screen.joinWifi': 'Se connecter au Wi-Fi',
         'screen.network': 'Réseau',
         'screen.password': 'Mot de passe',
-        'screen.scanWifi': 'Scannez pour vous connecter au Wi-Fi de la console.',
+        'screen.scanWifi': 'Scannez pour vous connecter au réseau Wi-Fi configuré.',
+        'screen.wifiQrUnavailable': 'QR Wi-Fi indisponible. Configurez un SSID et un mot de passe pour l’activer.',
         'screen.joinRack': 'Ouvrir votre chevalet',
         'screen.scanPlayer': 'Scannez pour ouvrir la page joueur.',
         'screen.waitingForGameQr': 'Créez une partie pour afficher le QR code joueur.',

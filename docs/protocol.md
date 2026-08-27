@@ -675,3 +675,62 @@ The public game state includes:
     "currentPlayerId": null
 }
 ```
+
+## Game Management
+
+### Resume Stopped Game
+
+Authenticated administrator request:
+
+```json
+{
+    "type": "resume-stopped-game"
+}
+```
+
+The server restores the phase that was active before the administrative stop.
+
+### List Managed Games
+
+The administration browser submits only its locally stored administrator tokens:
+
+```json
+{
+    "type": "list-managed-games",
+    "sessions": [
+        {
+            "gameCode": "ABCD",
+            "adminToken": "PRIVATE-TOKEN"
+        }
+    ]
+}
+```
+
+The response contains management summaries only and never exposes racks or tokens:
+
+```json
+{
+    "type": "managed-games",
+    "games": [
+        {
+            "code": "ABCD",
+            "status": "stopped",
+            "playerCount": 2,
+            "turnNumber": 8,
+            "resumable": true
+        }
+    ]
+}
+```
+
+### Purge Game
+
+```json
+{
+    "type": "purge-game",
+    "gameCode": "ABCD",
+    "adminToken": "PRIVATE-TOKEN"
+}
+```
+
+Only stopped or finished games can be purged.

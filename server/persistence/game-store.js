@@ -5,7 +5,7 @@
  * rename. Runtime sockets and timers are intentionally excluded.
  *
  * @author Electronic Scrabble Project
- * @version 1.1.0
+ * @version 2.0.0
  */
 
 const fs = require('node:fs');
@@ -68,6 +68,7 @@ function serializeGame(game, now = Date.now()) {
         savedAt: now,
         game: {
             code: game.code,
+            createdAt: game.createdAt ?? game.updatedAt ?? now,
             updatedAt: game.updatedAt ?? now,
             adminToken: game.adminToken,
             status: game.status,
@@ -90,6 +91,7 @@ function serializeGame(game, now = Date.now()) {
             finalResult: game.finalResult,
             stopReason: game.stopReason ?? null,
             stoppedAt: game.stoppedAt ?? null,
+            stoppedState: game.stoppedState ?? null,
             consecutivePasses: game.consecutivePasses,
             turnClock: serializeTurnClock(game.turnClock, now)
         }
@@ -151,8 +153,14 @@ function restoreGame(snapshot, now = Date.now()) {
         finalResult: storedGame.finalResult,
         stopReason: storedGame.stopReason ?? null,
         stoppedAt: storedGame.stoppedAt ?? null,
+        stoppedState: storedGame.stoppedState ?? null,
         consecutivePasses: storedGame.consecutivePasses,
         turnClock: restoreTurnClock(storedGame.turnClock, now),
+        createdAt: Number.isFinite(storedGame.createdAt)
+            ? storedGame.createdAt
+            : (Number.isFinite(storedGame.updatedAt)
+                ? storedGame.updatedAt
+                : (Number.isFinite(snapshot.savedAt) ? snapshot.savedAt : now)),
         updatedAt: Number.isFinite(storedGame.updatedAt)
             ? storedGame.updatedAt
             : (Number.isFinite(snapshot.savedAt) ? snapshot.savedAt : now),
@@ -203,8 +211,29 @@ function createGameStore(directory) {
         },
 
         /**
-         * Loads every valid persisted game.
+         * Deletes one persisted game snapshot.
          *
+         * @param {string} gameCode Public game code.
+         *
+         * @returns {boolean} Whether a snapshot was deleted.
+         */
+        deleteGame(gameCode) {
+            const targetPath = getGamePath(resolvedDirectory, gameCode);
+
+            try {
+                fs.unlinkSync(targetPath);
+                return true;
+            } catch (error) {
+                if (error.code === 'ENOENT') {
+                    return false;
+                }
+
+                throw error;
+            }
+        },
+
+        /**
+         * Loads every valid persisted game.
          * Corrupt snapshots are reported to the caller without preventing
          * other games from loading.
          *

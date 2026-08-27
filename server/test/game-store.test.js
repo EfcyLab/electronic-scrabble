@@ -30,6 +30,8 @@ function createGameFixture() {
 
     return {
         code: 'ABCD',
+        createdAt: 500,
+        updatedAt: 1000,
         adminToken: 'admin-secret',
         status: 'playing',
         bag: [{ id: 'bag-1', letter: 'A', value: 1, isBlank: false }],
@@ -53,6 +55,9 @@ function createGameFixture() {
         pendingMove: null,
         startingPlayerDraw: null,
         finalResult: null,
+        stopReason: null,
+        stoppedAt: null,
+        stoppedState: null,
         consecutivePasses: 0,
         turnClock,
         adminSockets: new Set([{ runtimeOnly: true }]),
@@ -113,4 +118,37 @@ test('file store reports corrupt snapshots without blocking valid games', () => 
     assert.equal(result.errors.length, 1);
 
     fs.rmSync(directory, { recursive: true, force: true });
+});
+
+
+test('file store deletes a persisted game snapshot', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'electronic-scrabble-'));
+    const store = createGameStore(directory);
+
+    store.saveGame(createGameFixture(), 6000);
+    assert.equal(fs.existsSync(path.join(directory, 'ABCD.json')), true);
+    assert.equal(store.deleteGame('ABCD'), true);
+    assert.equal(fs.existsSync(path.join(directory, 'ABCD.json')), false);
+    assert.equal(store.deleteGame('ABCD'), false);
+
+    fs.rmSync(directory, { recursive: true, force: true });
+});
+
+test('persistent snapshots retain stopped-game resume metadata', () => {
+    const game = createGameFixture();
+
+    game.status = 'stopped';
+    game.currentPlayerId = null;
+    game.stoppedState = {
+        status: 'playing',
+        currentPlayerId: 'p1'
+    };
+
+    const restored = restoreGame(serializeGame(game, 6000), 10000);
+
+    assert.deepEqual(restored.stoppedState, {
+        status: 'playing',
+        currentPlayerId: 'p1'
+    });
+    assert.equal(restored.createdAt, 500);
 });

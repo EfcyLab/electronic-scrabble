@@ -1,11 +1,12 @@
 /**
  * Electronic Scrabble console network configuration.
  *
- * Builds public connection information for both autonomous access-point mode
- * and ordinary LAN/VM development environments.
+ * Builds public connection information for autonomous access-point mode and
+ * ordinary LAN/VM development environments. Wi-Fi QR availability is based
+ * on configured credentials rather than on the host platform.
  *
  * @author Electronic Scrabble Project
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 const os = require('node:os');
@@ -37,14 +38,14 @@ function stripCidr(value) {
 }
 
 /**
- * Escapes a value for the common WIFI QR payload format.
+ * Escapes a value for the WIFI QR payload format.
  *
  * @param {string} value Raw SSID or password.
  *
  * @returns {string} Escaped WIFI QR value.
  */
 function escapeWifiQrValue(value) {
-    return String(value).replace(/[\\;,\":]/g, (character) => `\\${character}`);
+    return String(value).replace(/[\\;,":]/g, (character) => `\\${character}`);
 }
 
 /**
@@ -108,6 +109,10 @@ function detectLanAddress(interfaces = os.networkInterfaces()) {
 /**
  * Loads the console network configuration from environment variables.
  *
+ * A Wi-Fi QR can be generated whenever an SSID and password are explicitly
+ * configured. This is intentionally independent from access-point mode so a
+ * development VM can test a QR for an existing Wi-Fi network as well.
+ *
  * @param {Object} environment Environment source.
  * @param {Object} options Detection options.
  * @param {Object} options.interfaces Network-interface map for tests.
@@ -136,8 +141,15 @@ function loadConsoleNetworkConfig(
             detectedLanAddress ||
             '127.0.0.1'
         );
-    const ssid = environment.ELECTRONIC_SCRABBLE_WIFI_SSID || DEFAULT_ACCESS_POINT_SSID;
-    const password = environment.ELECTRONIC_SCRABBLE_WIFI_PASSWORD || '';
+    const configuredSsid = String(
+        environment.ELECTRONIC_SCRABBLE_WIFI_SSID || ''
+    ).trim();
+    const configuredPassword = String(
+        environment.ELECTRONIC_SCRABBLE_WIFI_PASSWORD || ''
+    );
+    const ssid = configuredSsid || (accessPointEnabled ? DEFAULT_ACCESS_POINT_SSID : '');
+    const password = configuredPassword;
+    const wifiConfigured = ssid.length > 0 && password.length >= 8 && password.length <= 63;
     const configuredBaseUrl = environment.ELECTRONIC_SCRABBLE_PUBLIC_BASE_URL;
     const baseUrl = normalizeBaseUrl(
         configuredBaseUrl || `http://${address}:${httpPort}`
@@ -145,10 +157,11 @@ function loadConsoleNetworkConfig(
 
     return Object.freeze({
         accessPointEnabled,
+        wifiConfigured,
         address,
-        ssid: accessPointEnabled ? ssid : null,
-        password: accessPointEnabled ? password : '',
-        security: accessPointEnabled ? 'WPA' : null,
+        ssid: wifiConfigured ? ssid : null,
+        password: wifiConfigured ? password : '',
+        security: wifiConfigured ? 'WPA' : null,
         baseUrl,
         playerBaseUrl: `${baseUrl}/player/`,
         adminUrl: `${baseUrl}/admin/`
@@ -160,14 +173,14 @@ function loadConsoleNetworkConfig(
  *
  * @param {Object} config Console network configuration.
  *
- * @returns {string|null} Wi-Fi payload or null when access point mode is off.
+ * @returns {string|null} Wi-Fi payload or null when credentials are missing.
  */
 function buildWifiQrPayload(config) {
-    if (!config.accessPointEnabled || !config.password || !config.ssid) {
+    if (!config.wifiConfigured || !config.password || !config.ssid) {
         return null;
     }
 
-    return `WIFI:T:WPA;S:${escapeWifiQrValue(config.ssid)};P:${escapeWifiQrValue(config.password)};H:false;;`;
+    return `WIFI:T:WPA;S:${escapeWifiQrValue(config.ssid)};P:${escapeWifiQrValue(config.password)};;`;
 }
 
 /**

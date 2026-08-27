@@ -6,7 +6,7 @@
  * persistent game snapshots, and deployment files remain unreachable.
  *
  * @author Electronic Scrabble Project
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 const fs = require('node:fs');
@@ -166,8 +166,9 @@ async function handleApiRequest(requestUrl, response, networkConfig, qrRenderer)
     if (requestUrl.pathname === '/api/console-network') {
         sendJson(response, 200, {
             accessPointEnabled: networkConfig.accessPointEnabled,
-            ssid: networkConfig.accessPointEnabled ? networkConfig.ssid : null,
-            password: networkConfig.accessPointEnabled ? networkConfig.password : null,
+            wifiConfigured: networkConfig.wifiConfigured,
+            ssid: networkConfig.wifiConfigured ? networkConfig.ssid : null,
+            password: networkConfig.wifiConfigured ? networkConfig.password : null,
             security: networkConfig.security,
             address: networkConfig.address,
             baseUrl: networkConfig.baseUrl,

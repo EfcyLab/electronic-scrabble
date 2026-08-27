@@ -99,6 +99,7 @@ test('static server serves screen UI and rejects private server source', async (
 test('static server exposes console-network metadata and offline QR endpoints', async () => {
     const networkConfig = {
         accessPointEnabled: true,
+        wifiConfigured: true,
         ssid: 'ElectronicScrabble',
         password: 'Secret1234',
         security: 'WPA',

@@ -1,16 +1,15 @@
 /**
  * Electronic Scrabble game lifecycle utilities.
  *
- * Handles administrator-driven game termination without applying end-game
- * scoring. A stopped game remains persistable and reviewable but cannot
- * accept further gameplay actions.
+ * Handles administrator-driven suspension and resumption without applying
+ * end-game scoring. Stopped games remain persistent and can be resumed later.
  *
  * @author Electronic Scrabble Project
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 const { rollbackStagedMove } = require('./challenge-engine');
-const { pauseTurnClock } = require('./turn-clock');
+const { pauseTurnClock, resumeTurnClock } = require('./turn-clock');
 
 const ACTIVE_GAME_STATUSES = new Set([
     'lobby',
@@ -19,7 +18,7 @@ const ACTIVE_GAME_STATUSES = new Set([
 ]);
 
 /**
- * Stops an active game while preserving its current committed state.
+ * Stops an active game while preserving enough state to resume it later.
  *
  * Any provisional challenged move is rolled back before the game is stopped,
  * because it has not yet become part of the committed game state.
@@ -39,6 +38,9 @@ function stopGame(game, now = Date.now()) {
         throw error;
     }
 
+    const previousStatus = game.status;
+    const previousCurrentPlayerId = game.currentPlayerId;
+
     if (game.pendingMove !== null) {
         const movingPlayer = game.players.get(game.pendingMove.playerId);
 
@@ -51,6 +53,10 @@ function stopGame(game, now = Date.now()) {
 
     pauseTurnClock(game.turnClock, now);
 
+    game.stoppedState = {
+        status: previousStatus,
+        currentPlayerId: previousCurrentPlayerId
+    };
     game.status = 'stopped';
     game.currentPlayerId = null;
     game.stopReason = 'administrator';
@@ -59,7 +65,45 @@ function stopGame(game, now = Date.now()) {
     return game;
 }
 
+/**
+ * Resumes a game previously stopped by an administrator.
+ *
+ * @param {Object} game Mutable game state.
+ * @param {number} now Resume timestamp.
+ *
+ * @returns {Object} Updated game state.
+ *
+ * @throws {Error} When the game is not resumable.
+ */
+function resumeStoppedGame(game, now = Date.now()) {
+    if (game.status !== 'stopped' || !game.stoppedState) {
+        const error = new Error('The game is not a resumable stopped game.');
+
+        error.code = 'GAME_NOT_RESUMABLE';
+        throw error;
+    }
+
+    const restoredStatus = ACTIVE_GAME_STATUSES.has(game.stoppedState.status)
+        ? game.stoppedState.status
+        : 'lobby';
+
+    game.status = restoredStatus;
+    game.currentPlayerId = restoredStatus === 'playing'
+        ? game.stoppedState.currentPlayerId
+        : null;
+    game.stopReason = null;
+    game.stoppedAt = null;
+    game.stoppedState = null;
+
+    if (restoredStatus === 'playing' && game.currentPlayerId !== null) {
+        resumeTurnClock(game.turnClock, now);
+    }
+
+    return game;
+}
+
 module.exports = {
     ACTIVE_GAME_STATUSES,
+    resumeStoppedGame,
     stopGame
 };

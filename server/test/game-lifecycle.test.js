@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createBoard } = require('../game/board');
 const { createTurnClock, resumeTurnClock } = require('../game/turn-clock');
-const { stopGame } = require('../game/game-lifecycle');
+const { resumeStoppedGame, stopGame } = require('../game/game-lifecycle');
 
 /**
  * Creates a minimal runtime game for lifecycle testing.
@@ -25,7 +25,8 @@ function createGame() {
         pendingMove: null,
         turnClock: createTurnClock({ mode: 'elapsed' }),
         stopReason: null,
-        stoppedAt: null
+        stoppedAt: null,
+        stoppedState: null
     };
 }
 
@@ -85,5 +86,44 @@ test('administrator stop rejects terminal games', () => {
     assert.throws(
         () => stopGame(game),
         (error) => error.code === 'GAME_NOT_ACTIVE'
+    );
+});
+
+
+test('stopped playing game can resume with the same current player and clock', () => {
+    const game = createGame();
+
+    resumeTurnClock(game.turnClock, 1000);
+    stopGame(game, 4000);
+    resumeStoppedGame(game, 10000);
+
+    assert.equal(game.status, 'playing');
+    assert.equal(game.currentPlayerId, 'P1');
+    assert.equal(game.stopReason, null);
+    assert.equal(game.stoppedAt, null);
+    assert.equal(game.stoppedState, null);
+    assert.equal(game.turnClock.elapsedMs, 3000);
+    assert.equal(game.turnClock.startedAt, 10000);
+});
+
+test('stopped lobby resumes as a lobby without a current player', () => {
+    const game = createGame();
+
+    game.status = 'lobby';
+    game.currentPlayerId = null;
+    stopGame(game, 4000);
+    resumeStoppedGame(game, 10000);
+
+    assert.equal(game.status, 'lobby');
+    assert.equal(game.currentPlayerId, null);
+    assert.equal(game.turnClock.startedAt, null);
+});
+
+test('resume rejects a game that is not stopped', () => {
+    const game = createGame();
+
+    assert.throws(
+        () => resumeStoppedGame(game),
+        (error) => error.code === 'GAME_NOT_RESUMABLE'
     );
 });

@@ -2,18 +2,18 @@
  * Electronic Scrabble shared screen styles.
  *
  * @author Electronic Scrabble Project
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 .screen-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(240px, 310px);
-    gap: var(--spacing-large);
+    gap: var(--spacing-3);
     align-items: start;
 }
 
 .board-frame {
-    width: min(100%, 850px);
+    width: min(100%, calc(100vh - 8.5rem), 850px);
     margin: 0 auto;
     padding: clamp(0.35rem, 1vw, 0.75rem);
     border: 1px solid var(--color-border);
@@ -91,11 +91,12 @@
 
 .screen-sidebar {
     display: grid;
-    gap: var(--spacing-large);
+    gap: var(--spacing-2);
+    align-content: start;
 }
 
 .screen-card {
-    padding: var(--spacing-large);
+    padding: var(--spacing-3);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-large);
     background: var(--color-surface);
@@ -118,7 +119,8 @@
 
 #player-list {
     display: grid;
-    gap: 0.7rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
     padding: 0;
     margin: 0;
     list-style: none;
@@ -126,8 +128,8 @@
 
 #player-list li {
     display: grid;
-    gap: 0.25rem;
-    padding: 0.85rem 1rem;
+    gap: 0.18rem;
+    padding: 0.55rem 0.65rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-medium);
     background: var(--color-surface-elevated);
@@ -140,12 +142,20 @@
 
 .screen-player-meta {
     color: var(--color-text-muted);
-    font-size: 0.88rem;
+    font-size: 0.78rem;
 }
 
 @media (max-width: 950px) {
     .screen-layout {
         grid-template-columns: 1fr;
+    }
+
+    .board-frame {
+        width: min(100%, 850px);
+    }
+
+    #player-list {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     }
 }
 
@@ -301,7 +311,7 @@
 .turn-clock-value {
     margin-top: 0.35rem;
     font-variant-numeric: tabular-nums;
-    font-size: clamp(3rem, 7vw, 5.8rem);
+    font-size: clamp(2.4rem, 5vw, 4.2rem);
     font-weight: 950;
     line-height: 1;
     letter-spacing: 0.03em;
@@ -353,7 +363,7 @@
 .join-qr-frame {
     display: grid;
     place-items: center;
-    width: min(100%, 180px);
+    width: min(100%, 145px);
     margin: 0 auto;
     padding: 0.45rem;
     border-radius: var(--radius-medium);

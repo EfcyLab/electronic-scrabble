@@ -21,7 +21,7 @@ The project is designed to run on a local network and ultimately as a self-conta
 - final scoring and end-game detection
 - pluggable word validation
 - optional challenge workflow
-- persistent game snapshots and automatic reconnection
+- persistent game snapshots, automatic reconnection, stopped-game resume, history, and purge
 - elapsed-time or countdown turn clock
 - shared themes
 - English and French interfaces
@@ -76,7 +76,7 @@ Persistent snapshots are private server data and include information that must n
 /admin/
 ```
 
-The administration interface creates and resumes games, configures the turn clock, determines the first player, starts or stops play, displays game status, and controls a dedicated Raspberry Pi console when console mode is enabled.
+The administration interface creates and resumes games, configures the turn clock, determines the first player, starts or pauses play, reopens stopped games, manages persistent history/purge, displays game status, and controls a dedicated Raspberry Pi console when console mode is enabled. The desktop layout uses a compact dashboard so active-game information fits much better on ordinary PC displays.
 
 ### Player
 
@@ -100,7 +100,7 @@ Dedicated Raspberry Pi console mode:
 /screen/?console=1
 ```
 
-Console mode automatically follows the current local game and survives server restarts without embedding a changing game code in the kiosk URL. A game-specific player QR code is available on ordinary LAN/VM environments as well as on Raspberry Pi. When autonomous Wi-Fi is enabled, the shared screen additionally displays a Wi-Fi configuration QR code.
+Console mode automatically follows the current local game and survives server restarts without embedding a changing game code in the kiosk URL. A game-specific player QR code is available on ordinary LAN/VM environments as well as on Raspberry Pi. A Wi-Fi configuration QR code is displayed whenever an SSID and password are configured. On Raspberry Pi standalone mode those values are written automatically by the access-point configurator; on a VM they can be supplied explicitly for LAN Wi-Fi testing.
 
 ## Internationalization
 
@@ -161,9 +161,13 @@ Raspberry Pi console default:
 /var/lib/electronic-scrabble/games/
 ```
 
-After a server restart, players, administration, and the shared screen automatically reconnect and resume the persisted game.
+After a server restart, players, administration, and the shared screen automatically reconnect and resume the persisted game. Games paused with **Stop Game** remain resumable and return to their previous lobby/starting/playing phase when the administrator selects **Resume Game**.
 
 See [`docs/persistence-and-turn-clock.md`](docs/persistence-and-turn-clock.md).
+
+### Game history, resume, and purge
+
+The administration dashboard lists games whose private administrator token is still stored by that browser. A stopped game can be reopened and resumed in its previous phase. Finished or stopped games can be permanently purged from both server memory and the private snapshot directory. Active games must be stopped before purge. See [`docs/game-management.md`](docs/game-management.md).
 
 ## Turn Clock
 
@@ -249,7 +253,16 @@ Players can then connect without a router or Internet connection. In autonomous 
 1. Wi-Fi configuration QR code;
 2. game-specific player URL QR code.
 
-Outside access-point mode, including development in a Linux VM, the player QR code is still generated using the detected LAN address. Set `ELECTRONIC_SCRABBLE_PUBLIC_BASE_URL` when the automatically detected VM address is not reachable from the phones. The Wi-Fi QR is intentionally omitted in this mode because Electronic Scrabble does not know the credentials of an arbitrary external network.
+Outside access-point mode, including development in a Linux VM, the player QR code is still generated using the detected LAN address. Set `ELECTRONIC_SCRABBLE_PUBLIC_BASE_URL` when the automatically detected VM address is not reachable from the phones.
+
+A Wi-Fi QR can also be tested on a VM by explicitly describing the existing Wi-Fi network before starting the web service:
+
+```bash
+export ELECTRONIC_SCRABBLE_WIFI_SSID="MyWifi"
+export ELECTRONIC_SCRABBLE_WIFI_PASSWORD="MyWifiPassword"
+```
+
+These variables generate the connection QR only; they do not turn the VM into an access point. If the credentials are absent, the shared screen reports that Wi-Fi QR configuration is unavailable instead of displaying a broken QR image.
 
 QR codes are generated directly in Node.js with the MIT-licensed `qrcode` package; no remote QR service or Raspberry Pi-specific executable is required. After an upgrade that introduces QR support, run `npm install` again in `server/` so the dependency is present.
 
@@ -320,7 +333,7 @@ From `server/`:
 npm test
 ```
 
-The test suite covers board layout, tile distribution, scoring, move validation, end-game rules, rack arrangement, internationalization, persistence, turn clock behavior, client contracts, console controls, QR/network configuration, static-server isolation, and Raspberry Pi deployment contracts.
+The test suite covers board layout, tile distribution, scoring, move validation, end-game rules, rack arrangement, internationalization, persistence, stopped-game resume, history/purge storage, turn clock behavior, client contracts, console controls, QR/network configuration, static-server isolation, and Raspberry Pi deployment contracts.
 
 ## Project Structure
 
@@ -330,6 +343,8 @@ electronic-scrabble/
 ├── deploy/
 │   └── raspberry-pi/
 ├── docs/
+│   ├── game-management.md
+│   └── ...
 ├── player/
 ├── screen/
 ├── server/
@@ -369,6 +384,9 @@ challenge-pending-move
 pass-turn
 exchange-tiles
 stop-game
+resume-stopped-game
+list-managed-games
+purge-game
 console-system-action
 ```
 
@@ -384,7 +402,8 @@ console-system-action
 - authorized dictionary files must remain private;
 - the generated Wi-Fi password in `/etc/electronic-scrabble/environment` must remain private;
 - the QR endpoint only encodes configured Wi-Fi credentials or validated game join URLs;
-- stopping a game creates a terminal persisted state without applying final scoring;
+- stopped games retain only the state required for an authenticated resume and do not apply final scoring;
+- history is token-filtered per administrator browser, and purge is restricted to stopped/finished games;
 - the local services should not be exposed directly to the public Internet.
 
 ## Roadmap
@@ -396,7 +415,7 @@ Potential future work includes:
 - user-created theme manifests;
 - optional captive-portal flow for one-step Wi-Fi onboarding;
 - optional timeout policy;
-- game history and statistics;
+- aggregate statistics and optional export/import of game archives;
 - packaging and update tooling.
 
 ## License

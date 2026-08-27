@@ -9,16 +9,16 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/admin.css?v=18.0.0">
-    <script src="../shared/i18n/en.js?v=18.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=18.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=18.0.0"></script>
+    <link rel="stylesheet" href="./css/admin.css?v=19.0.0">
+    <script src="../shared/i18n/en.js?v=19.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=19.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=19.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
 <body data-i18n-page-title="admin.pageTitle">
-    <main class="app-shell">
-        <header class="app-header">
+    <main class="app-shell admin-shell">
+        <header class="app-header admin-header">
             <div class="app-brand">
                 <div class="app-logo" aria-hidden="true">ES</div>
                 <div>
@@ -27,9 +27,9 @@
                 </div>
             </div>
 
-            <div class="row">
+            <div class="row admin-header-controls">
                 <p id="connection-status" class="status" data-i18n="common.connecting">Connecting...</p>
-                <label class="field">
+                <label class="field compact-field">
                     <span class="field__label" data-i18n="common.theme">Theme</span>
                     <select class="select theme-picker" data-theme-picker>
                         <option value="classic" data-i18n="theme.classic">Classic</option>
@@ -37,8 +37,7 @@
                         <option value="forest" data-i18n="theme.forest">Forest</option>
                     </select>
                 </label>
-
-                <label class="field">
+                <label class="field compact-field">
                     <span class="field__label" data-i18n="common.language">Language</span>
                     <select class="select language-picker" data-language-picker>
                         <option value="en">English</option>
@@ -48,89 +47,117 @@
             </div>
         </header>
 
-        <section class="card stack">
-            <h2 class="card__title" data-i18n="admin.session">Game session</h2>
-            <button id="create-game" type="button" disabled data-i18n="admin.createGame">Create Game</button>
+        <section class="card admin-toolbar">
+            <div>
+                <h2 class="card__title" data-i18n="admin.session">Game session</h2>
+                <p class="muted admin-toolbar-help" data-i18n="admin.sessionHelp">Create a new game or reopen one from the history below.</p>
+            </div>
+            <button id="create-game" class="button button--primary" type="button" disabled data-i18n="admin.createGame">Create Game</button>
+        </section>
 
-            <section id="game-information" hidden>
-                <h2><span data-i18n="common.game">Game</span> <span id="game-code" class="game-code"></span></h2>
-
-                <p><span data-i18n="common.status">Status</span>: <strong id="game-status" data-i18n="common.lobby">Lobby</strong></p>
-
-                <p><span data-i18n="admin.wordValidation">Word validation</span>: <strong id="word-validation-status" data-i18n="common.waiting">Waiting</strong></p>
-
-                <section class="admin-clock-settings">
-                    <label class="field" for="turn-clock-setting">
-                        <span class="field__label" data-i18n="admin.turnClock">Turn clock</span>
-                        <select id="turn-clock-setting" class="select">
-                            <option value="elapsed" data-i18n="clock.elapsed">Elapsed time</option>
-                            <option value="countdown:60" data-i18n="clock.countdown60">Countdown · 60 s</option>
-                            <option value="countdown:90" data-i18n="clock.countdown90">Countdown · 90 s</option>
-                            <option value="countdown:120" data-i18n="clock.countdown120">Countdown · 120 s</option>
-                            <option value="countdown:180" data-i18n="clock.countdown180">Countdown · 180 s</option>
-                            <option value="off" data-i18n="clock.off">Off</option>
-                        </select>
-                    </label>
-                    <p id="turn-clock-help" class="muted" data-i18n="admin.turnClockHelp">The clock is displayed on the shared screen and does not automatically end a turn.</p>
-                </section>
-
-                <p id="turn-information" hidden>
-                    <span data-i18n="common.turn">Turn</span> <strong id="turn-number">0</strong> — <strong id="turn-player" data-i18n="common.waiting">Waiting</strong>
-                </p>
-
-                <p id="challenge-information" hidden>
-                    <span data-i18n="admin.challengeWindow">Challenge window</span>: <strong id="challenge-summary"></strong>
-                </p>
-
-                <p id="last-action-information" hidden>
-                    <span data-i18n="admin.lastActionLabel">Last action</span>: <strong id="last-action-player"></strong> —
-                    <span id="last-action-summary"></span>
-                </p>
-
-                <p>
-                    <span data-i18n="admin.sharedScreen">Shared screen</span>:<br>
-                    <a id="screen-link"></a>
-                </p>
-
-                <p>
-                    <span data-i18n="admin.playerAccess">Players</span>:<br>
-                    <a id="player-link"></a>
-                </p>
-
-                <h3 data-i18n="common.players">Players</h3>
-                <ul id="player-list"></ul>
-
-                <section id="starting-draw" class="starting-draw" hidden>
-                    <h3 data-i18n="admin.startingDraw">Starting-player draw</h3>
-                    <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
-                    <p id="starting-player-winner" class="starting-player-winner"></p>
-                </section>
-
-                <section id="final-result" class="final-result" hidden>
-                    <h3 data-i18n="admin.finalResult">Final result</h3>
-                    <p id="end-reason" class="muted"></p>
-                    <ol id="final-ranking" class="final-ranking"></ol>
-                </section>
-
-                <div class="admin-game-actions">
-                    <button id="start-game" class="button button--primary" type="button" disabled data-i18n="admin.startGame">Start Game</button>
-                    <button id="stop-game" class="button button--danger" type="button" disabled data-i18n="admin.stopGame">Stop Game</button>
+        <section id="game-information" class="admin-game-dashboard" hidden>
+            <section class="card admin-game-summary">
+                <div class="admin-game-identity">
+                    <span class="muted" data-i18n="common.game">Game</span>
+                    <strong id="game-code" class="game-code"></strong>
                 </div>
-                <p id="start-help" class="muted" data-i18n="admin.minimumPlayers">At least two connected players are required.</p>
-
-                <section id="console-control" class="console-control">
-                    <div class="row row--between">
-                        <h3 data-i18n="admin.console.title">Raspberry Pi console</h3>
-                        <span id="console-control-status" class="status" data-i18n="admin.console.disabled">Console controls unavailable</span>
-                    </div>
-                    <p class="muted" data-i18n="admin.console.help">Safely reboot or power off the dedicated console. All games are persisted before the system command is requested.</p>
-                    <div class="console-control-actions">
-                        <button id="console-reboot" class="button button--secondary" type="button" disabled data-i18n="admin.console.reboot">Restart console</button>
-                        <button id="console-poweroff" class="button button--danger" type="button" disabled data-i18n="admin.console.poweroff">Power off console</button>
-                    </div>
-                    <p id="console-control-feedback" class="muted" hidden></p>
-                </section>
+                <div class="admin-summary-stat">
+                    <span class="muted" data-i18n="common.status">Status</span>
+                    <strong id="game-status" data-i18n="common.lobby">Lobby</strong>
+                </div>
+                <div id="turn-information" class="admin-summary-stat" hidden>
+                    <span class="muted" data-i18n="common.turn">Turn</span>
+                    <strong><span id="turn-number">0</span> · <span id="turn-player" data-i18n="common.waiting">Waiting</span></strong>
+                </div>
+                <div class="admin-summary-stat">
+                    <span class="muted" data-i18n="admin.wordValidation">Word validation</span>
+                    <strong id="word-validation-status" data-i18n="common.waiting">Waiting</strong>
+                </div>
             </section>
+
+            <div class="admin-content-grid">
+                <section class="card admin-primary-panel">
+                    <div class="row row--between admin-section-heading">
+                        <h3 data-i18n="common.players">Players</h3>
+                        <span id="challenge-information" class="status status--warning" hidden><span id="challenge-summary"></span></span>
+                    </div>
+                    <ul id="player-list"></ul>
+
+                    <section id="starting-draw" class="starting-draw" hidden>
+                        <h3 data-i18n="admin.startingDraw">Starting-player draw</h3>
+                        <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
+                        <p id="starting-player-winner" class="starting-player-winner"></p>
+                    </section>
+
+                    <section id="final-result" class="final-result" hidden>
+                        <h3 data-i18n="admin.finalResult">Final result</h3>
+                        <p id="end-reason" class="muted"></p>
+                        <ol id="final-ranking" class="final-ranking"></ol>
+                    </section>
+
+                    <div class="admin-game-actions">
+                        <button id="start-game" class="button button--primary" type="button" disabled data-i18n="admin.startGame">Start Game</button>
+                        <button id="resume-game" class="button button--primary" type="button" hidden disabled data-i18n="admin.resumeGame">Resume Game</button>
+                        <button id="stop-game" class="button button--danger" type="button" disabled data-i18n="admin.stopGame">Stop Game</button>
+                    </div>
+                    <p id="start-help" class="muted" data-i18n="admin.minimumPlayers">At least two connected players are required.</p>
+                </section>
+
+                <aside class="admin-side-column">
+                    <section class="card admin-clock-settings">
+                        <label class="field" for="turn-clock-setting">
+                            <span class="field__label" data-i18n="admin.turnClock">Turn clock</span>
+                            <select id="turn-clock-setting" class="select">
+                                <option value="elapsed" data-i18n="clock.elapsed">Elapsed time</option>
+                                <option value="countdown:60" data-i18n="clock.countdown60">Countdown · 60 s</option>
+                                <option value="countdown:90" data-i18n="clock.countdown90">Countdown · 90 s</option>
+                                <option value="countdown:120" data-i18n="clock.countdown120">Countdown · 120 s</option>
+                                <option value="countdown:180" data-i18n="clock.countdown180">Countdown · 180 s</option>
+                                <option value="off" data-i18n="clock.off">Off</option>
+                            </select>
+                        </label>
+                        <p id="turn-clock-help" class="muted" data-i18n="admin.turnClockHelp">The clock is displayed on the shared screen and does not automatically end a turn.</p>
+                    </section>
+
+                    <section class="card admin-links-card">
+                        <h3 data-i18n="admin.accessLinks">Access links</h3>
+                        <a id="screen-link"></a>
+                        <a id="player-link"></a>
+                    </section>
+
+                    <section id="last-action-information" class="card admin-last-action" hidden>
+                        <span class="muted" data-i18n="admin.lastActionLabel">Last action</span>
+                        <strong id="last-action-player"></strong>
+                        <span id="last-action-summary"></span>
+                    </section>
+                </aside>
+            </div>
+
+            <section id="console-control" class="console-control">
+                <div class="row row--between">
+                    <h3 data-i18n="admin.console.title">Raspberry Pi console</h3>
+                    <span id="console-control-status" class="status" data-i18n="admin.console.disabled">Console controls unavailable</span>
+                </div>
+                <p class="muted" data-i18n="admin.console.help">Safely reboot or power off the dedicated console. All games are persisted before the system command is requested.</p>
+                <div class="console-control-actions">
+                    <button id="console-reboot" class="button button--secondary" type="button" disabled data-i18n="admin.console.reboot">Restart console</button>
+                    <button id="console-poweroff" class="button button--danger" type="button" disabled data-i18n="admin.console.poweroff">Power off console</button>
+                </div>
+                <p id="console-control-feedback" class="muted" hidden></p>
+            </section>
+        </section>
+
+        <section class="card admin-history-panel">
+            <div class="row row--between admin-section-heading">
+                <div>
+                    <h2 class="card__title" data-i18n="admin.history.title">Game history</h2>
+                    <p class="muted" data-i18n="admin.history.help">Games managed from this browser are listed here. Finished or stopped games can be purged.</p>
+                </div>
+                <button id="refresh-history" class="button button--secondary" type="button" data-i18n="admin.history.refresh">Refresh</button>
+            </div>
+            <div id="game-history-list" class="game-history-list">
+                <p class="muted" data-i18n="admin.history.empty">No saved game is known by this browser.</p>
+            </div>
         </section>
     </main>
 
@@ -141,7 +168,7 @@
          * Creates game sessions, displays the lobby state,
          * and starts a game when all players are ready.
          *
-         * @version 1.2.0
+         * @version 1.4.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -158,6 +185,7 @@
         const createGameButton = document.getElementById('create-game');
         const startGameButton = document.getElementById('start-game');
         const stopGameButton = document.getElementById('stop-game');
+        const resumeGameButton = document.getElementById('resume-game');
         const startHelp = document.getElementById('start-help');
         const gameInformation = document.getElementById('game-information');
         const gameCodeElement = document.getElementById('game-code');
@@ -186,6 +214,8 @@
         const consoleRebootButton = document.getElementById('console-reboot');
         const consolePoweroffButton = document.getElementById('console-poweroff');
         const consoleControlFeedback = document.getElementById('console-control-feedback');
+        const refreshHistoryButton = document.getElementById('refresh-history');
+        const gameHistoryList = document.getElementById('game-history-list');
 
         const socket = new window.ElectronicScrabbleReconnectingWebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
 
@@ -308,6 +338,171 @@
          */
         function clearAdminSession(gameCode) {
             localStorage.removeItem(getAdminSessionStorageKey(gameCode));
+        }
+
+        /**
+         * Lists administrator sessions stored by this browser.
+         *
+         * @returns {Array<Object>} Saved game-code/token pairs.
+         */
+        function listSavedAdminSessions() {
+            const sessions = [];
+
+            for (let index = 0; index < localStorage.length; index += 1) {
+                const key = localStorage.key(index);
+
+                if (!key || !key.startsWith(ADMIN_SESSION_STORAGE_PREFIX)) {
+                    continue;
+                }
+
+                const gameCode = key.slice(ADMIN_SESSION_STORAGE_PREFIX.length);
+                const session = loadAdminSession(gameCode);
+
+                if (session?.adminToken) {
+                    sessions.push({
+                        gameCode,
+                        adminToken: session.adminToken
+                    });
+                }
+            }
+
+            return sessions;
+        }
+
+        /**
+         * Requests the management history authorized by local admin tokens.
+         *
+         * @returns {void}
+         */
+        function requestManagedGames() {
+            if (socket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            socket.send(JSON.stringify({
+                type: 'list-managed-games',
+                sessions: listSavedAdminSessions()
+            }));
+        }
+
+        /**
+         * Formats a game-history timestamp in the selected interface language.
+         *
+         * @param {number|null} timestamp Unix timestamp in milliseconds.
+         *
+         * @returns {string} Localized timestamp.
+         */
+        function formatHistoryTimestamp(timestamp) {
+            if (!Number.isFinite(timestamp)) {
+                return '—';
+            }
+
+            return new Intl.DateTimeFormat(I18n.getLanguage(), {
+                dateStyle: 'short',
+                timeStyle: 'short'
+            }).format(new Date(timestamp));
+        }
+
+        /**
+         * Renders administrator-owned persistent games.
+         *
+         * @param {Array<Object>} games Managed game summaries.
+         *
+         * @returns {void}
+         */
+        function renderManagedGames(games) {
+            gameHistoryList.replaceChildren();
+
+            if (!Array.isArray(games) || games.length === 0) {
+                const empty = document.createElement('p');
+
+                empty.className = 'muted';
+                empty.textContent = I18n.t('admin.history.empty');
+                gameHistoryList.appendChild(empty);
+                return;
+            }
+
+            games.forEach((game) => {
+                const item = document.createElement('article');
+                const heading = document.createElement('div');
+                const identity = document.createElement('div');
+                const code = document.createElement('strong');
+                const status = document.createElement('span');
+                const details = document.createElement('p');
+                const players = document.createElement('p');
+                const actions = document.createElement('div');
+                const openButton = document.createElement('button');
+                const purgeButton = document.createElement('button');
+
+                item.className = 'game-history-item';
+                heading.className = 'row row--between';
+                identity.className = 'game-history-identity';
+                code.className = 'game-history-code';
+                code.textContent = game.code;
+                status.className = 'status';
+                status.textContent = I18n.t(`common.${game.status}`);
+                identity.append(code, status);
+                heading.appendChild(identity);
+
+                details.className = 'muted game-history-meta';
+                details.textContent = I18n.t('admin.history.meta', {
+                    players: game.playerCount,
+                    turn: game.turnNumber,
+                    updated: formatHistoryTimestamp(game.updatedAt)
+                });
+
+                players.className = 'game-history-players';
+                players.textContent = game.players.length > 0
+                    ? game.players.map((player) => `${player.name} (${player.score})`).join(' · ')
+                    : I18n.t('admin.history.noPlayers');
+
+                actions.className = 'game-history-actions';
+                openButton.className = 'button button--secondary';
+                openButton.type = 'button';
+                openButton.textContent = I18n.t('admin.history.open');
+                openButton.addEventListener('click', () => {
+                    const savedSession = loadAdminSession(game.code);
+
+                    if (!savedSession?.adminToken || socket.readyState !== WebSocket.OPEN) {
+                        return;
+                    }
+
+                    currentAdminToken = savedSession.adminToken;
+                    socket.send(JSON.stringify({
+                        type: 'resume-admin',
+                        gameCode: game.code,
+                        adminToken: savedSession.adminToken
+                    }));
+                });
+                actions.appendChild(openButton);
+
+                if (['finished', 'stopped'].includes(game.status)) {
+                    purgeButton.className = 'button button--danger';
+                    purgeButton.type = 'button';
+                    purgeButton.textContent = I18n.t('admin.history.purge');
+                    purgeButton.addEventListener('click', () => {
+                        const savedSession = loadAdminSession(game.code);
+
+                        if (
+                            !savedSession?.adminToken ||
+                            socket.readyState !== WebSocket.OPEN ||
+                            !window.confirm(I18n.t('admin.history.confirmPurge', { code: game.code }))
+                        ) {
+                            return;
+                        }
+
+                        socket.send(JSON.stringify({
+                            type: 'purge-game',
+                            gameCode: game.code,
+                            adminToken: savedSession.adminToken
+                        }));
+                    });
+                    actions.appendChild(purgeButton);
+                }
+
+                item.append(heading, details, players, actions);
+                gameHistoryList.appendChild(item);
+            });
         }
 
         /**
@@ -609,11 +804,15 @@
 
             startGameButton.disabled = !canDetermineStartingPlayer && !canBeginPlay;
             stopGameButton.disabled = !['lobby', 'starting', 'playing'].includes(game.status);
+            resumeGameButton.hidden = game.status !== 'stopped';
+            resumeGameButton.disabled = game.status !== 'stopped' || game.resumable !== true;
             createGameButton.disabled = !['finished', 'stopped'].includes(game.status);
 
             if (game.status === 'stopped') {
                 startGameButton.textContent = I18n.t('admin.gameStopped');
-                startHelp.textContent = I18n.t('admin.stoppedHelp');
+                startHelp.textContent = game.resumable
+                    ? I18n.t('admin.stoppedResumableHelp')
+                    : I18n.t('admin.stoppedHelp');
                 return;
             }
 
@@ -656,6 +855,8 @@
             connectionStatusKey = 'common.connected';
             connectionStatus.textContent = I18n.t(connectionStatusKey);
 
+            requestManagedGames();
+
             const resumableGameCode = currentGameCode || initialGameCode;
 
             if (resumableGameCode) {
@@ -684,6 +885,7 @@
             createGameButton.disabled = true;
             startGameButton.disabled = true;
             stopGameButton.disabled = true;
+            resumeGameButton.disabled = true;
             consoleRebootButton.disabled = true;
             consolePoweroffButton.disabled = true;
         });
@@ -726,6 +928,23 @@
             }));
         });
 
+        resumeGameButton.addEventListener('click', () => {
+            if (
+                !currentGameCode ||
+                currentGameStatus !== 'stopped' ||
+                socket.readyState !== WebSocket.OPEN
+            ) {
+                return;
+            }
+
+            resumeGameButton.disabled = true;
+            socket.send(JSON.stringify({
+                type: 'resume-stopped-game'
+            }));
+        });
+
+        refreshHistoryButton.addEventListener('click', requestManagedGames);
+
         turnClockSetting.addEventListener('change', () => {
             if (!currentGameCode || socket.readyState !== WebSocket.OPEN) {
                 return;
@@ -757,6 +976,8 @@
             if (lastGameState !== null) {
                 updateGameState(lastGameState);
             }
+
+            requestManagedGames();
         });
 
         socket.addEventListener('message', (event) => {
@@ -766,11 +987,43 @@
                 currentAdminToken = data.adminToken;
                 saveAdminSession(data.gameCode, data.adminToken);
                 showAdminGame(data.gameCode);
+                requestManagedGames();
                 return;
             }
 
             if (data.type === 'admin-session-resumed') {
+                const savedSession = loadAdminSession(data.gameCode);
+
+                currentAdminToken = savedSession?.adminToken ?? currentAdminToken;
                 showAdminGame(data.gameCode);
+                requestManagedGames();
+                return;
+            }
+
+            if (data.type === 'managed-games') {
+                renderManagedGames(data.games);
+                return;
+            }
+
+            if (data.type === 'game-resumed') {
+                requestManagedGames();
+                return;
+            }
+
+            if (data.type === 'game-purged') {
+                clearAdminSession(data.gameCode);
+
+                if (currentGameCode === data.gameCode) {
+                    currentGameCode = null;
+                    currentAdminToken = null;
+                    currentGameStatus = 'lobby';
+                    lastGameState = null;
+                    gameInformation.hidden = true;
+                    createGameButton.disabled = false;
+                    window.history.replaceState(null, '', window.location.pathname);
+                }
+
+                requestManagedGames();
                 return;
             }
 
@@ -808,6 +1061,7 @@
                 data.game.code === currentGameCode
             ) {
                 updateGameState(data.game);
+                requestManagedGames();
                 return;
             }
 

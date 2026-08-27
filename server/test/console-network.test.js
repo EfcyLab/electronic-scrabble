@@ -5,7 +5,7 @@
  * payload escaping, and game-specific player URLs.
  *
  * @author Electronic Scrabble Project
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 const assert = require('node:assert/strict');
@@ -72,11 +72,11 @@ test('Wi-Fi QR payload follows the WIFI schema and escapes reserved characters',
     assert.equal(escapeWifiQrValue('a;b:c,d\\e"f'), 'a\\;b\\:c\\,d\\\\e\\"f');
     assert.equal(
         buildWifiQrPayload(config),
-        'WIFI:T:WPA;S:Scrabble\\;Room;P:Pass\\:word\\,1;H:false;;'
+        'WIFI:T:WPA;S:Scrabble\\;Room;P:Pass\\:word\\,1;;'
     );
 });
 
-test('Wi-Fi QR is omitted outside autonomous access-point mode', () => {
+test('Wi-Fi QR is omitted when no Wi-Fi credentials are configured', () => {
     const config = loadConsoleNetworkConfig({}, {
         interfaces: {
             eth0: [{ family: 'IPv4', internal: false, address: '192.168.1.20' }]
@@ -84,6 +84,22 @@ test('Wi-Fi QR is omitted outside autonomous access-point mode', () => {
     });
 
     assert.equal(buildWifiQrPayload(config), null);
+});
+
+test('Wi-Fi QR can be generated on a VM when SSID and password are configured', () => {
+    const config = loadConsoleNetworkConfig({
+        ELECTRONIC_SCRABBLE_WIFI_SSID: 'HomeScrabble',
+        ELECTRONIC_SCRABBLE_WIFI_PASSWORD: 'Secret1234'
+    }, {
+        interfaces: {
+            eth0: [{ family: 'IPv4', internal: false, address: '192.168.56.20' }]
+        }
+    });
+
+    assert.equal(config.accessPointEnabled, false);
+    assert.equal(config.wifiConfigured, true);
+    assert.equal(config.ssid, 'HomeScrabble');
+    assert.equal(buildWifiQrPayload(config), 'WIFI:T:WPA;S:HomeScrabble;P:Secret1234;;');
 });
 
 test('player QR URL targets the selected public game', () => {
