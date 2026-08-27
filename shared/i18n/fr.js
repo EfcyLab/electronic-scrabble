@@ -5,7 +5,7 @@
  * Internal game codes and rules remain language-independent.
  *
  * @author Electronic Scrabble Project
- * @version 1.4.0
+ * @version 0.20.0
  */
 (function registerFrenchResources(root, factory) {
     const resources = factory();
@@ -105,6 +105,8 @@
         'admin.validationDisabled': 'Désactivée — validation structurelle uniquement',
         'admin.validationEnabled': '{name} ({count} mots)',
         'admin.validationEnabledChallenge': '{name} ({count} mots) · mode contestation',
+        'admin.validationEnabledOnline': '{name} · en ligne',
+        'admin.validationEnabledOnlineChallenge': '{name} · en ligne · mode contestation',
         'admin.lastAction.exchange': 'a échangé {count} tuiles',
         'admin.lastAction.pass': 'a passé son tour',
         'admin.lastAction.completed': 'tour terminé',
@@ -267,7 +269,7 @@
         'player.feedback.movePendingChallenge': 'Coup proposé. En attente d’acceptation ou de contestation.',
         'player.feedback.challengeChecking': 'Vérification des mots contestés...',
         'player.feedback.challengeSuccess': 'Contestation réussie. Mot(s) non valide(s) : {words}.',
-        'player.feedback.challengeFailed': 'Contestation échouée. Tous les mots contestés sont valides.',
+        'player.feedback.challengeFailed': 'Contestation échouée. Tous les mots contestés sont valides. Pénalité : -{penalty} points.',
         'player.feedback.moveRejectedChallenge': 'Votre coup a été annulé après contestation : {words}.',
         'player.feedback.challengeAccepted': 'Coup accepté sans contestation.',
         'player.feedback.exchanged.one': '{count} tuile échangée. Tour terminé.',
@@ -316,6 +318,8 @@
         'error.NO_WORD_FORMED': 'Le coup ne forme aucun mot.',
         'error.INVALID_WORD': 'Un ou plusieurs mots ne sont pas acceptés par le dictionnaire.',
         'error.INVALID_WORD_DETAILS': 'Mot(s) non valide(s) : {words}.',
+        'error.WORD_CHECK_UNAVAILABLE': 'Le vérificateur de mots en ligne est indisponible. Le coup n’a été ni accepté ni refusé.',
+        'error.WORD_CHECK_IN_PROGRESS': 'Une vérification de mots est déjà en cours pour cette partie.',
         'error.PENDING_MOVE_REQUIRES_RESOLUTION': 'Le coup provisoire doit d’abord être accepté ou contesté.',
         'error.NO_PENDING_MOVE': 'Aucun coup n’est en attente de contestation.',
         'error.NOT_NEXT_PLAYER': 'Seul le joueur suivant peut accepter le coup provisoire.',

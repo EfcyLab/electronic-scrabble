@@ -65,3 +65,23 @@ invalid-word rollback behavior. An older international regulation specifies a
 five-point penalty per wrongly challenged word, but the current 2026 competition
 PDF could not be independently read during implementation. The penalty therefore
 remains unimplemented until the current text is verified.
+
+## FFSc Online Challenge Provider
+
+When no licensed local ODS word list is available, challenge mode can use the
+FFSc online checker:
+
+```bash
+export ELECTRONIC_SCRABBLE_DICTIONARY_MODE=ffsc
+export ELECTRONIC_SCRABBLE_DICTIONARY_NAME="FFSc ODS 9 online"
+export ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY=challenge
+```
+
+Internet or provider failures return `WORD_CHECK_UNAVAILABLE` and leave the
+pending move unresolved rather than treating the word as invalid.
+
+## Unsuccessful Challenge Penalty
+
+The current FFSc online checker response states that a player who unsuccessfully
+challenges a valid word receives a 5-point penalty. Electronic Scrabble applies
+that penalty when a challenge resolves with every challenged word valid.

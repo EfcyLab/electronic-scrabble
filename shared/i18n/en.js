@@ -4,7 +4,7 @@
  * English is the canonical source language for the application.
  *
  * @author Electronic Scrabble Project
- * @version 1.4.0
+ * @version 0.20.0
  */
 (function registerEnglishResources(root, factory) {
     const resources = factory();
@@ -104,6 +104,8 @@
         'admin.validationDisabled': 'Disabled — structural validation only',
         'admin.validationEnabled': '{name} ({count} words)',
         'admin.validationEnabledChallenge': '{name} ({count} words) · challenge mode',
+        'admin.validationEnabledOnline': '{name} · online',
+        'admin.validationEnabledOnlineChallenge': '{name} · online · challenge mode',
         'admin.lastAction.exchange': 'exchanged {count} tiles',
         'admin.lastAction.pass': 'passed the turn',
         'admin.lastAction.completed': 'turn completed',
@@ -266,7 +268,7 @@
         'player.feedback.movePendingChallenge': 'Move submitted. Waiting for acceptance or challenge.',
         'player.feedback.challengeChecking': 'Checking the challenged words...',
         'player.feedback.challengeSuccess': 'Challenge successful. Invalid word(s): {words}.',
-        'player.feedback.challengeFailed': 'Challenge unsuccessful. All challenged words are valid.',
+        'player.feedback.challengeFailed': 'Challenge unsuccessful. All challenged words are valid. Penalty: -{penalty} points.',
         'player.feedback.moveRejectedChallenge': 'Your move was rejected after a successful challenge: {words}.',
         'player.feedback.challengeAccepted': 'Move accepted without challenge.',
         'player.feedback.exchanged.one': '{count} tile exchanged. Turn completed.',
@@ -315,6 +317,8 @@
         'error.NO_WORD_FORMED': 'The move does not form a word.',
         'error.INVALID_WORD': 'One or more words are not accepted by the dictionary.',
         'error.INVALID_WORD_DETAILS': 'Invalid word(s): {words}.',
+        'error.WORD_CHECK_UNAVAILABLE': 'The online word checker is unavailable. The move has not been accepted or rejected.',
+        'error.WORD_CHECK_IN_PROGRESS': 'A word verification is already in progress for this game.',
         'error.PENDING_MOVE_REQUIRES_RESOLUTION': 'The pending move must be accepted or challenged first.',
         'error.NO_PENDING_MOVE': 'There is no move waiting for challenge resolution.',
         'error.NOT_NEXT_PLAYER': 'Only the next player can accept the pending move.',

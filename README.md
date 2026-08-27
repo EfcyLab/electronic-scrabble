@@ -131,17 +131,31 @@ A future custom theme only needs to override semantic design tokens.
 
 ## Word Validation
 
-The game engine supports a pluggable local dictionary.
+The game engine supports pluggable word-validation providers. No unauthorized ODS word list is included in this repository.
 
-No unauthorized ODS word list is included in this repository. If an authorized lexical resource is available, it can be configured privately through environment variables.
+### Local authorized dictionary
 
-Example:
+If an authorized lexical resource is available, it can be configured privately:
 
 ```bash
 export ELECTRONIC_SCRABBLE_DICTIONARY_MODE=required
 export ELECTRONIC_SCRABBLE_DICTIONARY_PATH=/private/path/authorized-words.txt
 export ELECTRONIC_SCRABBLE_DICTIONARY_NAME="Authorized French dictionary"
 ```
+
+### FFSc online ODS 9 checker
+
+When Internet access is available, the server can query the Fédération Française de Scrabble online checker without downloading or redistributing an ODS word list:
+
+```bash
+export ELECTRONIC_SCRABBLE_DICTIONARY_MODE=ffsc
+export ELECTRONIC_SCRABBLE_DICTIONARY_NAME="FFSc ODS 9 online"
+export ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY=challenge
+```
+
+The request is sent server-side to the FFSc WordPress AJAX checker with the checker page as the HTTP `Referer`. Responses are parsed from the `right-answer` / `wrong-answer` result classes. Remote timeouts, HTTP errors, or unexpected markup produce `WORD_CHECK_UNAVAILABLE`; they are never treated as an invalid word. In challenge mode, an unsuccessful challenge applies the current 5-point penalty indicated by the checker response.
+
+The FFSc checker endpoint is an implementation detail of the federation website, not a documented public API contract. The integration is therefore isolated behind a provider module, uses a bounded in-memory cache, and may need maintenance if the site changes.
 
 See [`docs/word-validation.md`](docs/word-validation.md).
 
@@ -410,7 +424,7 @@ console-system-action
 
 Potential future work includes:
 
-- authorized production French dictionary integration;
+- language and user-theme customization studio;
 - additional languages;
 - user-created theme manifests;
 - optional captive-portal flow for one-step Wi-Fi onboarding;

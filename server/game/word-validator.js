@@ -10,9 +10,13 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const {
+    FfscWordCheckUnavailableError,
+    createFfscWordValidator
+} = require('./ffsc-word-validator');
 
 const DEFAULT_MODE = 'optional';
-const SUPPORTED_MODES = new Set(['off', 'optional', 'required']);
+const SUPPORTED_MODES = new Set(['off', 'optional', 'required', 'ffsc']);
 
 class WordValidationError extends Error {
     /**
@@ -125,6 +129,14 @@ function createWordValidator({ words, name, mode = DEFAULT_MODE }) {
                     .map(normalizeWord)
                     .filter((word) => word !== '' && !wordSet.has(word))
             ));
+        },
+
+        async isValidAsync(word) {
+            return wordSet.has(normalizeWord(word));
+        },
+
+        async findInvalidWordsAsync(wordsToValidate) {
+            return this.findInvalidWords(wordsToValidate);
         }
     });
 }
@@ -146,6 +158,12 @@ function createDisabledWordValidator(mode = DEFAULT_MODE) {
             return true;
         },
         findInvalidWords() {
+            return [];
+        },
+        async isValidAsync() {
+            return true;
+        },
+        async findInvalidWordsAsync() {
             return [];
         }
     });
@@ -169,12 +187,26 @@ function loadConfiguredWordValidator(environment = process.env) {
 
     if (!SUPPORTED_MODES.has(mode)) {
         throw new Error(
-            `Unsupported dictionary mode: ${mode}. Expected off, optional, or required.`
+            `Unsupported dictionary mode: ${mode}. Expected off, optional, required, or ffsc.`
         );
     }
 
     if (mode === 'off') {
         return createDisabledWordValidator(mode);
+    }
+
+    if (mode === 'ffsc') {
+        const configuredTimeout = Number.parseInt(
+            environment.ELECTRONIC_SCRABBLE_FFSC_TIMEOUT_MS ?? '',
+            10
+        );
+
+        return createFfscWordValidator({
+            endpoint: environment.ELECTRONIC_SCRABBLE_FFSC_ENDPOINT?.trim() || undefined,
+            referer: environment.ELECTRONIC_SCRABBLE_FFSC_REFERER?.trim() || undefined,
+            timeoutMs: Number.isFinite(configuredTimeout) ? configuredTimeout : undefined,
+            name: environment.ELECTRONIC_SCRABBLE_DICTIONARY_NAME?.trim() || 'FFSc ODS 9 online'
+        });
     }
 
     const configuredPath = environment.ELECTRONIC_SCRABBLE_DICTIONARY_PATH?.trim();
@@ -215,7 +247,10 @@ function getPublicWordValidationState(validator) {
         enabled: validator.enabled,
         mode: validator.mode,
         dictionaryName: validator.name,
-        wordCount: validator.wordCount
+        wordCount: validator.wordCount,
+        provider: validator.provider ?? 'local',
+        online: validator.online === true,
+        requiresInternet: validator.requiresInternet === true
     };
 }
 
@@ -251,7 +286,42 @@ function validateMoveWords(words, validator) {
     );
 }
 
+
+/**
+ * Asynchronously validates all words created by a move.
+ *
+ * @param {Array<Object>} words Scored move words.
+ * @param {Object} validator Configured word validator.
+ *
+ * @returns {Promise<void>} Resolves when every word is allowed.
+ *
+ * @throws {WordValidationError} When at least one word is not allowed.
+ * @throws {FfscWordCheckUnavailableError} When the remote provider is unavailable.
+ */
+async function validateMoveWordsAsync(words, validator) {
+    if (!validator.enabled) {
+        return;
+    }
+
+    const invalidWords = typeof validator.findInvalidWordsAsync === 'function'
+        ? await validator.findInvalidWordsAsync(words.map((word) => word.text))
+        : validator.findInvalidWords(words.map((word) => word.text));
+
+    if (invalidWords.length === 0) {
+        return;
+    }
+
+    const noun = invalidWords.length === 1 ? 'word' : 'words';
+
+    throw new WordValidationError(
+        'INVALID_WORD',
+        `Invalid ${noun}: ${invalidWords.join(', ')}.`,
+        invalidWords
+    );
+}
+
 module.exports = {
+    FfscWordCheckUnavailableError,
     WordValidationError,
     createDisabledWordValidator,
     createWordValidator,
@@ -259,5 +329,6 @@ module.exports = {
     loadConfiguredWordValidator,
     loadWordSet,
     normalizeWord,
-    validateMoveWords
+    validateMoveWords,
+    validateMoveWordsAsync
 };

@@ -121,3 +121,15 @@ test('public validator state never exposes a local file path', () => {
     assert.equal(publicState.dictionaryName, 'Development fixture');
     assert.equal(serialized.includes(FIXTURE_PATH), false);
 });
+
+test('loads the FFSc remote validator without a local dictionary path', () => {
+    const validator = loadConfiguredWordValidator({
+        ELECTRONIC_SCRABBLE_DICTIONARY_MODE: 'ffsc',
+        ELECTRONIC_SCRABBLE_DICTIONARY_NAME: 'FFSc ODS 9 online'
+    });
+
+    assert.equal(validator.enabled, true);
+    assert.equal(validator.provider, 'ffsc');
+    assert.equal(validator.online, true);
+    assert.equal(validator.wordCount, null);
+});

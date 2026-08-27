@@ -44,10 +44,11 @@ const {
     rotateTurnOrder
 } = require('./game/starting-player');
 const {
+    FfscWordCheckUnavailableError,
     WordValidationError,
     getPublicWordValidationState,
     loadConfiguredWordValidator,
-    validateMoveWords
+    validateMoveWordsAsync
 } = require('./game/word-validator');
 const {
     commitStagedMove,
@@ -56,6 +57,9 @@ const {
     rollbackStagedMove,
     stageMove
 } = require('./game/challenge-engine');
+const {
+    applyUnsuccessfulChallengePenalty
+} = require('./game/challenge-rules');
 const {
     CLOCK_MODE_COUNTDOWN,
     CLOCK_MODE_ELAPSED,
@@ -121,6 +125,15 @@ const publicWordValidationState = {
     policy: wordValidator.enabled ? WORD_VALIDATION_POLICY : 'structural'
 };
 const games = new Map();
+const wordValidationLocks = new Set();
+const WORD_VALIDATION_LOCKED_MESSAGE_TYPES = new Set([
+    'submit-move',
+    'accept-pending-move',
+    'challenge-pending-move',
+    'pass-turn',
+    'exchange-tiles',
+    'stop-game'
+]);
 const gameStore = createGameStore(
     process.env.ELECTRONIC_SCRABBLE_DATA_DIR || DEFAULT_DATA_DIRECTORY
 );
@@ -1593,7 +1606,7 @@ function acceptPendingMove(socket) {
  *
  * @returns {void}
  */
-function challengePendingMove(socket) {
+async function challengePendingMove(socket) {
     const session = socket.session;
 
     if (!session || session.role !== 'player' || !session.playerId) {
@@ -1628,15 +1641,33 @@ function challengePendingMove(socket) {
         return;
     }
 
-    const invalidWords = wordValidator.findInvalidWords(
-        pendingMove.move.words.map((word) => word.text)
-    );
+    let invalidWords;
+
+    wordValidationLocks.add(game.code);
+
+    try {
+        invalidWords = await wordValidator.findInvalidWordsAsync(
+            pendingMove.move.words.map((word) => word.text)
+        );
+    } catch (error) {
+        if (error instanceof FfscWordCheckUnavailableError) {
+            sendError(socket, error.code, error.message);
+            return;
+        }
+
+        throw error;
+    } finally {
+        wordValidationLocks.delete(game.code);
+    }
 
     if (invalidWords.length === 0) {
+        const penalty = applyUnsuccessfulChallengePenalty(challenger);
+
         send(socket, 'challenge-result', {
             gameCode: game.code,
             successful: false,
-            invalidWords: []
+            invalidWords: [],
+            penalty
         });
 
         acceptStagedMove(game, pendingMove, challenger);
@@ -1695,7 +1726,7 @@ function challengePendingMove(socket) {
  *
  * @returns {void}
  */
-function submitMove(socket, message) {
+async function submitMove(socket, message) {
     const session = socket.session;
 
     if (!session || session.role !== 'player' || !session.playerId) {
@@ -1786,8 +1817,10 @@ function submitMove(socket, message) {
         return;
     }
 
+    wordValidationLocks.add(game.code);
+
     try {
-        validateMoveWords(move.words, wordValidator);
+        await validateMoveWordsAsync(move.words, wordValidator);
     } catch (error) {
         if (error instanceof WordValidationError) {
             sendError(
@@ -1801,7 +1834,14 @@ function submitMove(socket, message) {
             return;
         }
 
+        if (error instanceof FfscWordCheckUnavailableError) {
+            sendError(socket, error.code, error.message);
+            return;
+        }
+
         throw error;
+    } finally {
+        wordValidationLocks.delete(game.code);
     }
 
     applyMove(game.board, move);
@@ -2048,9 +2088,24 @@ function exchangePlayerTiles(socket, message) {
  *
  * @returns {void}
  */
-function handleMessage(socket, message) {
+async function handleMessage(socket, message) {
     if (!message || typeof message.type !== 'string') {
         sendError(socket, 'INVALID_MESSAGE', 'The message type is missing.');
+        return;
+    }
+
+    const lockedGameCode = socket.session?.gameCode ?? null;
+
+    if (
+        lockedGameCode &&
+        wordValidationLocks.has(lockedGameCode) &&
+        WORD_VALIDATION_LOCKED_MESSAGE_TYPES.has(message.type)
+    ) {
+        sendError(
+            socket,
+            'WORD_CHECK_IN_PROGRESS',
+            'A word verification is already in progress for this game.'
+        );
         return;
     }
 
@@ -2100,7 +2155,7 @@ function handleMessage(socket, message) {
             break;
 
         case 'submit-move':
-            submitMove(socket, message);
+            await submitMove(socket, message);
             break;
 
         case 'accept-pending-move':
@@ -2108,7 +2163,7 @@ function handleMessage(socket, message) {
             break;
 
         case 'challenge-pending-move':
-            challengePendingMove(socket);
+            await challengePendingMove(socket);
             break;
 
         case 'pass-turn':
@@ -2161,7 +2216,7 @@ server.on('connection', (socket, request) => {
         message: 'Connected to Electronic Scrabble server.'
     });
 
-    socket.on('message', (data) => {
+    socket.on('message', async (data) => {
         let message;
 
         try {
@@ -2173,7 +2228,7 @@ server.on('connection', (socket, request) => {
         }
 
         try {
-            handleMessage(socket, message);
+            await handleMessage(socket, message);
         } catch (error) {
             console.error('Unable to process message:', error);
             sendError(socket, 'INTERNAL_SERVER_ERROR', 'The server could not process the request.');
@@ -2213,7 +2268,9 @@ server.on('close', () => {
 
 if (wordValidator.enabled) {
     console.log(
-        `Word validation enabled: ${wordValidator.name} (${wordValidator.wordCount} words).`
+        wordValidator.online
+            ? `Word validation enabled: ${wordValidator.name} (online).`
+            : `Word validation enabled: ${wordValidator.name} (${wordValidator.wordCount} words).`
     );
 } else {
     console.warn(
