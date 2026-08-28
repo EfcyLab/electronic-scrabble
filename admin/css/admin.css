@@ -452,3 +452,68 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/*
+ * Milestone 23 layout hotfixes.
+ *
+ * Reflows the Raspberry Pi console controls so the system action badges,
+ * buttons, and Wi-Fi form stay aligned on common desktop widths.
+ */
+
+.console-control {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+}
+
+.console-control > .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-2);
+}
+
+.console-control > p {
+    max-width: 100%;
+}
+
+.console-control-actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    flex-wrap: wrap;
+}
+
+.console-control-actions .button,
+.console-wifi-actions .button {
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.console-wifi-panel > .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-2);
+}
+
+.console-wifi-form {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: start;
+}
+
+.console-wifi-country-field {
+    max-width: 180px;
+}
+
+.console-wifi-form small {
+    min-height: 0;
+}
+
+@media (max-width: 900px) {
+    .console-wifi-country-field {
+        max-width: none;
+    }
+}

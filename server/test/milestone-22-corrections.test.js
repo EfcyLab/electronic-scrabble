@@ -5,7 +5,7 @@
  * direct rack-to-board dragging, and Raspberry Pi Wi-Fi administration.
  *
  * @author Electronic Scrabble Project
- * @version 0.22.0
+ * @version 0.23.0
  */
 
 const assert = require('node:assert/strict');

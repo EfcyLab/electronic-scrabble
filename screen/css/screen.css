@@ -673,3 +673,58 @@
         flex-wrap: wrap;
     }
 }
+
+
+/*
+ * Milestone 23 layout hotfixes.
+ *
+ * Keeps the join QR cards aligned and removes the accidental stacked-step
+ * separator when both QR blocks are displayed side by side.
+ */
+
+.join-card {
+    overflow: hidden;
+}
+
+.join-steps {
+    align-items: stretch;
+}
+
+.join-step {
+    align-content: start;
+    height: 100%;
+}
+
+.join-step + .join-step {
+    padding-top: 0.5rem;
+    border-top: 0;
+}
+
+.join-qr-frame {
+    width: min(100%, 124px);
+}
+
+.join-details > div {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.35rem 0.5rem;
+    align-items: start;
+}
+
+.join-details dt,
+.join-details dd,
+.join-hint,
+.join-admin,
+.join-url {
+    overflow-wrap: anywhere;
+}
+
+.join-url {
+    max-height: none;
+}
+
+@media (max-width: 620px) {
+    .join-step + .join-step {
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--color-border);
+    }
+}

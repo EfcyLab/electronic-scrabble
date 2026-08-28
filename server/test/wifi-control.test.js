@@ -5,7 +5,7 @@
  * administration console.
  *
  * @author Electronic Scrabble Project
- * @version 0.22.0
+ * @version 0.23.0
  */
 
 const assert = require('node:assert/strict');

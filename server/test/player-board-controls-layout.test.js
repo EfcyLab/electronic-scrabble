@@ -45,7 +45,7 @@ test('complete board is centered in the fixed player viewport', () => {
 });
 
 test('player interaction assets are versioned to invalidate browser cache', () => {
-    assert.match(playerHtml, /\.\/css\/player\.css\?v=22\.0\.0/);
-    assert.match(playerHtml, /\.\/js\/rack-order\.js\?v=22\.0\.0/);
-    assert.match(playerHtml, /\.\/js\/board-navigation\.js\?v=22\.0\.0/);
+    assert.match(playerHtml, /\.\/css\/player\.css\?v=23\.0\.0/);
+    assert.match(playerHtml, /\.\/js\/rack-order\.js\?v=23\.0\.0/);
+    assert.match(playerHtml, /\.\/js\/board-navigation\.js\?v=23\.0\.0/);
 });

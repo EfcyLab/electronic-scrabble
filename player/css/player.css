@@ -1002,3 +1002,113 @@ body {
         padding: 0 !important;
     }
 }
+
+
+/*
+ * Milestone 23 player layout hotfixes.
+ *
+ * Places the board before the rack, compresses non-essential game-management
+ * panels, and keeps the primary play surface dominant.
+ */
+
+main {
+    max-width: 960px;
+}
+
+#game-information {
+    gap: var(--spacing-medium);
+}
+
+.player-summary,
+.player-panel {
+    padding: var(--spacing-medium) var(--spacing-large);
+}
+
+.player-summary {
+    gap: var(--spacing-medium);
+}
+
+.player-summary h2 {
+    margin: 0.1rem 0 0.35rem;
+    font-size: clamp(1.3rem, 4vw, 1.9rem);
+}
+
+.player-summary .metric__value {
+    font-size: clamp(1.9rem, 4.5vw, 2.8rem);
+}
+
+.starting-draw-section,
+.challenge-panel,
+#turn-actions-section,
+.player-list-panel,
+.final-result {
+    gap: var(--spacing-small);
+}
+
+.starting-draw-item {
+    padding: 0.45rem 0.6rem;
+}
+
+.gameplay-workspace {
+    display: grid;
+    gap: var(--spacing-medium);
+}
+
+#move-section {
+    order: 1;
+}
+
+#rack-section {
+    order: 2;
+}
+
+.move-section__header {
+    align-items: start;
+}
+
+.move-section__header .panel-help,
+#rack-section .panel-help,
+#turn-actions-section .panel-help,
+.challenge-panel .panel-help {
+    font-size: 0.84rem;
+}
+
+.player-board-viewport {
+    margin-top: 0.2rem;
+}
+
+#turn-actions-section > .row,
+.challenge-panel > .row {
+    align-items: start;
+}
+
+.turn-action-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 600px) {
+    #move-section {
+        border-bottom-right-radius: 0;
+        border-bottom-left-radius: 0;
+        padding-bottom: 0.2rem;
+    }
+
+    #rack-section {
+        border-top-right-radius: 0;
+        border-top-left-radius: 0;
+        border-bottom: 1px solid var(--color-border);
+        padding-top: 0.15rem;
+        padding-bottom: 0.25rem;
+    }
+
+    #rack-section > .row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.25rem;
+        align-items: center;
+    }
+
+    #move-section + #rack-section {
+        margin-top: 0;
+    }
+}
