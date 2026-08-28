@@ -2,32 +2,61 @@
 
 Electronic Scrabble validates words on the authoritative Node.js server. The
 move engine does not contain a hard-coded dictionary and can use different
-validation providers.
+validation providers on a per-game basis.
 
-## Official French Reference
+## Per-game administrator configuration
 
-The French-language project targets ODS 9. Electronic Scrabble does **not**
-distribute an ODS word list.
+The administrator chooses the word-validation provider and policy while the
+game is in the lobby. The selected configuration is persisted with the game
+snapshot and restored after a server restart.
 
-The project supports two practical validation strategies:
+Once the starting-player draw begins, the provider and policy are locked for
+that game. This prevents a game from silently switching dictionaries or
+validation behavior during play.
 
-1. a private authorized local word list;
-2. the FFSc online word checker when Internet access is available.
+The provider selector can expose:
+
+- `structural`: placement and scoring rules only;
+- `local`: an authorized private word list, when configured;
+- `ffsc`: the optional FFSc online checker, when enabled.
+
+The `local` and `ffsc` providers support two policies:
+
+- `automatic`: every formed word is checked before the move is committed;
+- `challenge`: the move is staged and words are checked only if challenged.
+
+The structural provider always uses the internal `structural` policy.
+
+## Provider availability
+
+The server advertises only providers that are actually available. Structural
+validation is always present. The local provider appears only when
+`ELECTRONIC_SCRABBLE_DICTIONARY_PATH` points to an authorized word list. The
+FFSc provider is enabled by default but can be removed from administrator
+choices with:
+
+```bash
+export ELECTRONIC_SCRABBLE_FFSC_PROVIDER_ENABLED=false
+```
+
+Environment variables define available providers and the default selection;
+the administrator then chooses the configuration for each new game.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
+    Admin[Administrator] -->|provider + policy| Game[Persisted game configuration]
     Phone[Player phone] -->|submit move / challenge| Server[Game server]
+    Game --> Server
     Server --> Structure[Structural move validation]
     Structure --> Words[Collect every formed word]
-    Words --> Provider{Configured provider}
+    Words --> Provider{Selected provider}
+    Provider -->|Structural| AcceptStructure[No dictionary lookup]
     Provider -->|Local| Local[Authorized local word list]
     Provider -->|Online| FFSc[FFSc online checker]
     Local --> Result[Validation result]
     FFSc --> Result
-    Result -->|Valid| Accept[Accept move]
-    Result -->|Invalid| Reject[Reject move]
     FFSc -->|Unavailable| Retry[WORD_CHECK_UNAVAILABLE]
 ```
 
@@ -52,37 +81,20 @@ Requirements:
 - lines beginning with `#` are comments;
 - accents, spaces, hyphens, punctuation, and definitions are rejected.
 
-### Optional Local Validation
+Example configuration:
 
 ```bash
-export ELECTRONIC_SCRABBLE_DICTIONARY_MODE=optional
 export ELECTRONIC_SCRABBLE_DICTIONARY_PATH=./dictionary/authorized-words.txt
 export ELECTRONIC_SCRABBLE_DICTIONARY_NAME="Licensed French dictionary"
 npm start
 ```
 
-### Required Local Validation
-
-```bash
-export ELECTRONIC_SCRABBLE_DICTIONARY_MODE=required
-export ELECTRONIC_SCRABBLE_DICTIONARY_PATH=./dictionary/authorized-words.txt
-export ELECTRONIC_SCRABBLE_DICTIONARY_NAME="Licensed French dictionary"
-npm start
-```
+The local provider then becomes selectable in the administration interface.
 
 ## FFSc Online Provider
 
-The online provider queries the checker currently used by the Fédération
-Française de Scrabble website.
-
-Configuration:
-
-```bash
-export ELECTRONIC_SCRABBLE_DICTIONARY_MODE=ffsc
-export ELECTRONIC_SCRABBLE_DICTIONARY_NAME="FFSc ODS 9 online"
-export ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY=challenge
-npm start
-```
+The optional online provider queries the checker currently used by the
+Fédération Française de Scrabble website.
 
 The server sends an HTTP POST to:
 
@@ -123,22 +135,16 @@ for a valid word and:
 for an invalid word. Electronic Scrabble parses only these class tokens and
 does not depend on the French sentence text.
 
-### Failure Policy
+### Failure policy
 
-The remote checker requires Internet access. The following conditions are
-reported as `WORD_CHECK_UNAVAILABLE`:
-
-- timeout;
-- DNS or network failure;
-- non-success HTTP response;
-- empty response;
-- response markup containing neither or both expected answer classes.
+The remote checker requires Internet access. Timeout, DNS/network failure,
+non-success HTTP responses, empty responses, and unexpected markup are reported
+as `WORD_CHECK_UNAVAILABLE`.
 
 Provider unavailability is **never** interpreted as an invalid word. In
-challenge mode the pending move remains unresolved so the players can retry or
-use another configured validation policy.
+challenge mode the pending move remains unresolved so the players can retry.
 
-### Cache and Request Discipline
+### Cache and request discipline
 
 The provider:
 
@@ -148,57 +154,30 @@ The provider:
 - uses a bounded cache;
 - does not crawl, enumerate, or attempt to reconstruct the ODS database.
 
-This endpoint is part of the FFSc website implementation and is not documented
-as a public third-party API contract. The adapter is intentionally isolated in
-`server/game/ffsc-word-validator.js` so it can be disabled or updated if the
-website changes.
+The FFSc endpoint is part of the federation website implementation and is not
+documented as a public third-party API contract. The adapter is intentionally
+isolated in `server/game/ffsc-word-validator.js` so it can be disabled or
+updated if the website changes.
 
-### Optional FFSc Settings
+Optional settings:
 
 ```bash
+export ELECTRONIC_SCRABBLE_FFSC_PROVIDER_ENABLED=true
 export ELECTRONIC_SCRABBLE_FFSC_TIMEOUT_MS=5000
 export ELECTRONIC_SCRABBLE_FFSC_ENDPOINT="https://www.ffscrabble.fr/wp-admin/admin-ajax.php"
 export ELECTRONIC_SCRABBLE_FFSC_REFERER="https://www.ffscrabble.fr/verificateur-de-mots/"
 ```
 
-The endpoint and referer overrides are intended mainly for testing or future
-maintenance.
+## Challenge penalty
 
-## Disabled Validation
-
-```bash
-export ELECTRONIC_SCRABBLE_DICTIONARY_MODE=off
-npm start
-```
-
-## Validation Policy
-
-`automatic` checks words before committing a move:
-
-```bash
-export ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY=automatic
-```
-
-`challenge` stages the move and checks words only when an opponent challenges:
-
-```bash
-export ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY=challenge
-```
-
-Both policies support the FFSc provider. During a remote lookup, mutating turn
-actions are temporarily locked to avoid race conditions. In challenge mode, a
-failed challenge against valid words applies the current 5-point challenger
-penalty indicated by the FFSc checker response.
+When the FFSc checker confirms that all challenged words are valid, the current
+five-point unsuccessful-challenge penalty is applied to the challenger. A
+successful challenge rolls back the staged move and the moving player loses the
+turn.
 
 ## Privacy
 
-No local dictionary file is sent to browsers. Public game state contains only:
-
-- whether validation is enabled;
-- provider type;
-- display name;
-- whether the provider is online;
-- local word count when available;
-- validation policy.
-
-No remote response HTML is forwarded to clients.
+No local dictionary file is sent to browsers. Public game state contains only
+safe provider metadata such as provider type, display name, online status,
+local word count when available, and validation policy. Remote FFSc response
+HTML is never forwarded to clients.

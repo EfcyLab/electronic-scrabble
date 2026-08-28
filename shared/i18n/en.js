@@ -183,6 +183,8 @@
         'player.join.playerName': 'Player name',
         'player.join.button': 'Join Game',
         'player.player': 'Player',
+        'player.settings': 'Settings',
+        'player.precisePlacement': 'Precise placement',
         'player.whoStarts': 'Who starts?',
         'player.drawHelp': 'All drawn tiles return to the bag before racks are dealt.',
         'player.rack.title': 'Your rack',

@@ -10,16 +10,16 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/player.css?v=18.0.0">
+    <link rel="stylesheet" href="./css/player.css?v=21.0.0">
 
-    <script src="../shared/i18n/en.js?v=20.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=20.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=20.0.0"></script>
+    <script src="../shared/i18n/en.js?v=21.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=21.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=21.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
-    <script src="./js/rack-order.js?v=18.0.0"></script>
-    <script src="./js/board-navigation.js?v=18.0.0"></script>
-    <script src="./js/mobile-layout.js?v=18.0.0"></script>
+    <script src="./js/rack-order.js?v=21.0.0"></script>
+    <script src="./js/board-navigation.js?v=21.0.0"></script>
+    <script src="./js/mobile-layout.js?v=21.0.0"></script>
 </head>
 <body data-i18n-page-title="player.pageTitle">
     <main class="app-shell">
@@ -32,25 +32,30 @@
                 </div>
             </div>
 
-            <div class="row">
+            <div class="row player-header-controls">
                 <p id="connection-status" class="status" data-i18n="common.connecting">Connecting...</p>
 
-                <label class="field">
-                    <span class="field__label" data-i18n="common.theme">Theme</span>
-                    <select class="select theme-picker" data-theme-picker>
-                        <option value="classic" data-i18n="theme.classic">Classic</option>
-                        <option value="midnight" data-i18n="theme.midnight">Midnight</option>
-                        <option value="forest" data-i18n="theme.forest">Forest</option>
-                    </select>
-                </label>
+                <details class="player-header-settings">
+                    <summary class="button button--secondary player-settings-toggle" data-i18n="player.settings">Settings</summary>
+                    <div class="player-settings-menu">
+                        <label class="field">
+                            <span class="field__label" data-i18n="common.theme">Theme</span>
+                            <select class="select theme-picker" data-theme-picker>
+                                <option value="classic" data-i18n="theme.classic">Classic</option>
+                                <option value="midnight" data-i18n="theme.midnight">Midnight</option>
+                                <option value="forest" data-i18n="theme.forest">Forest</option>
+                            </select>
+                        </label>
 
-                <label class="field">
-                    <span class="field__label" data-i18n="common.language">Language</span>
-                    <select class="select language-picker" data-language-picker>
-                        <option value="en">English</option>
-                        <option value="fr">Français</option>
-                    </select>
-                </label>
+                        <label class="field">
+                            <span class="field__label" data-i18n="common.language">Language</span>
+                            <select class="select language-picker" data-language-picker>
+                                <option value="en">English</option>
+                                <option value="fr">Français</option>
+                            </select>
+                        </label>
+                    </div>
+                </details>
             </div>
         </header>
 
@@ -143,21 +148,24 @@
                         </div>
                     </div>
 
-                    <form id="coordinate-form" class="coordinate-form">
-                        <label class="field">
-                            <span class="field__label" data-i18n="player.coordinate.column">Column</span>
-                            <select id="coordinate-column" class="select"></select>
-                        </label>
+                    <details class="player-disclosure precise-placement">
+                        <summary data-i18n="player.precisePlacement">Precise placement</summary>
+                        <form id="coordinate-form" class="coordinate-form">
+                            <label class="field">
+                                <span class="field__label" data-i18n="player.coordinate.column">Column</span>
+                                <select id="coordinate-column" class="select"></select>
+                            </label>
 
-                        <label class="field">
-                            <span class="field__label" data-i18n="player.coordinate.row">Row</span>
-                            <select id="coordinate-row" class="select"></select>
-                        </label>
+                            <label class="field">
+                                <span class="field__label" data-i18n="player.coordinate.row">Row</span>
+                                <select id="coordinate-row" class="select"></select>
+                            </label>
 
-                        <button id="coordinate-place" class="button button--secondary" type="submit">
-                            <span data-i18n="player.coordinate.place">Place Selected Tile</span>
-                        </button>
-                    </form>
+                            <button id="coordinate-place" class="button button--secondary" type="submit">
+                                <span data-i18n="player.coordinate.place">Place Selected Tile</span>
+                            </button>
+                        </form>
+                    </details>
 
                     <div class="move-actions">
                         <button id="clear-move" class="button button--secondary" type="button" disabled>
@@ -256,10 +264,10 @@
                 <ol id="final-ranking" class="final-ranking"></ol>
             </section>
 
-            <section class="player-panel">
-                <h3 class="card__title" data-i18n="common.players">Players</h3>
+            <details class="player-panel player-disclosure player-list-panel">
+                <summary data-i18n="common.players">Players</summary>
                 <ul id="player-list"></ul>
-            </section>
+            </details>
         </section>
     </main>
 
@@ -272,7 +280,7 @@
          * authoritative game server.
          *
          * @author Electronic Scrabble Project
-         * @version 1.2.0
+         * @version 1.3.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;

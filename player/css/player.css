@@ -868,3 +868,131 @@ body {
     outline-offset: calc(max(3px, calc(var(--board-cell-size) * 0.11)) * -1);
     z-index: 2;
 }
+
+/*
+ * Milestone 21 simplified player controls.
+ *
+ * Keeps the private rack and board as the primary interaction surface while
+ * moving secondary precision, player-list, theme, and language controls into
+ * native disclosure panels.
+ */
+
+.player-header-controls {
+    position: relative;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.player-header-settings {
+    position: relative;
+}
+
+.player-settings-toggle {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+.player-settings-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.player-settings-menu {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 0.45rem);
+    right: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+    gap: 0.55rem;
+    width: min(340px, calc(100vw - 1rem));
+    padding: 0.7rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
+}
+
+.player-disclosure {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    background: var(--color-surface-elevated);
+}
+
+.player-disclosure > summary {
+    padding: 0.7rem 0.85rem;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-weight: 800;
+    user-select: none;
+}
+
+.player-disclosure[open] > summary {
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+}
+
+.precise-placement .coordinate-form {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.player-list-panel {
+    display: block;
+    padding: 0;
+    box-shadow: none;
+}
+
+.player-list-panel #player-list {
+    padding: 0.7rem;
+}
+
+@media (max-width: 600px) {
+    .player-header-controls {
+        display: flex !important;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .player-header-settings {
+        margin-left: auto;
+    }
+
+    .player-settings-toggle {
+        min-height: 34px;
+        padding: 0.35rem 0.55rem;
+        font-size: 0.75rem;
+    }
+
+    .player-settings-menu {
+        grid-template-columns: 1fr;
+        width: min(250px, calc(100vw - 0.7rem));
+    }
+
+    .player-settings-menu .field__label {
+        position: static;
+        width: auto;
+        height: auto;
+        padding: 0;
+        margin: 0;
+        overflow: visible;
+        clip: auto;
+        white-space: normal;
+        border: 0;
+        font-size: 0.7rem;
+    }
+
+    .player-disclosure > summary {
+        padding: 0.45rem 0.55rem;
+        font-size: 0.78rem;
+    }
+
+    .precise-placement .coordinate-form {
+        padding: 0.3rem;
+    }
+
+    .player-list-panel {
+        padding: 0 !important;
+    }
+}

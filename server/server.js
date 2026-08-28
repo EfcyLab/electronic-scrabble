@@ -46,10 +46,12 @@ const {
 const {
     FfscWordCheckUnavailableError,
     WordValidationError,
-    getPublicWordValidationState,
-    loadConfiguredWordValidator,
     validateMoveWordsAsync
 } = require('./game/word-validator');
+const {
+    WordValidationConfigurationError,
+    createWordValidationRegistry
+} = require('./game/word-validation-registry');
 const {
     commitStagedMove,
     getNextPlayerId,
@@ -98,32 +100,11 @@ const DEFAULT_DATA_DIRECTORY = path.join(
     'games'
 );
 
-const wordValidator = loadConfiguredWordValidator();
-const WORD_VALIDATION_POLICY = (
-    process.env.ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY || 'automatic'
-).trim().toLowerCase();
-const SUPPORTED_WORD_VALIDATION_POLICIES = new Set(['automatic', 'challenge']);
-
-if (!SUPPORTED_WORD_VALIDATION_POLICIES.has(WORD_VALIDATION_POLICY)) {
-    throw new Error(
-        `Unsupported word validation policy: ${WORD_VALIDATION_POLICY}. Expected automatic or challenge.`
-    );
-}
-
-if (WORD_VALIDATION_POLICY === 'challenge' && !wordValidator.enabled) {
-    throw new Error(
-        'Challenge word validation requires an enabled dictionary.'
-    );
-}
-
+const wordValidationRegistry = createWordValidationRegistry(process.env);
 const consoleControlEnabled = isConsoleControlEnabled();
 let consoleSystemActionPending = false;
 const consoleScreenSockets = new Set();
 
-const publicWordValidationState = {
-    ...getPublicWordValidationState(wordValidator),
-    policy: wordValidator.enabled ? WORD_VALIDATION_POLICY : 'structural'
-};
 const games = new Map();
 const wordValidationLocks = new Set();
 const WORD_VALIDATION_LOCKED_MESSAGE_TYPES = new Set([
@@ -143,6 +124,9 @@ const restoredGames = gameStore.loadGames();
 restoredGames.games.forEach((game) => {
     game.createdAt = game.createdAt ?? game.updatedAt ?? Date.now();
     game.updatedAt = game.updatedAt ?? Date.now();
+    game.wordValidationConfig = wordValidationRegistry.restoreConfiguration(
+        game.wordValidationConfig
+    );
     games.set(game.code, game);
 });
 
@@ -286,7 +270,9 @@ function getPublicGameState(game) {
         stoppedAt: game.stoppedAt ?? null,
         resumable: game.status === 'stopped' && game.stoppedState !== null,
         turnClock: getPublicTurnClock(game.turnClock),
-        wordValidation: publicWordValidationState,
+        wordValidation: wordValidationRegistry.getPublicState(
+            game.wordValidationConfig
+        ),
         players: Array.from(game.players.values()).map((player) => ({
             id: player.id,
             name: player.name,
@@ -707,7 +693,23 @@ function detachSocket(socket) {
  *
  * @returns {void}
  */
-function createGame(socket) {
+function createGame(socket, message = {}) {
+    let wordValidationConfig;
+
+    try {
+        wordValidationConfig = wordValidationRegistry.normalizeConfiguration({
+            provider: message.wordValidationProvider,
+            policy: message.wordValidationPolicy
+        });
+    } catch (error) {
+        if (error instanceof WordValidationConfigurationError) {
+            sendError(socket, error.code, error.message);
+            return;
+        }
+
+        throw error;
+    }
+
     detachSocket(socket);
 
     const gameCode = generateGameCode();
@@ -732,6 +734,7 @@ function createGame(socket) {
         stoppedState: null,
         consecutivePasses: 0,
         turnClock: createTurnClock(),
+        wordValidationConfig,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         adminSockets: new Set(),
@@ -861,6 +864,62 @@ function configureGameClock(socket, message) {
         mode,
         message.durationSeconds
     );
+
+    broadcastGameState(game);
+}
+
+/**
+ * Configures word validation for a lobby game.
+ *
+ * Validation settings are locked once the starting-player draw begins so a
+ * game cannot silently switch dictionaries or policies during play.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function configureGameWordValidation(socket, message) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'admin' || !session.gameCode) {
+        sendError(
+            socket,
+            'NOT_AUTHORIZED',
+            'Only a game administrator can configure word validation.'
+        );
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        sendError(socket, 'GAME_NOT_FOUND', 'The game does not exist.');
+        return;
+    }
+
+    if (game.status !== 'lobby') {
+        sendError(
+            socket,
+            'VALIDATION_CONFIGURATION_LOCKED',
+            'Word validation cannot be changed after the lobby.'
+        );
+        return;
+    }
+
+    try {
+        game.wordValidationConfig = wordValidationRegistry.normalizeConfiguration({
+            provider: message.provider,
+            policy: message.policy
+        });
+    } catch (error) {
+        if (error instanceof WordValidationConfigurationError) {
+            sendError(socket, error.code, error.message);
+            return;
+        }
+
+        throw error;
+    }
 
     broadcastGameState(game);
 }
@@ -1600,7 +1659,7 @@ function acceptPendingMove(socket) {
  *
  * If at least one word is invalid, the complete move is rolled back and the
  * moving player loses the turn. If all words are valid, the move is committed.
- * No unsuccessful-challenge point penalty is applied in this milestone.
+ * An unsuccessful challenge applies the configured five-point penalty.
  *
  * @param {WebSocket} socket Challenging player's WebSocket connection.
  *
@@ -1642,6 +1701,9 @@ async function challengePendingMove(socket) {
     }
 
     let invalidWords;
+    const wordValidator = wordValidationRegistry.getValidator(
+        game.wordValidationConfig
+    );
 
     wordValidationLocks.add(game.code);
 
@@ -1788,7 +1850,16 @@ async function submitMove(socket, message) {
         throw error;
     }
 
-    if (WORD_VALIDATION_POLICY === 'challenge' && wordValidator.enabled) {
+    const wordValidationConfig = wordValidationRegistry.restoreConfiguration(
+        game.wordValidationConfig
+    );
+    const wordValidator = wordValidationRegistry.getValidator(
+        wordValidationConfig
+    );
+
+    game.wordValidationConfig = wordValidationConfig;
+
+    if (wordValidationConfig.policy === 'challenge' && wordValidator.enabled) {
         const nextPlayerId = getNextPlayerId(
             game.turnOrder,
             game.currentPlayerId
@@ -2111,7 +2182,7 @@ async function handleMessage(socket, message) {
 
     switch (message.type) {
         case 'create-game':
-            createGame(socket);
+            createGame(socket, message);
             break;
 
         case 'resume-admin':
@@ -2128,6 +2199,10 @@ async function handleMessage(socket, message) {
 
         case 'configure-turn-clock':
             configureGameClock(socket, message);
+            break;
+
+        case 'configure-word-validation':
+            configureGameWordValidation(socket, message);
             break;
 
         case 'watch-game':
@@ -2213,7 +2288,8 @@ server.on('connection', (socket, request) => {
     console.log(`Client connected: ${request.socket.remoteAddress}`);
 
     send(socket, 'connected', {
-        message: 'Connected to Electronic Scrabble server.'
+        message: 'Connected to Electronic Scrabble server.',
+        wordValidationOptions: wordValidationRegistry.getPublicOptions()
     });
 
     socket.on('message', async (data) => {
@@ -2266,17 +2342,16 @@ server.on('close', () => {
     clearInterval(persistenceInterval);
 });
 
-if (wordValidator.enabled) {
-    console.log(
-        wordValidator.online
-            ? `Word validation enabled: ${wordValidator.name} (online).`
-            : `Word validation enabled: ${wordValidator.name} (${wordValidator.wordCount} words).`
-    );
-} else {
-    console.warn(
-        'Word validation disabled: no local dictionary is configured.'
-    );
-}
+const wordValidationOptions = wordValidationRegistry.getPublicOptions();
+
+console.log(
+    `Word-validation providers: ${wordValidationOptions.providers
+        .map((provider) => provider.id)
+        .join(', ')}.`
+);
+console.log(
+    `Default word validation: ${wordValidationOptions.defaultProvider} / ${wordValidationOptions.defaultPolicy}.`
+);
 
 console.log(
     `Persistent game data directory: ${gameStore.directory}`

@@ -734,3 +734,33 @@ The response contains management summaries only and never exposes racks or token
 ```
 
 Only stopped or finished games can be purged.
+
+## Per-game word validation
+
+The server advertises administrator-selectable validation options in the
+initial administrator connection state as `wordValidationOptions`.
+
+A new game can include:
+
+```json
+{
+  "type": "create-game",
+  "wordValidationProvider": "ffsc",
+  "wordValidationPolicy": "challenge"
+}
+```
+
+While the game remains in `lobby`, an authenticated administrator may update
+those settings:
+
+```json
+{
+  "type": "configure-word-validation",
+  "provider": "local",
+  "policy": "automatic"
+}
+```
+
+The server rejects unavailable providers, unsupported policies, and any
+configuration change after the lobby. Public game state contains the resolved
+provider and policy but never local dictionary paths or provider secrets.

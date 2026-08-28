@@ -5,7 +5,7 @@
  * or horizontal board panning.
  *
  * @author Electronic Scrabble Project
- * @version 0.2.0
+ * @version 0.3.0
  */
 
 const assert = require('node:assert/strict');
@@ -45,7 +45,7 @@ test('complete board is centered in the fixed player viewport', () => {
 });
 
 test('player interaction assets are versioned to invalidate browser cache', () => {
-    assert.match(playerHtml, /\.\/css\/player\.css\?v=18\.0\.0/);
-    assert.match(playerHtml, /\.\/js\/rack-order\.js\?v=18\.0\.0/);
-    assert.match(playerHtml, /\.\/js\/board-navigation\.js\?v=18\.0\.0/);
+    assert.match(playerHtml, /\.\/css\/player\.css\?v=21\.0\.0/);
+    assert.match(playerHtml, /\.\/js\/rack-order\.js\?v=21\.0\.0/);
+    assert.match(playerHtml, /\.\/js\/board-navigation\.js\?v=21\.0\.0/);
 });

@@ -9,10 +9,10 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/admin.css?v=20.0.0">
-    <script src="../shared/i18n/en.js?v=20.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=20.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=20.0.0"></script>
+    <link rel="stylesheet" href="./css/admin.css?v=21.0.0">
+    <script src="../shared/i18n/en.js?v=21.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=21.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=21.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
@@ -48,11 +48,30 @@
         </header>
 
         <section class="card admin-toolbar">
-            <div>
+            <div class="admin-toolbar__intro">
                 <h2 class="card__title" data-i18n="admin.session">Game session</h2>
                 <p class="muted admin-toolbar-help" data-i18n="admin.sessionHelp">Create a new game or reopen one from the history below.</p>
             </div>
-            <button id="create-game" class="button button--primary" type="button" disabled data-i18n="admin.createGame">Create Game</button>
+
+            <div class="admin-new-game-settings">
+                <label class="field admin-validation-field" for="word-validation-provider">
+                    <span class="field__label" data-i18n="admin.validationProvider">Word provider</span>
+                    <select id="word-validation-provider" class="select" disabled>
+                        <option value="" data-i18n="common.waiting">Waiting</option>
+                    </select>
+                </label>
+
+                <label class="field admin-validation-field" for="word-validation-policy">
+                    <span class="field__label" data-i18n="admin.validationPolicy">Validation policy</span>
+                    <select id="word-validation-policy" class="select" disabled>
+                        <option value="structural" data-i18n="admin.validationPolicyStructural">Structural only</option>
+                    </select>
+                </label>
+
+                <button id="create-game" class="button button--primary" type="button" disabled data-i18n="admin.createGame">Create Game</button>
+            </div>
+
+            <p id="word-validation-configuration-help" class="muted admin-validation-help" data-i18n="admin.validationConfigurationHelp">Choose the word provider and validation policy before starting the game. These settings remain editable while the game is in the lobby.</p>
         </section>
 
         <section id="game-information" class="admin-game-dashboard" hidden>
@@ -191,6 +210,9 @@
         const gameCodeElement = document.getElementById('game-code');
         const gameStatusElement = document.getElementById('game-status');
         const wordValidationStatus = document.getElementById('word-validation-status');
+        const wordValidationProvider = document.getElementById('word-validation-provider');
+        const wordValidationPolicy = document.getElementById('word-validation-policy');
+        const wordValidationConfigurationHelp = document.getElementById('word-validation-configuration-help');
         const turnClockSetting = document.getElementById('turn-clock-setting');
         const turnClockHelp = document.getElementById('turn-clock-help');
         const turnInformation = document.getElementById('turn-information');
@@ -226,6 +248,8 @@
         let connectionStatusKey = 'common.connecting';
         let consoleControlsEnabled = false;
         let consoleActionPending = false;
+        let serverWordValidationOptions = null;
+        let validationControlSyncInProgress = false;
 
 
         /**
@@ -573,6 +597,186 @@
         }
 
         /**
+         * Returns the localized label for a validation provider.
+         *
+         * @param {Object} provider Public provider metadata.
+         *
+         * @returns {string} Provider label.
+         */
+        function getWordValidationProviderLabel(provider) {
+            if (provider.id === 'structural') {
+                return I18n.t('admin.validationProviderStructural');
+            }
+
+            if (provider.id === 'local') {
+                return I18n.t('admin.validationProviderLocal', {
+                    name: provider.name,
+                    count: provider.wordCount ?? 0
+                });
+            }
+
+            if (provider.id === 'ffsc') {
+                return I18n.t('admin.validationProviderFfsc', {
+                    name: provider.name
+                });
+            }
+
+            return provider.name || provider.id;
+        }
+
+        /**
+         * Updates the validation-policy selector for the selected provider.
+         *
+         * @param {string|null} preferredPolicy Policy to preserve when possible.
+         *
+         * @returns {void}
+         */
+        function updateWordValidationPolicyOptions(preferredPolicy = null) {
+            const provider = wordValidationProvider.value;
+            const currentPolicy = preferredPolicy || wordValidationPolicy.value;
+
+            wordValidationPolicy.replaceChildren();
+
+            if (provider === 'structural' || !provider) {
+                const option = document.createElement('option');
+
+                option.value = 'structural';
+                option.textContent = I18n.t('admin.validationPolicyStructural');
+                wordValidationPolicy.appendChild(option);
+                wordValidationPolicy.value = 'structural';
+                wordValidationPolicy.disabled = true;
+                wordValidationConfigurationHelp.textContent = I18n.t(
+                    'admin.validationStructuralHelp'
+                );
+                return;
+            }
+
+            const policies = serverWordValidationOptions?.policies ?? [
+                'automatic',
+                'challenge'
+            ];
+
+            policies.forEach((policy) => {
+                const option = document.createElement('option');
+
+                option.value = policy;
+                option.textContent = I18n.t(
+                    policy === 'challenge'
+                        ? 'admin.validationPolicyChallenge'
+                        : 'admin.validationPolicyAutomatic'
+                );
+                wordValidationPolicy.appendChild(option);
+            });
+
+            wordValidationPolicy.value = policies.includes(currentPolicy)
+                ? currentPolicy
+                : (serverWordValidationOptions?.defaultPolicy || 'automatic');
+            wordValidationPolicy.disabled = ['starting', 'playing'].includes(
+                currentGameStatus
+            );
+            wordValidationConfigurationHelp.textContent = I18n.t(
+                provider === 'ffsc'
+                    ? 'admin.validationFfscHelp'
+                    : 'admin.validationLocalHelp'
+            );
+        }
+
+        /**
+         * Populates validation providers advertised by the server.
+         *
+         * @param {Object} options Public server options.
+         * @param {string|null} preferredProvider Provider to preserve.
+         * @param {string|null} preferredPolicy Policy to preserve.
+         *
+         * @returns {void}
+         */
+        function populateWordValidationOptions(
+            options,
+            preferredProvider = null,
+            preferredPolicy = null
+        ) {
+            serverWordValidationOptions = options;
+            const providerValue = preferredProvider
+                || wordValidationProvider.value
+                || options.defaultProvider;
+
+            validationControlSyncInProgress = true;
+            wordValidationProvider.replaceChildren();
+
+            options.providers.forEach((provider) => {
+                const option = document.createElement('option');
+
+                option.value = provider.id;
+                option.textContent = getWordValidationProviderLabel(provider);
+                wordValidationProvider.appendChild(option);
+            });
+
+            wordValidationProvider.value = options.providers.some(
+                (provider) => provider.id === providerValue
+            ) ? providerValue : options.defaultProvider;
+            wordValidationProvider.disabled = ['starting', 'playing'].includes(
+                currentGameStatus
+            );
+            updateWordValidationPolicyOptions(
+                preferredPolicy || options.defaultPolicy
+            );
+            validationControlSyncInProgress = false;
+        }
+
+        /**
+         * Sends lobby validation settings to the authoritative server.
+         *
+         * @returns {void}
+         */
+        function sendWordValidationConfiguration() {
+            if (
+                validationControlSyncInProgress
+                || !currentGameCode
+                || currentGameStatus !== 'lobby'
+                || socket.readyState !== WebSocket.OPEN
+            ) {
+                return;
+            }
+
+            socket.send(JSON.stringify({
+                type: 'configure-word-validation',
+                provider: wordValidationProvider.value,
+                policy: wordValidationPolicy.value
+            }));
+        }
+
+        /**
+         * Synchronizes validation controls with the current game.
+         *
+         * @param {Object} game Public game state.
+         *
+         * @returns {void}
+         */
+        function syncWordValidationControls(game) {
+            if (serverWordValidationOptions === null) {
+                return;
+            }
+
+            populateWordValidationOptions(
+                serverWordValidationOptions,
+                game.wordValidation?.provider || null,
+                game.wordValidation?.policy || null
+            );
+
+            const locked = ['starting', 'playing'].includes(game.status);
+
+            wordValidationProvider.disabled = locked;
+            wordValidationPolicy.disabled = locked
+                || wordValidationProvider.value === 'structural';
+
+            if (locked) {
+                wordValidationConfigurationHelp.textContent = I18n.t(
+                    'admin.validationConfigurationLocked'
+                );
+            }
+        }
+
+        /**
          * Renders the public starting-player draw.
          *
          * @param {Object|null} startingPlayerDraw Starting-player draw result.
@@ -719,6 +923,7 @@
                 wordValidationStatus.textContent = I18n.t('admin.validationDisabled');
             }
 
+            syncWordValidationControls(game);
             playerList.replaceChildren();
 
             if (game.status === 'playing') {
@@ -814,7 +1019,9 @@
             stopGameButton.disabled = !['lobby', 'starting', 'playing'].includes(game.status);
             resumeGameButton.hidden = game.status !== 'stopped';
             resumeGameButton.disabled = game.status !== 'stopped' || game.resumable !== true;
-            createGameButton.disabled = !['finished', 'stopped'].includes(game.status);
+            createGameButton.disabled =
+                !['finished', 'stopped'].includes(game.status)
+                || serverWordValidationOptions === null;
 
             if (game.status === 'stopped') {
                 startGameButton.textContent = I18n.t('admin.gameStopped');
@@ -884,13 +1091,15 @@
                 }
             }
 
-            createGameButton.disabled = false;
+            createGameButton.disabled = serverWordValidationOptions === null;
         });
 
         socket.addEventListener('close', () => {
             connectionStatusKey = 'common.disconnected';
             connectionStatus.textContent = I18n.t(connectionStatusKey);
             createGameButton.disabled = true;
+            wordValidationProvider.disabled = true;
+            wordValidationPolicy.disabled = true;
             startGameButton.disabled = true;
             stopGameButton.disabled = true;
             resumeGameButton.disabled = true;
@@ -905,8 +1114,19 @@
 
         createGameButton.addEventListener('click', () => {
             socket.send(JSON.stringify({
-                type: 'create-game'
+                type: 'create-game',
+                wordValidationProvider: wordValidationProvider.value,
+                wordValidationPolicy: wordValidationPolicy.value
             }));
+        });
+
+        wordValidationProvider.addEventListener('change', () => {
+            updateWordValidationPolicyOptions();
+            sendWordValidationConfiguration();
+        });
+
+        wordValidationPolicy.addEventListener('change', () => {
+            sendWordValidationConfiguration();
         });
 
         startGameButton.addEventListener('click', () => {
@@ -981,6 +1201,14 @@
                 busy: consoleActionPending
             });
 
+            if (serverWordValidationOptions !== null) {
+                populateWordValidationOptions(
+                    serverWordValidationOptions,
+                    wordValidationProvider.value,
+                    wordValidationPolicy.value
+                );
+            }
+
             if (lastGameState !== null) {
                 updateGameState(lastGameState);
             }
@@ -990,6 +1218,18 @@
 
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
+
+            if (data.type === 'connected') {
+                if (data.wordValidationOptions) {
+                    populateWordValidationOptions(data.wordValidationOptions);
+                }
+
+                if (!currentGameCode && !initialGameCode) {
+                    createGameButton.disabled = serverWordValidationOptions === null;
+                }
+
+                return;
+            }
 
             if (data.type === 'game-created') {
                 currentAdminToken = data.adminToken;
@@ -1027,7 +1267,7 @@
                     currentGameStatus = 'lobby';
                     lastGameState = null;
                     gameInformation.hidden = true;
-                    createGameButton.disabled = false;
+                    createGameButton.disabled = serverWordValidationOptions === null;
                     window.history.replaceState(null, '', window.location.pathname);
                 }
 
@@ -1079,7 +1319,7 @@
 
                     clearAdminSession(failedGameCode);
                     currentAdminToken = null;
-                    createGameButton.disabled = false;
+                    createGameButton.disabled = serverWordValidationOptions === null;
                 }
 
                 alert(I18n.t(`error.${data.code}`) === `error.${data.code}` ? data.message : I18n.t(`error.${data.code}`));

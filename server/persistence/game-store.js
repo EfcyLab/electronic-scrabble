@@ -93,7 +93,8 @@ function serializeGame(game, now = Date.now()) {
             stoppedAt: game.stoppedAt ?? null,
             stoppedState: game.stoppedState ?? null,
             consecutivePasses: game.consecutivePasses,
-            turnClock: serializeTurnClock(game.turnClock, now)
+            turnClock: serializeTurnClock(game.turnClock, now),
+            wordValidationConfig: game.wordValidationConfig ?? null
         }
     };
 }
@@ -156,6 +157,7 @@ function restoreGame(snapshot, now = Date.now()) {
         stoppedState: storedGame.stoppedState ?? null,
         consecutivePasses: storedGame.consecutivePasses,
         turnClock: restoreTurnClock(storedGame.turnClock, now),
+        wordValidationConfig: storedGame.wordValidationConfig ?? null,
         createdAt: Number.isFinite(storedGame.createdAt)
             ? storedGame.createdAt
             : (Number.isFinite(storedGame.updatedAt)

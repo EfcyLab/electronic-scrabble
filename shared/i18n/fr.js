@@ -184,6 +184,8 @@
         'player.join.playerName': 'Nom du joueur',
         'player.join.button': 'Rejoindre',
         'player.player': 'Joueur',
+        'player.settings': 'Réglages',
+        'player.precisePlacement': 'Placement précis',
         'player.whoStarts': 'Qui commence ?',
         'player.drawHelp': 'Toutes les tuiles tirées retournent dans le sac avant la distribution des chevalets.',
         'player.rack.title': 'Votre chevalet',

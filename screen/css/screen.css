@@ -414,3 +414,262 @@
 .join-url {
     font-size: 0.72rem;
 }
+
+/*
+ * Milestone 21 shared-screen hierarchy.
+ *
+ * The board remains the dominant surface while the sidebar prioritizes the
+ * scoreboard, active clock, and current game event. Lobby-only QR details are
+ * compact and disappear automatically once play begins.
+ */
+
+.screen-header {
+    margin-bottom: 0.55rem;
+}
+
+.screen-header-actions {
+    align-items: end;
+    gap: 0.55rem;
+}
+
+.screen-header-actions .field {
+    gap: 0.2rem;
+}
+
+.screen-header-actions .field__label {
+    font-size: 0.72rem;
+}
+
+.screen-header-actions .select {
+    min-height: 38px;
+    padding: 0.45rem 0.6rem;
+}
+
+.screen-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(290px, 24vw, 360px);
+    gap: 0.7rem;
+    align-items: start;
+}
+
+.screen-stage {
+    display: grid;
+    place-items: start center;
+    min-width: 0;
+}
+
+.board-frame {
+    width: min(100%, calc(100vh - 6rem), 920px);
+    padding: clamp(0.25rem, 0.6vw, 0.55rem);
+}
+
+.screen-sidebar {
+    gap: 0.55rem;
+    max-height: calc(100vh - 6rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.15rem;
+}
+
+.screen-card {
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.8rem;
+    box-shadow: none;
+}
+
+.screen-card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.screen-card-heading .card__title,
+.screen-card-heading p {
+    margin: 0;
+}
+
+.scoreboard-card {
+    border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border));
+}
+
+.scoreboard-card #player-list {
+    margin-top: 0.55rem;
+}
+
+#player-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+}
+
+#player-list li {
+    gap: 0.12rem;
+    padding: 0.48rem 0.55rem;
+    border-radius: 0.6rem;
+}
+
+.screen-player-meta {
+    font-size: 0.72rem;
+}
+
+.game-overview-card {
+    padding-block: 0.55rem;
+}
+
+.screen-game-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem 0.65rem;
+    margin: 0;
+}
+
+.screen-game-facts > div {
+    display: grid;
+    gap: 0.08rem;
+    min-width: 0;
+}
+
+.screen-game-facts dt {
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.screen-game-facts dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-size: 0.82rem;
+}
+
+.turn-clock-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "header value"
+        "player value";
+    gap: 0.2rem 0.65rem;
+    align-items: center;
+    text-align: left;
+}
+
+.turn-clock-header {
+    grid-area: header;
+}
+
+.turn-clock-value {
+    grid-area: value;
+    margin: 0;
+    font-size: clamp(2rem, 3vw, 3.2rem);
+}
+
+.turn-clock-player {
+    grid-area: player;
+    margin: 0 !important;
+    font-size: 0.78rem;
+}
+
+.last-action-card .last-move-score {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.last-action-card > p {
+    margin-top: 0.35rem;
+}
+
+.join-card {
+    gap: 0.55rem;
+}
+
+.join-game-code {
+    font-size: 0.82rem;
+}
+
+.join-steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.join-step {
+    gap: 0.4rem;
+    min-width: 0;
+    padding: 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.65rem;
+    background: var(--color-surface-elevated);
+}
+
+.join-step + .join-step {
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.join-qr-frame {
+    width: min(100%, 112px);
+    padding: 0.3rem;
+}
+
+.join-step__title {
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.join-details {
+    gap: 0.25rem;
+}
+
+.join-details > div {
+    grid-template-columns: 1fr;
+    gap: 0.05rem;
+}
+
+.join-details dt,
+.join-details dd,
+.join-hint,
+.join-admin,
+.join-url {
+    font-size: 0.68rem;
+}
+
+.join-url {
+    max-height: 2.2rem;
+    overflow: hidden;
+}
+
+@media (max-width: 900px) {
+    .screen-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .board-frame {
+        width: min(100%, calc(100vh - 5.5rem), 850px);
+    }
+
+    .screen-sidebar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+
+    .scoreboard-card,
+    .join-card,
+    .final-result-card {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 620px) {
+    .screen-sidebar,
+    .join-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .screen-header-actions {
+        flex-wrap: wrap;
+    }
+}

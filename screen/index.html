@@ -10,17 +10,17 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/screen.css?v=20.0.0">
+    <link rel="stylesheet" href="./css/screen.css?v=21.0.0">
 
-    <script src="../shared/i18n/en.js?v=20.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=20.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=20.0.0"></script>
+    <script src="../shared/i18n/en.js?v=21.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=21.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=21.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
 <body data-i18n-page-title="screen.pageTitle">
     <main class="app-shell">
-        <header class="app-header">
+        <header class="app-header screen-header">
             <div class="app-brand">
                 <div class="app-logo" aria-hidden="true">ES</div>
                 <div>
@@ -29,7 +29,7 @@
                 </div>
             </div>
 
-            <div class="row">
+            <div class="row screen-header-actions">
                 <p id="connection-status" class="status" data-i18n="common.connecting">Connecting...</p>
 
                 <label class="field">
@@ -52,67 +52,19 @@
         </header>
 
         <div class="screen-layout">
-            <section class="board-frame">
-                <div id="board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
+            <section class="screen-stage">
+                <section class="board-frame">
+                    <div id="board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
+                </section>
             </section>
 
             <aside class="screen-sidebar">
-                <section class="screen-card">
-                    <h2 class="card__title" data-i18n="screen.gamePanel">Game</h2>
-                    <p><span data-i18n="common.status">Status</span>: <strong id="game-status" data-i18n="common.lobby">Lobby</strong></p>
-                    <p><span data-i18n="screen.words">Words</span>: <strong id="word-validation-status" data-i18n="common.waiting">Waiting</strong></p>
-                    <p id="turn-information" hidden>
-                        <span data-i18n="common.turn">Turn</span> <strong id="turn-number">0</strong><br>
-                        <span id="current-player-name" data-i18n="common.waiting">Waiting</span>
-                    </p>
-                    <p id="bag-information" hidden>
-                        <span data-i18n="screen.tilesRemainingLabel">Tiles remaining</span>: <strong id="bag-remaining">0</strong>
-                    </p>
-                </section>
-
-                <section id="join-card" class="screen-card join-card" hidden>
-                    <h2 class="card__title" data-i18n="screen.joinGame">Join the game</h2>
-
-                    <div id="wifi-join-step" class="join-step" hidden>
-                        <h3 class="join-step__title" data-i18n="screen.joinWifi">Connect to Wi-Fi</h3>
-                        <div class="join-qr-frame">
-                            <img
-                                id="wifi-qr"
-                                class="join-qr"
-                                alt=""
-                            >
-                        </div>
-                        <p class="join-hint" data-i18n="screen.scanWifi">Scan to connect to the console Wi-Fi.</p>
-                        <dl class="join-details">
-                            <div>
-                                <dt data-i18n="screen.network">Network</dt>
-                                <dd id="wifi-ssid"></dd>
-                            </div>
-                            <div>
-                                <dt data-i18n="screen.password">Password</dt>
-                                <dd id="wifi-password"></dd>
-                            </div>
-                        </dl>
+                <section class="screen-card scoreboard-card">
+                    <div class="screen-card-heading">
+                        <h2 class="card__title" data-i18n="common.players">Players</h2>
+                        <span id="game-status" class="status" data-i18n="common.lobby">Lobby</span>
                     </div>
-
-                    <p id="wifi-qr-unavailable" class="join-hint" data-i18n="screen.wifiQrUnavailable" hidden>Wi-Fi QR unavailable. Configure the console SSID and password to enable it.</p>
-
-                    <div id="player-join-step" class="join-step" hidden>
-                        <h3 class="join-step__title" data-i18n="screen.joinRack">Open your rack</h3>
-                        <div class="join-qr-frame">
-                            <img id="player-qr" class="join-qr" alt="">
-                        </div>
-                        <p class="join-hint" data-i18n="screen.scanPlayer">Scan to open the player page.</p>
-                        <p id="player-join-url" class="join-url"></p>
-                    </div>
-
-                    <p id="player-qr-waiting" class="join-hint" data-i18n="screen.waitingForGameQr" hidden>
-                        Create a game to display the player QR code.
-                    </p>
-                    <p id="admin-url-row" class="join-admin" hidden>
-                        <span data-i18n="screen.adminUrl">Administration</span>:
-                        <strong id="admin-url"></strong>
-                    </p>
+                    <ul id="player-list"></ul>
                 </section>
 
                 <section id="turn-clock-card" class="screen-card turn-clock-card" hidden>
@@ -124,12 +76,22 @@
                     <p id="turn-clock-player" class="turn-clock-player"></p>
                 </section>
 
-                <section id="starting-player-card" class="screen-card starting-player-card" hidden>
-                    <h2 class="card__title" data-i18n="screen.whoStarts">Who starts?</h2>
-                    <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
-                    <p id="starting-player-winner" class="starting-player-winner"></p>
+                <section class="screen-card game-overview-card">
+                    <dl class="screen-game-facts">
+                        <div id="turn-information" hidden>
+                            <dt data-i18n="common.turn">Turn</dt>
+                            <dd><strong id="turn-number">0</strong> · <span id="current-player-name" data-i18n="common.waiting">Waiting</span></dd>
+                        </div>
+                        <div id="bag-information" hidden>
+                            <dt data-i18n="screen.tilesRemainingLabel">Tiles remaining</dt>
+                            <dd><strong id="bag-remaining">0</strong></dd>
+                        </div>
+                        <div>
+                            <dt data-i18n="screen.words">Words</dt>
+                            <dd><strong id="word-validation-status" data-i18n="common.waiting">Waiting</strong></dd>
+                        </div>
+                    </dl>
                 </section>
-
 
                 <section id="challenge-card" class="screen-card challenge-card" hidden>
                     <h2 class="card__title" data-i18n="screen.challengeWindow">Challenge window</h2>
@@ -137,13 +99,21 @@
                     <p class="status status--warning" data-i18n="screen.challengeWaiting">Waiting for acceptance or challenge</p>
                 </section>
 
-                <section id="last-action-card" class="screen-card" hidden>
-                    <h2 class="card__title" data-i18n="screen.lastAction">Last action</h2>
+                <section id="last-action-card" class="screen-card last-action-card" hidden>
+                    <div class="screen-card-heading">
+                        <h2 class="card__title" data-i18n="screen.lastAction">Last action</h2>
+                        <p id="last-action-score" class="last-move-score" hidden>
+                            +<span id="last-action-score-value">0</span> pts
+                        </p>
+                    </div>
                     <p><strong id="last-action-player"></strong></p>
                     <p id="last-action-summary" class="last-move-words"></p>
-                    <p id="last-action-score" class="last-move-score" hidden>
-                        +<span id="last-action-score-value">0</span> pts
-                    </p>
+                </section>
+
+                <section id="starting-player-card" class="screen-card starting-player-card" hidden>
+                    <h2 class="card__title" data-i18n="screen.whoStarts">Who starts?</h2>
+                    <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
+                    <p id="starting-player-winner" class="starting-player-winner"></p>
                 </section>
 
                 <section id="final-result-card" class="screen-card final-result-card" hidden>
@@ -153,9 +123,46 @@
                     <ol id="final-ranking" class="final-ranking"></ol>
                 </section>
 
-                <section class="screen-card">
-                    <h2 class="card__title" data-i18n="common.players">Players</h2>
-                    <ul id="player-list"></ul>
+                <section id="join-card" class="screen-card join-card" hidden>
+                    <div class="screen-card-heading">
+                        <h2 class="card__title" data-i18n="screen.joinGame">Join the game</h2>
+                        <strong class="join-game-code"><span data-i18n="common.game">Game</span> <span id="join-game-code">----</span></strong>
+                    </div>
+
+                    <div class="join-steps">
+                        <div id="wifi-join-step" class="join-step" hidden>
+                            <h3 class="join-step__title" data-i18n="screen.joinWifi">Connect to Wi-Fi</h3>
+                            <div class="join-qr-frame">
+                                <img id="wifi-qr" class="join-qr" alt="">
+                            </div>
+                            <dl class="join-details">
+                                <div>
+                                    <dt data-i18n="screen.network">Network</dt>
+                                    <dd id="wifi-ssid"></dd>
+                                </div>
+                                <div>
+                                    <dt data-i18n="screen.password">Password</dt>
+                                    <dd id="wifi-password"></dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        <p id="wifi-qr-unavailable" class="join-hint" data-i18n="screen.wifiQrUnavailable" hidden>Wi-Fi QR unavailable. Configure the console SSID and password to enable it.</p>
+
+                        <div id="player-join-step" class="join-step" hidden>
+                            <h3 class="join-step__title" data-i18n="screen.joinRack">Open your rack</h3>
+                            <div class="join-qr-frame">
+                                <img id="player-qr" class="join-qr" alt="">
+                            </div>
+                            <p id="player-join-url" class="join-url"></p>
+                        </div>
+                    </div>
+
+                    <p id="player-qr-waiting" class="join-hint" data-i18n="screen.waitingForGameQr" hidden>Create a game to display the player QR code.</p>
+                    <p id="admin-url-row" class="join-admin" hidden>
+                        <span data-i18n="screen.adminUrl">Administration</span>:
+                        <strong id="admin-url"></strong>
+                    </p>
                 </section>
             </aside>
         </div>
@@ -169,7 +176,7 @@
          * and the standard board without receiving private player racks.
          *
          * @author Electronic Scrabble Project
-         * @version 1.4.0
+         * @version 1.5.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -191,6 +198,7 @@
 
         const connectionStatus = document.getElementById('connection-status');
         const gameCodeElement = document.getElementById('game-code');
+        const joinGameCodeElement = document.getElementById('join-game-code');
         const gameStatusElement = document.getElementById('game-status');
         const wordValidationStatus = document.getElementById('word-validation-status');
         const turnInformation = document.getElementById('turn-information');
@@ -232,6 +240,7 @@
         const boardElement = document.getElementById('board');
 
         gameCodeElement.textContent = currentGameCode || '----';
+        joinGameCodeElement.textContent = currentGameCode || '----';
 
         const socket = new window.ElectronicScrabbleReconnectingWebSocket(`ws://${SERVER_HOST}:${SERVER_PORT}`);
         let lastGameState = null;
@@ -851,6 +860,7 @@
             if (data.type === 'console-game-selected') {
                 currentGameCode = data.gameCode;
                 gameCodeElement.textContent = currentGameCode;
+                joinGameCodeElement.textContent = currentGameCode;
                 connectionStatusKey = 'common.connected';
                 connectionStatus.textContent = I18n.t(connectionStatusKey);
                 connectionStatus.className = 'status status--success';
@@ -861,6 +871,7 @@
             if (data.type === 'console-idle') {
                 currentGameCode = '';
                 gameCodeElement.textContent = '----';
+                joinGameCodeElement.textContent = '----';
                 connectionStatusKey = 'screen.consoleWaiting';
                 connectionStatus.textContent = I18n.t(connectionStatusKey);
                 connectionStatus.className = 'status status--warning';

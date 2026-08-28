@@ -340,3 +340,56 @@
         flex-direction: column;
     }
 }
+
+/*
+ * Per-game word-validation configuration.
+ */
+
+.admin-toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.8fr) minmax(520px, 1.8fr);
+    align-items: end;
+}
+
+.admin-toolbar__intro {
+    align-self: center;
+}
+
+.admin-new-game-settings {
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) minmax(190px, 1fr) auto;
+    gap: var(--spacing-2);
+    align-items: end;
+}
+
+.admin-validation-field {
+    min-width: 0;
+}
+
+.admin-validation-field .select {
+    width: 100%;
+}
+
+.admin-validation-help {
+    grid-column: 2;
+    margin: 0;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 1100px) {
+    .admin-toolbar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .admin-new-game-settings,
+    .admin-validation-help {
+        grid-column: 1;
+    }
+}
+
+@media (max-width: 720px) {
+    .admin-new-game-settings {
+        grid-template-columns: 1fr;
+    }
+}
