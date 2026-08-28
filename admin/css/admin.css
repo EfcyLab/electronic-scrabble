@@ -241,6 +241,48 @@
     grid-column: 1 / -1;
 }
 
+
+.console-wifi-panel {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: var(--spacing-2);
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
+}
+
+.console-wifi-panel h4,
+.console-wifi-panel p {
+    margin: 0;
+}
+
+.console-wifi-form {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) minmax(120px, 0.45fr);
+    gap: var(--spacing-2);
+    align-items: end;
+}
+
+.console-wifi-form .field {
+    min-width: 0;
+}
+
+.console-wifi-form small {
+    display: block;
+    min-height: 2.5em;
+    font-size: 0.72rem;
+}
+
+.console-wifi-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+#console-wifi-feedback {
+    margin: 0;
+}
+
 .admin-history-panel {
     margin-top: var(--spacing-3);
 }
@@ -317,6 +359,14 @@
         grid-column: 1;
         grid-row: auto;
     }
+
+    .console-wifi-form {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .console-wifi-country-field {
+        grid-column: 1;
+    }
 }
 
 @media (max-width: 620px) {
@@ -336,8 +386,17 @@
         grid-template-columns: 1fr;
     }
 
-    .console-control-actions {
+    .console-control-actions,
+    .console-wifi-actions {
         flex-direction: column;
+    }
+
+    .console-wifi-form {
+        grid-template-columns: 1fr;
+    }
+
+    .console-wifi-country-field {
+        grid-column: auto;
     }
 }
 

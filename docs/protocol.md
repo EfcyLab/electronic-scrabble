@@ -750,8 +750,8 @@ A new game can include:
 }
 ```
 
-While the game remains in `lobby`, an authenticated administrator may update
-those settings:
+While the game is in `lobby` or is administratively paused with
+`status: "stopped"`, an authenticated administrator may update those settings:
 
 ```json
 {
@@ -761,6 +761,40 @@ those settings:
 }
 ```
 
-The server rejects unavailable providers, unsupported policies, and any
-configuration change after the lobby. Public game state contains the resolved
-provider and policy but never local dictionary paths or provider secrets.
+The server rejects unavailable providers, unsupported policies, and
+configuration changes while the game is actively `starting` or `playing`.
+Public game state contains the resolved provider and policy but never local
+dictionary paths or provider secrets.
+
+## Console Wi-Fi configuration
+
+An authenticated administrator on a Raspberry Pi installation with Wi-Fi
+control enabled can submit:
+
+```json
+{
+  "type": "configure-console-wifi",
+  "ssid": "ElectronicScrabble",
+  "password": "Scrabble123",
+  "country": "FR",
+  "activate": false
+}
+```
+
+An empty `password` preserves the existing access-point password. A password is
+required for the first configuration. `activate: false` updates the persistent
+NetworkManager profile for a later activation/reboot; `activate: true` also
+brings the profile up immediately and may disconnect the current Wi-Fi client.
+
+The server replies with private administrator-only capability/state messages:
+
+```text
+console-wifi-state
+console-wifi-configuration-accepted
+console-wifi-configuration-applied
+console-wifi-configuration-failed
+```
+
+`console-wifi-state` never contains the Wi-Fi password. The server validates
+the requested values and invokes only the fixed root-owned access-point helper;
+it does not accept arbitrary shell commands.

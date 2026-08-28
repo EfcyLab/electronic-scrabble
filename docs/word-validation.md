@@ -10,9 +10,11 @@ The administrator chooses the word-validation provider and policy while the
 game is in the lobby. The selected configuration is persisted with the game
 snapshot and restored after a server restart.
 
-Once the starting-player draw begins, the provider and policy are locked for
-that game. This prevents a game from silently switching dictionaries or
-validation behavior during play.
+The provider and policy are locked while the game is actively in the
+`starting` or `playing` phase. If the administrator notices a configuration
+mistake after launch, the game can be paused with **Stop Game**, the provider
+or policy can be corrected while `status: "stopped"`, and the game can then be
+resumed. The board, scores, turn, rack state, and paused clock remain intact.
 
 The provider selector can expose:
 

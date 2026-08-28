@@ -4,7 +4,7 @@
  * Verifies resource-bundle completeness and board terminology translations.
  *
  * @author Electronic Scrabble Project
- * @version 0.21.0
+ * @version 0.22.0
  */
 
 const test = require('node:test');
@@ -68,9 +68,9 @@ test('application pages cache-bust internationalization resources', () => {
     for (const pagePath of pagePaths) {
         const source = fs.readFileSync(pagePath, 'utf8');
 
-        assert.match(source, /shared\/i18n\/en\.js\?v=21\.0\.0/);
-        assert.match(source, /shared\/i18n\/fr\.js\?v=21\.0\.0/);
-        assert.match(source, /shared\/js\/i18n-manager\.js\?v=21\.0\.0/);
+        assert.match(source, /shared\/i18n\/en\.js\?v=22\.0\.0/);
+        assert.match(source, /shared\/i18n\/fr\.js\?v=22\.0\.0/);
+        assert.match(source, /shared\/js\/i18n-manager\.js\?v=22\.0\.0/);
     }
 });
 

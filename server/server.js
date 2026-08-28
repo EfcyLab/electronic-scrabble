@@ -84,6 +84,12 @@ const {
     isConsoleControlEnabled,
     validateConsoleAction
 } = require('./system/console-control');
+const {
+    WifiConfigurationError,
+    executeWifiConfiguration,
+    isWifiControlEnabled,
+    validateWifiConfiguration
+} = require('./system/wifi-control');
 
 const PORT = 8080;
 const MIN_PLAYERS = 2;
@@ -102,8 +108,22 @@ const DEFAULT_DATA_DIRECTORY = path.join(
 
 const wordValidationRegistry = createWordValidationRegistry(process.env);
 const consoleControlEnabled = isConsoleControlEnabled();
+const wifiControlEnabled = isWifiControlEnabled();
 let consoleSystemActionPending = false;
+let wifiConfigurationPending = false;
 const consoleScreenSockets = new Set();
+const consoleWifiState = {
+    accessPointConfigured: process.env.ELECTRONIC_SCRABBLE_WIFI_ACCESS_POINT === '1',
+    configured: Boolean(
+        process.env.ELECTRONIC_SCRABBLE_WIFI_SSID
+        && process.env.ELECTRONIC_SCRABBLE_WIFI_PASSWORD
+    ),
+    country: String(process.env.ELECTRONIC_SCRABBLE_WIFI_COUNTRY || '').toUpperCase(),
+    passwordConfigured: String(
+        process.env.ELECTRONIC_SCRABBLE_WIFI_PASSWORD || ''
+    ).length >= 8,
+    ssid: String(process.env.ELECTRONIC_SCRABBLE_WIFI_SSID || '')
+};
 
 const games = new Map();
 const wordValidationLocks = new Set();
@@ -757,6 +777,7 @@ function createGame(socket, message = {}) {
     broadcastGameState(game);
     selectGameForConsoleScreens(game);
     sendConsoleControlState(socket);
+    sendConsoleWifiState(socket);
 
     console.log(`Game created: ${gameCode}`);
 }
@@ -812,6 +833,7 @@ function resumeAdmin(socket, message) {
 
     broadcastGameState(game);
     sendConsoleControlState(socket);
+    sendConsoleWifiState(socket);
 
     console.log(`Administrator resumed game ${game.code}`);
 }
@@ -869,10 +891,11 @@ function configureGameClock(socket, message) {
 }
 
 /**
- * Configures word validation for a lobby game.
+ * Configures word validation for a lobby or paused game.
  *
- * Validation settings are locked once the starting-player draw begins so a
- * game cannot silently switch dictionaries or policies during play.
+ * Validation settings are locked while a game is actively starting or
+ * playing. An administrator may correct the provider or policy after pausing
+ * the game, before resuming play.
  *
  * @param {WebSocket} socket Administrator WebSocket connection.
  * @param {Object} message Received protocol message.
@@ -898,11 +921,11 @@ function configureGameWordValidation(socket, message) {
         return;
     }
 
-    if (game.status !== 'lobby') {
+    if (!['lobby', 'stopped'].includes(game.status)) {
         sendError(
             socket,
             'VALIDATION_CONFIGURATION_LOCKED',
-            'Word validation cannot be changed after the lobby.'
+            'Pause the game before changing word validation.'
         );
         return;
     }
@@ -935,6 +958,27 @@ function sendConsoleControlState(socket) {
     send(socket, 'console-control-state', {
         enabled: consoleControlEnabled,
         busy: consoleSystemActionPending
+    });
+}
+
+/**
+ * Sends Wi-Fi configuration capability state to an authenticated administrator.
+ *
+ * The access-point password is never sent back to the browser.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ *
+ * @returns {void}
+ */
+function sendConsoleWifiState(socket) {
+    send(socket, 'console-wifi-state', {
+        enabled: wifiControlEnabled,
+        busy: wifiConfigurationPending,
+        configured: consoleWifiState.configured,
+        accessPointConfigured: consoleWifiState.accessPointConfigured,
+        ssid: consoleWifiState.ssid,
+        country: consoleWifiState.country,
+        passwordConfigured: consoleWifiState.passwordConfigured
     });
 }
 
@@ -1137,6 +1181,118 @@ function requestConsoleSystemAction(socket, message) {
             sendConsoleControlState(socket);
         });
     }, 500).unref();
+}
+
+/**
+ * Applies Raspberry Pi access-point settings from an authenticated admin.
+ *
+ * Values are validated in Node.js and passed to a fixed root-owned helper.
+ * The current password can be preserved by submitting an empty password.
+ *
+ * @param {WebSocket} socket Administrator WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function requestConsoleWifiConfiguration(socket, message) {
+    const session = socket.session;
+
+    if (!session || session.role !== 'admin' || !session.gameCode) {
+        sendError(
+            socket,
+            'NOT_AUTHORIZED',
+            'Only a game administrator can configure console Wi-Fi.'
+        );
+        return;
+    }
+
+    if (!wifiControlEnabled) {
+        sendError(
+            socket,
+            'WIFI_CONTROL_DISABLED',
+            'Console Wi-Fi configuration is disabled.'
+        );
+        return;
+    }
+
+    if (wifiConfigurationPending) {
+        sendError(
+            socket,
+            'WIFI_CONFIGURATION_PENDING',
+            'A Wi-Fi configuration change is already in progress.'
+        );
+        return;
+    }
+
+    let configuration;
+
+    try {
+        configuration = validateWifiConfiguration({
+            ssid: message.ssid,
+            password: message.password,
+            country: message.country,
+            activate: message.activate
+        });
+    } catch (error) {
+        if (error instanceof WifiConfigurationError) {
+            sendError(socket, error.code, error.message);
+            return;
+        }
+
+        throw error;
+    }
+
+    if (
+        configuration.password === null
+        && !consoleWifiState.passwordConfigured
+    ) {
+        sendError(
+            socket,
+            'INVALID_WIFI_CONFIGURATION',
+            'A password is required when configuring Wi-Fi for the first time.'
+        );
+        return;
+    }
+
+    wifiConfigurationPending = true;
+
+    send(socket, 'console-wifi-configuration-accepted', {
+        activate: configuration.activate,
+        ssid: configuration.ssid
+    });
+    sendConsoleWifiState(socket);
+
+    executeWifiConfiguration(configuration, {}, (error) => {
+        wifiConfigurationPending = false;
+
+        if (error) {
+            console.error('Unable to configure console Wi-Fi:', error);
+
+            send(socket, 'console-wifi-configuration-failed', {
+                message: error.message
+            });
+            sendConsoleWifiState(socket);
+            return;
+        }
+
+        consoleWifiState.accessPointConfigured = true;
+        consoleWifiState.configured = true;
+        consoleWifiState.ssid = configuration.ssid;
+
+        if (configuration.country !== null) {
+            consoleWifiState.country = configuration.country;
+        }
+
+        if (configuration.password !== null) {
+            consoleWifiState.passwordConfigured = true;
+        }
+
+        send(socket, 'console-wifi-configuration-applied', {
+            activate: configuration.activate,
+            ssid: configuration.ssid
+        });
+        sendConsoleWifiState(socket);
+    });
 }
 
 function watchGame(socket, message) {
@@ -2259,6 +2415,10 @@ async function handleMessage(socket, message) {
 
         case 'console-system-action':
             requestConsoleSystemAction(socket, message);
+            break;
+
+        case 'configure-console-wifi':
+            requestConsoleWifiConfiguration(socket, message);
             break;
 
         default:

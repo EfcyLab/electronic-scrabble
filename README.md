@@ -14,6 +14,7 @@ The project is designed to run on a local network and ultimately as a self-conta
 - private seven-tile smartphone racks
 - complete fit-to-width mobile board without gameplay zoom
 - local rack rearrangement and shuffle
+- direct drag-and-drop from the private rack to the board
 - move placement, provisional tile repositioning, and structural validation
 - score calculation, cross words, premium squares, and 50-point seven-tile bonus
 - pass and tile exchange actions
@@ -28,7 +29,7 @@ The project is designed to run on a local network and ultimately as a self-conta
 - dedicated Raspberry Pi console mode
 - autonomous Raspberry Pi Wi-Fi access point with fixed local address
 - offline Wi-Fi and game-join QR codes on the shared screen
-- administrator-controlled game stop, safe reboot, and power-off
+- administrator-controlled game stop, safe reboot, power-off, and Raspberry Pi Wi-Fi configuration
 
 ## Architecture
 
@@ -76,7 +77,7 @@ Persistent snapshots are private server data and include information that must n
 /admin/
 ```
 
-The administration interface creates and resumes games, configures the turn clock, determines the first player, starts or pauses play, reopens stopped games, manages persistent history/purge, displays game status, and controls a dedicated Raspberry Pi console when console mode is enabled. The desktop layout uses a compact dashboard so active-game information fits much better on ordinary PC displays.
+The administration interface creates and resumes games, configures the turn clock and per-game word-validation provider/policy, determines the first player, starts or pauses play, reopens stopped games, manages persistent history/purge, displays game status, and controls a dedicated Raspberry Pi console when console mode is enabled. A paused game may change its word-validation provider or policy before it is resumed. On an installed Raspberry Pi console, the same interface can configure the autonomous Wi-Fi SSID, password, regulatory country, and optional immediate activation. The desktop layout uses a compact dashboard so active-game information fits much better on ordinary PC displays.
 
 ### Player
 
@@ -84,7 +85,7 @@ The administration interface creates and resumes games, configures the turn cloc
 /player/?game=ABCD
 ```
 
-The smartphone interface provides the private rack, reliable touch-based tile rearrangement, a complete fit-to-width board without gameplay zoom, provisional tile repositioning directly on the board, move preparation, exchange, pass, challenge, and final result views.
+The smartphone interface provides the private rack, reliable touch-based tile rearrangement, direct drag-and-drop from rack to empty board squares, a complete fit-to-width board without gameplay zoom, provisional tile repositioning directly on the board, move preparation, exchange, pass, challenge, and final result views. Blank tiles still require a letter choice before their direct drag is committed.
 
 ### Shared Screen
 
@@ -156,6 +157,8 @@ export ELECTRONIC_SCRABBLE_WORD_VALIDATION_POLICY=challenge
 The request is sent server-side to the FFSc WordPress AJAX checker with the checker page as the HTTP `Referer`. Responses are parsed from the `right-answer` / `wrong-answer` result classes. Remote timeouts, HTTP errors, or unexpected markup produce `WORD_CHECK_UNAVAILABLE`; they are never treated as an invalid word. In challenge mode, an unsuccessful challenge applies the current 5-point penalty indicated by the checker response.
 
 The FFSc checker endpoint is an implementation detail of the federation website, not a documented public API contract. The integration is therefore isolated behind a provider module, uses a bounded in-memory cache, and may need maintenance if the site changes.
+
+The administrator chooses the provider and policy per game. These settings are editable in the lobby, locked during active starting/playing phases, and editable again while the game is paused. This allows a mistaken provider or policy to be corrected without abandoning the persisted game.
 
 See [`docs/word-validation.md`](docs/word-validation.md).
 
@@ -242,7 +245,8 @@ The installer sets up:
 - Chromium kiosk launch through the Raspberry Pi OS Labwc desktop autostart;
 - desktop autologin;
 - the autonomous Wi-Fi configurator;
-- narrowly scoped administrator reboot and power-off permissions.
+- administrator Wi-Fi configuration through the authenticated console controls;
+- narrowly scoped administrator reboot, power-off, and Wi-Fi-helper permissions.
 
 ### Completely standalone Wi-Fi
 
@@ -285,6 +289,16 @@ The Wi-Fi profile can also be configured after installation:
 ```bash
 sudo /usr/local/sbin/electronic-scrabble-configure-access-point
 ```
+
+After installing Milestone 22 or later, the authenticated administration page also exposes **Autonomous Wi-Fi** controls. It can change the SSID, optionally replace the WPA password, set the two-letter regulatory country code, and either save the profile for the next activation/reboot or activate it immediately. Immediate activation may disconnect the current Wi-Fi/SSH session. The password is never returned by the WebSocket server after configuration.
+
+For this console control to be available, the Raspberry Pi installer enables:
+
+```text
+ELECTRONIC_SCRABBLE_WIFI_CONTROL=1
+```
+
+and grants the non-root game service narrowly scoped passwordless sudo access only to the fixed access-point helper.
 
 Detailed documentation:
 
@@ -402,6 +416,7 @@ resume-stopped-game
 list-managed-games
 purge-game
 console-system-action
+configure-console-wifi
 ```
 
 ## Security Principles
@@ -412,6 +427,8 @@ console-system-action
 - persistent snapshots are stored outside browser-accessible directories;
 - the production static web service exposes only UI directories plus fixed local console/QR endpoints;
 - console power controls accept only fixed reboot/power-off actions;
+- console Wi-Fi changes pass validated SSID/password/country values only to a fixed root-owned access-point helper;
+- Wi-Fi passwords are never returned through the administrator WebSocket state;
 - the application server runs as a non-root account;
 - authorized dictionary files must remain private;
 - the generated Wi-Fi password in `/etc/electronic-scrabble/environment` must remain private;

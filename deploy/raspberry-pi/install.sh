@@ -92,6 +92,8 @@ set_environment_value() {
 
 set_environment_value ELECTRONIC_SCRABBLE_DATA_DIR "${DATA_DIR}"
 set_environment_value ELECTRONIC_SCRABBLE_CONSOLE_CONTROL 1
+set_environment_value ELECTRONIC_SCRABBLE_WIFI_CONTROL 1
+set_environment_value ELECTRONIC_SCRABBLE_WIFI_CONFIGURATOR_PATH /usr/local/sbin/electronic-scrabble-configure-access-point
 set_environment_value ELECTRONIC_SCRABBLE_HTTP_HOST 0.0.0.0
 set_environment_value ELECTRONIC_SCRABBLE_HTTP_PORT 8000
 set_environment_value ELECTRONIC_SCRABBLE_SYSTEMCTL_PATH "${SYSTEMCTL_PATH}"
@@ -129,6 +131,7 @@ install -m 0755 \
 
 cat > /etc/sudoers.d/electronic-scrabble <<SUDOEOF
 ${SERVICE_USER} ALL=(root) NOPASSWD: ${SYSTEMCTL_PATH} reboot, ${SYSTEMCTL_PATH} poweroff
+${SERVICE_USER} ALL=(root) NOPASSWD: /usr/local/sbin/electronic-scrabble-configure-access-point
 SUDOEOF
 chmod 0440 /etc/sudoers.d/electronic-scrabble
 visudo -cf /etc/sudoers.d/electronic-scrabble >/dev/null

@@ -61,17 +61,43 @@ Address: 10.42.0.1/24
 If no password is supplied, a random 14-character hexadecimal password is
 generated and printed once by the configurator.
 
-To configure your own values:
+To configure your own values, environment variables remain supported. The
+installed helper also accepts explicit arguments:
 
 ```bash
-sudo ELECTRONIC_SCRABBLE_WIFI_SSID="ScrabbleSalon" \
-     ELECTRONIC_SCRABBLE_WIFI_PASSWORD="MyGame1234" \
-     ELECTRONIC_SCRABBLE_WIFI_COUNTRY="FR" \
-     /usr/local/sbin/electronic-scrabble-configure-access-point
+sudo /usr/local/sbin/electronic-scrabble-configure-access-point \
+    --ssid "ScrabbleSalon" \
+    --password "MyGame1234" \
+    --country "FR"
 ```
 
 Set the regulatory country to the country where the console is physically used.
 Do not copy the example country blindly when deploying elsewhere.
+
+### Administration-console configuration
+
+After the Raspberry Pi console installer has been run, the authenticated
+administration page exposes the same access-point configuration through an
+**Autonomous Wi-Fi** panel. It sends a validated `configure-console-wifi`
+WebSocket message to the non-root game server.
+
+The server can update:
+
+```text
+SSID
+WPA password
+Wi-Fi country
+activation choice
+```
+
+Leaving the password field empty keeps the password already stored in the
+private console environment file. A password is required on first setup. The
+server never returns that password in its Wi-Fi control state.
+
+The installer grants the game service passwordless sudo access to the fixed
+`electronic-scrabble-configure-access-point` helper only. The helper accepts
+only its documented configuration arguments and still uses NetworkManager
+`ipv4.method shared`.
 
 ### Immediate activation
 

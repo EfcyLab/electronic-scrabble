@@ -243,6 +243,12 @@ body {
     outline-offset: calc(max(2px, calc(var(--board-cell-size) * 0.07)) * -1);
 }
 
+.player-board-cell--rack-drop-target {
+    outline: max(2px, calc(var(--board-cell-size) * 0.09)) solid var(--color-primary);
+    outline-offset: calc(max(2px, calc(var(--board-cell-size) * 0.09)) * -1);
+    filter: brightness(1.08);
+}
+
 .player-board-cell:disabled {
     cursor: default;
     opacity: 1;

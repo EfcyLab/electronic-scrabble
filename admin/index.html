@@ -9,10 +9,10 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/admin.css?v=21.0.0">
-    <script src="../shared/i18n/en.js?v=21.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=21.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=21.0.0"></script>
+    <link rel="stylesheet" href="./css/admin.css?v=22.0.0">
+    <script src="../shared/i18n/en.js?v=22.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=22.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=22.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
 </head>
@@ -71,7 +71,7 @@
                 <button id="create-game" class="button button--primary" type="button" disabled data-i18n="admin.createGame">Create Game</button>
             </div>
 
-            <p id="word-validation-configuration-help" class="muted admin-validation-help" data-i18n="admin.validationConfigurationHelp">Choose the word provider and validation policy before starting the game. These settings remain editable while the game is in the lobby.</p>
+            <p id="word-validation-configuration-help" class="muted admin-validation-help" data-i18n="admin.validationConfigurationHelp">Choose the word provider and validation policy before starting the game. These settings can also be changed while the game is paused.</p>
         </section>
 
         <section id="game-information" class="admin-game-dashboard" hidden>
@@ -163,6 +163,40 @@
                     <button id="console-poweroff" class="button button--danger" type="button" disabled data-i18n="admin.console.poweroff">Power off console</button>
                 </div>
                 <p id="console-control-feedback" class="muted" hidden></p>
+
+                <section class="console-wifi-panel" aria-labelledby="console-wifi-title">
+                    <div class="row row--between">
+                        <h4 id="console-wifi-title" data-i18n="admin.console.wifiTitle">Autonomous Wi-Fi</h4>
+                        <span id="console-wifi-status" class="status" data-i18n="admin.console.wifiDisabled">Wi-Fi configuration unavailable</span>
+                    </div>
+                    <p class="muted" data-i18n="admin.console.wifiHelp">Configure the Raspberry Pi access point. Applying the settings can disconnect devices currently using Wi-Fi.</p>
+
+                    <form id="console-wifi-form" class="console-wifi-form">
+                        <label class="field" for="console-wifi-ssid">
+                            <span class="field__label" data-i18n="admin.console.wifiSsid">Network name (SSID)</span>
+                            <input id="console-wifi-ssid" class="input" type="text" maxlength="32" autocomplete="off" required disabled>
+                        </label>
+
+                        <label class="field" for="console-wifi-password">
+                            <span class="field__label" data-i18n="admin.console.wifiPassword">Password</span>
+                            <input id="console-wifi-password" class="input" type="password" minlength="8" maxlength="63" pattern="[^\\s#=]{8,63}" autocomplete="new-password" disabled>
+                            <small class="muted" data-i18n="admin.console.wifiPasswordHelp">Leave blank to keep the current password. A new password must contain 8–63 characters without spaces, #, or =.</small>
+                        </label>
+
+                        <label class="field console-wifi-country-field" for="console-wifi-country">
+                            <span class="field__label" data-i18n="admin.console.wifiCountry">Wi-Fi country</span>
+                            <input id="console-wifi-country" class="input" type="text" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="off" placeholder="FR" disabled>
+                            <small class="muted" data-i18n="admin.console.wifiCountryHelp">Use the two-letter regulatory country code for the console location.</small>
+                        </label>
+
+                        <div class="console-wifi-actions">
+                            <button id="console-wifi-apply" class="button button--secondary" type="submit" disabled data-i18n="admin.console.wifiApply">Save Wi-Fi settings</button>
+                            <button id="console-wifi-activate" class="button" type="button" disabled data-i18n="admin.console.wifiApplyAndActivate">Save and activate now</button>
+                        </div>
+                    </form>
+
+                    <p id="console-wifi-feedback" class="muted" hidden></p>
+                </section>
             </section>
         </section>
 
@@ -236,6 +270,14 @@
         const consoleRebootButton = document.getElementById('console-reboot');
         const consolePoweroffButton = document.getElementById('console-poweroff');
         const consoleControlFeedback = document.getElementById('console-control-feedback');
+        const consoleWifiStatus = document.getElementById('console-wifi-status');
+        const consoleWifiForm = document.getElementById('console-wifi-form');
+        const consoleWifiSsid = document.getElementById('console-wifi-ssid');
+        const consoleWifiPassword = document.getElementById('console-wifi-password');
+        const consoleWifiCountry = document.getElementById('console-wifi-country');
+        const consoleWifiApplyButton = document.getElementById('console-wifi-apply');
+        const consoleWifiActivateButton = document.getElementById('console-wifi-activate');
+        const consoleWifiFeedback = document.getElementById('console-wifi-feedback');
         const refreshHistoryButton = document.getElementById('refresh-history');
         const gameHistoryList = document.getElementById('game-history-list');
 
@@ -248,6 +290,15 @@
         let connectionStatusKey = 'common.connecting';
         let consoleControlsEnabled = false;
         let consoleActionPending = false;
+        let consoleWifiState = {
+            enabled: false,
+            busy: false,
+            configured: false,
+            accessPointConfigured: false,
+            ssid: '',
+            country: '',
+            passwordConfigured: false
+        };
         let serverWordValidationOptions = null;
         let validationControlSyncInProgress = false;
 
@@ -311,6 +362,104 @@
             socket.send(JSON.stringify({
                 type: 'console-system-action',
                 action
+            }));
+        }
+
+        /**
+         * Updates Raspberry Pi Wi-Fi configuration availability.
+         *
+         * Existing passwords are represented only by a placeholder and are
+         * never returned by the server.
+         *
+         * @param {Object} state Public Wi-Fi control state.
+         *
+         * @returns {void}
+         */
+        function updateConsoleWifiState(state) {
+            consoleWifiState = {
+                ...consoleWifiState,
+                ...state
+            };
+
+            const controlsAvailable = (
+                consoleWifiState.enabled === true
+                && consoleWifiState.busy !== true
+            );
+
+            consoleWifiStatus.textContent = I18n.t(
+                consoleWifiState.enabled
+                    ? 'admin.console.wifiEnabled'
+                    : 'admin.console.wifiDisabled'
+            );
+            consoleWifiStatus.className = consoleWifiState.enabled
+                ? 'status status--success'
+                : 'status status--warning';
+
+            consoleWifiSsid.disabled = !controlsAvailable;
+            consoleWifiPassword.disabled = !controlsAvailable;
+            consoleWifiCountry.disabled = !controlsAvailable;
+            consoleWifiApplyButton.disabled = !controlsAvailable;
+            consoleWifiActivateButton.disabled = !controlsAvailable;
+
+            if (document.activeElement !== consoleWifiSsid) {
+                consoleWifiSsid.value = consoleWifiState.ssid || '';
+            }
+
+            if (document.activeElement !== consoleWifiCountry) {
+                consoleWifiCountry.value = consoleWifiState.country || '';
+            }
+
+            consoleWifiPassword.required = (
+                controlsAvailable
+                && consoleWifiState.passwordConfigured !== true
+            );
+            consoleWifiPassword.placeholder = consoleWifiState.passwordConfigured
+                ? '••••••••'
+                : '';
+        }
+
+        /**
+         * Sends validated Wi-Fi settings to the authenticated console server.
+         *
+         * @param {boolean} activate Whether to activate the access point now.
+         *
+         * @returns {void}
+         */
+        function requestConsoleWifiConfiguration(activate) {
+            if (
+                consoleWifiState.enabled !== true
+                || consoleWifiState.busy === true
+                || socket.readyState !== WebSocket.OPEN
+            ) {
+                return;
+            }
+
+            if (!consoleWifiForm.reportValidity()) {
+                return;
+            }
+
+            if (
+                activate
+                && !window.confirm(I18n.t('admin.console.wifiConfirmActivate'))
+            ) {
+                return;
+            }
+
+            consoleWifiFeedback.textContent = I18n.t(
+                'admin.console.wifiApplying'
+            );
+            consoleWifiFeedback.hidden = false;
+
+            updateConsoleWifiState({
+                busy: true
+            });
+
+            socket.send(JSON.stringify({
+                type: 'configure-console-wifi',
+                ssid: consoleWifiSsid.value.trim(),
+                password: consoleWifiPassword.value,
+                country: consoleWifiCountry.value.trim().toUpperCase(),
+                activate
             }));
         }
 
@@ -724,7 +873,7 @@
         }
 
         /**
-         * Sends lobby validation settings to the authoritative server.
+         * Sends editable validation settings to the authoritative server.
          *
          * @returns {void}
          */
@@ -732,7 +881,7 @@
             if (
                 validationControlSyncInProgress
                 || !currentGameCode
-                || currentGameStatus !== 'lobby'
+                || !['lobby', 'stopped'].includes(currentGameStatus)
                 || socket.readyState !== WebSocket.OPEN
             ) {
                 return;
@@ -1194,12 +1343,22 @@
             requestConsoleSystemAction('poweroff');
         });
 
+        consoleWifiForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            requestConsoleWifiConfiguration(false);
+        });
+
+        consoleWifiActivateButton.addEventListener('click', () => {
+            requestConsoleWifiConfiguration(true);
+        });
+
         document.addEventListener('electronic-scrabble:language-changed', () => {
             connectionStatus.textContent = I18n.t(connectionStatusKey);
             updateConsoleControlState({
                 enabled: consoleControlsEnabled,
                 busy: consoleActionPending
             });
+            updateConsoleWifiState(consoleWifiState);
 
             if (serverWordValidationOptions !== null) {
                 populateWordValidationOptions(
@@ -1301,6 +1460,52 @@
                     enabled: consoleControlsEnabled,
                     busy: false
                 });
+                return;
+            }
+
+            if (data.type === 'console-wifi-state') {
+                updateConsoleWifiState(data);
+                return;
+            }
+
+            if (data.type === 'console-wifi-configuration-accepted') {
+                updateConsoleWifiState({
+                    busy: true,
+                    ssid: data.ssid
+                });
+                consoleWifiFeedback.textContent = I18n.t(
+                    'admin.console.wifiApplying'
+                );
+                consoleWifiFeedback.hidden = false;
+                return;
+            }
+
+            if (data.type === 'console-wifi-configuration-applied') {
+                consoleWifiPassword.value = '';
+                updateConsoleWifiState({
+                    busy: false,
+                    configured: true,
+                    accessPointConfigured: true,
+                    ssid: data.ssid,
+                    passwordConfigured: true
+                });
+                consoleWifiFeedback.textContent = I18n.t(
+                    data.activate
+                        ? 'admin.console.wifiActivated'
+                        : 'admin.console.wifiSaved'
+                );
+                consoleWifiFeedback.hidden = false;
+                return;
+            }
+
+            if (data.type === 'console-wifi-configuration-failed') {
+                updateConsoleWifiState({
+                    busy: false
+                });
+                consoleWifiFeedback.textContent = I18n.t(
+                    'admin.console.wifiFailed'
+                );
+                consoleWifiFeedback.hidden = false;
                 return;
             }
 

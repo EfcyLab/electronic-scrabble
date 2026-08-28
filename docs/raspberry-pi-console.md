@@ -80,6 +80,30 @@ which avoids unexpectedly dropping a Wi-Fi SSH installation session.
 The shared HDMI screen displays a Wi-Fi QR code and, once a game exists, a
 second QR code that opens the game-specific player URL. QR generation runs locally through the Node.js `qrcode` dependency; no external service or Raspberry Pi-specific executable is required.
 
+### Configure Wi-Fi from the administration console
+
+The Raspberry Pi installer enables authenticated Wi-Fi administration in
+`/admin/`. The **Autonomous Wi-Fi** panel can set:
+
+- SSID;
+- WPA password (leave blank to keep the existing password);
+- two-letter regulatory country code;
+- save-only or save-and-activate behavior.
+
+Saving without activation updates the persistent NetworkManager profile for a
+later activation or reboot. **Save and activate now** may interrupt the current
+Wi-Fi/SSH connection and therefore requires confirmation.
+
+The WebSocket game server remains non-root. It validates the submitted values
+and uses non-interactive `sudo` only for the fixed helper:
+
+```text
+/usr/local/sbin/electronic-scrabble-configure-access-point
+```
+
+The helper is the only additional passwordless command granted by the
+installer. The configured password is not sent back in administrator state.
+
 See [`autonomous-wifi-and-qr.md`](autonomous-wifi-and-qr.md).
 
 ## Services

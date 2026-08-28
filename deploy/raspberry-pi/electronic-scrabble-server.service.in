@@ -18,7 +18,7 @@ UMask=0077
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=__DATA_DIR__
+ReadWritePaths=__DATA_DIR__ /etc/electronic-scrabble
 
 [Install]
 WantedBy=multi-user.target
