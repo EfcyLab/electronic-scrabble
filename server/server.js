@@ -7,7 +7,7 @@
  * The server is the authoritative source of the game state.
  *
  * @author Electronic Scrabble Project
- * @version 1.4.0
+ * @version 1.5.0
  */
 
 const WebSocket = require('ws');
@@ -1935,6 +1935,94 @@ async function challengePendingMove(socket) {
 }
 
 /**
+ * Scores a player's local move preview without modifying game state.
+ *
+ * This endpoint applies the same structural validation and premium-square
+ * scoring as final move submission, but intentionally skips dictionary
+ * validation. It lets the player compare candidate moves before committing.
+ *
+ * @param {WebSocket} socket Player WebSocket connection.
+ * @param {Object} message Received protocol message.
+ *
+ * @returns {void}
+ */
+function previewMove(socket, message) {
+    const revision = Number.isInteger(message.revision)
+        ? message.revision
+        : 0;
+    const session = socket.session;
+
+    const rejectPreview = (code) => {
+        send(socket, 'move-preview', {
+            revision,
+            valid: false,
+            code
+        });
+    };
+
+    if (!session || session.role !== 'player' || !session.playerId) {
+        rejectPreview('NOT_AUTHENTICATED_PLAYER');
+        return;
+    }
+
+    const game = games.get(session.gameCode);
+
+    if (!game) {
+        rejectPreview('GAME_NOT_FOUND');
+        return;
+    }
+
+    if (game.status !== 'playing') {
+        rejectPreview('GAME_NOT_PLAYING');
+        return;
+    }
+
+    const player = game.players.get(session.playerId);
+
+    if (!player) {
+        rejectPreview('PLAYER_NOT_FOUND');
+        return;
+    }
+
+    if (game.currentPlayerId !== player.id) {
+        rejectPreview('NOT_YOUR_TURN');
+        return;
+    }
+
+    if (game.pendingMove !== null) {
+        rejectPreview('PENDING_MOVE_REQUIRES_RESOLUTION');
+        return;
+    }
+
+    try {
+        const move = validateAndScoreMove(
+            game.board,
+            player.rack,
+            message.placements
+        );
+
+        send(socket, 'move-preview', {
+            revision,
+            valid: true,
+            score: move.score,
+            wordScore: move.wordScore,
+            bingoBonus: move.bingoBonus,
+            words: move.words.map((word) => ({
+                text: word.text,
+                score: word.score
+            }))
+        });
+    } catch (error) {
+        if (error instanceof MoveValidationError) {
+            rejectPreview(error.code);
+            return;
+        }
+
+        throw error;
+    }
+}
+
+/**
  * Validates and applies a player's proposed board move.
  *
  * Every formed word is validated when a configured dictionary is enabled.
@@ -2383,6 +2471,10 @@ async function handleMessage(socket, message) {
 
         case 'begin-play':
             beginPlay(socket);
+            break;
+
+        case 'preview-move':
+            previewMove(socket, message);
             break;
 
         case 'submit-move':

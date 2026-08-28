@@ -10,16 +10,16 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/player.css?v=23.0.0">
+    <link rel="stylesheet" href="./css/player.css?v=24.0.0">
 
-    <script src="../shared/i18n/en.js?v=23.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=23.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=23.0.0"></script>
+    <script src="../shared/i18n/en.js?v=24.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=24.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=24.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
-    <script src="./js/rack-order.js?v=23.0.0"></script>
-    <script src="./js/board-navigation.js?v=23.0.0"></script>
-    <script src="./js/mobile-layout.js?v=23.0.0"></script>
+    <script src="./js/rack-order.js?v=24.0.0"></script>
+    <script src="./js/board-navigation.js?v=24.0.0"></script>
+    <script src="./js/mobile-layout.js?v=24.0.0"></script>
 </head>
 <body data-i18n-page-title="player.pageTitle">
     <main class="app-shell">
@@ -59,45 +59,61 @@
             </div>
         </header>
 
-        <form id="join-form">
-            <h2 class="card__title" data-i18n="player.join.title">Join a game</h2>
+        <form id="join-form" class="join-form-compact" data-i18n-aria-label="player.join.title">
+            <label class="join-field" for="game-code">
+                <span data-i18n="player.join.gameCode">Game code</span>
+                <input id="game-code" type="text" maxlength="4" required>
+            </label>
 
-            <label for="game-code" data-i18n="player.join.gameCode">Game code</label>
-            <input id="game-code" type="text" maxlength="4" required>
-
-            <label for="player-name" data-i18n="player.join.playerName">Player name</label>
-            <input id="player-name" type="text" maxlength="30" required>
+            <label class="join-field" for="player-name">
+                <span data-i18n="player.join.playerName">Player name</span>
+                <input id="player-name" type="text" maxlength="30" required>
+            </label>
 
             <button id="join-button" type="submit" disabled data-i18n="player.join.button">Join Game</button>
         </form>
 
         <section id="game-information" hidden>
             <section class="player-summary">
-                <div>
-                    <p class="muted player-summary__eyebrow"><span data-i18n="common.game">Game</span> <span id="current-game-code"></span></p>
-                    <h2 id="current-player-name" data-i18n="player.player">Player</h2>
-                    <p id="turn-status" class="status" data-i18n="common.waiting">Waiting</p>
+                <div class="player-summary__identity">
+                    <span class="muted player-summary__eyebrow"><span data-i18n="common.game">Game</span> <strong id="current-game-code"></strong></span>
+                    <strong id="current-player-name" data-i18n="player.player">Player</strong>
                 </div>
 
-                <div class="metric">
+                <p id="turn-status" class="status" data-i18n="common.waiting">Waiting</p>
+
+                <div class="metric player-summary__score">
                     <span id="player-score" class="metric__value">0</span>
                     <span class="metric__label" data-i18n="common.points">Points</span>
                 </div>
             </section>
 
-            <section id="starting-draw-section" class="player-panel starting-draw-section" hidden>
-                <h3 class="card__title" data-i18n="player.whoStarts">Who starts?</h3>
-                <div id="starting-draw-rounds" class="starting-draw-rounds"></div>
-                <p id="starting-player-winner" class="starting-player-winner"></p>
-                <p class="muted panel-help" data-i18n="player.drawHelp">All drawn tiles return to the bag before racks are dealt.</p>
+            <section id="starting-draw-section" class="starting-draw-section" hidden>
+                <span class="muted" data-i18n="player.whoStarts">Who starts?</span>
+                <strong id="starting-player-winner" class="starting-player-winner"></strong>
             </section>
 
             <div class="gameplay-workspace">
-                <section id="rack-section" class="player-panel" hidden>
-                    <div class="row row--between">
-                        <div>
+                <section id="move-section" class="player-panel player-play-surface" hidden>
+                    <div class="board-navigation">
+                        <div id="player-board-viewport" class="player-board-viewport">
+                            <div id="player-board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
+                            <div class="board-live-status" aria-live="polite">
+                                <span id="pending-count" class="status">0 tiles</span>
+                                <span class="move-score-badge">
+                                    <span class="move-score-badge__label" data-i18n="player.move.previewLabel">Move score</span>
+                                    <strong id="move-score-preview" data-i18n="player.move.previewUnavailable">— pts</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="rack-section" class="player-panel player-rack-surface" hidden>
+                    <div class="rack-toolbar">
+                        <div class="rack-heading">
                             <h3 class="card__title" data-i18n="player.rack.title">Your rack</h3>
-                            <p class="muted panel-help" data-i18n="player.rack.help">Drag tiles to rearrange your rack, or select one before placing it.</p>
+                            <span id="bag-status" class="status">Bag: --</span>
                         </div>
 
                         <label id="blank-letter-field" class="field blank-letter-field" hidden>
@@ -123,51 +139,12 @@
                         </div>
                     </div>
 
+                    <div id="rack" class="rack" aria-label="Private tile rack" data-i18n-aria-label="player.rack.aria"></div>
                     <p id="rack-arrangement-status" class="muted rack-arrangement-status" aria-live="polite">
                         <span data-i18n="player.rack.arrangementHelp">Drag a tile, or select it and use the arrangement buttons.</span>
                     </p>
 
-                    <div id="rack" class="rack" aria-label="Private tile rack" data-i18n-aria-label="player.rack.aria"></div>
-                </section>
-
-                <section id="move-section" class="player-panel" hidden>
-                    <div class="row row--between move-section__header">
-                        <div>
-                            <h3 class="card__title" data-i18n="player.move.title">Prepare your move</h3>
-                            <p class="muted panel-help">
-                                <span data-i18n="player.move.help">Select a rack tile, then tap the destination square on the complete board.</span>
-                            </p>
-                        </div>
-
-                        <span id="pending-count" class="status">0 tiles</span>
-                    </div>
-
-                    <div class="board-navigation">
-                        <div id="player-board-viewport" class="player-board-viewport">
-                            <div id="player-board" role="grid" aria-label="Scrabble board" data-i18n-aria-label="player.board.aria"></div>
-                        </div>
-                    </div>
-
-                    <details class="player-disclosure precise-placement">
-                        <summary data-i18n="player.precisePlacement">Precise placement</summary>
-                        <form id="coordinate-form" class="coordinate-form">
-                            <label class="field">
-                                <span class="field__label" data-i18n="player.coordinate.column">Column</span>
-                                <select id="coordinate-column" class="select"></select>
-                            </label>
-
-                            <label class="field">
-                                <span class="field__label" data-i18n="player.coordinate.row">Row</span>
-                                <select id="coordinate-row" class="select"></select>
-                            </label>
-
-                            <button id="coordinate-place" class="button button--secondary" type="submit">
-                                <span data-i18n="player.coordinate.place">Place Selected Tile</span>
-                            </button>
-                        </form>
-                    </details>
-
-                    <div class="move-actions">
+                    <div class="rack-primary-actions">
                         <button id="clear-move" class="button button--secondary" type="button" disabled>
                             <span data-i18n="player.move.clear">Clear Move</span>
                         </button>
@@ -175,17 +152,41 @@
                         <button id="submit-move" class="button button--primary" type="button" disabled>
                             <span data-i18n="player.move.submit">Submit Move</span>
                         </button>
+
+                        <div id="turn-actions-section" class="rack-turn-actions" hidden>
+                            <button id="exchange-mode" class="button button--secondary" type="button" disabled>
+                                <span data-i18n="player.exchange.button">Exchange Tiles</span>
+                            </button>
+
+                            <button id="pass-turn" class="button button--secondary" type="button" disabled>
+                                <span data-i18n="player.pass.button">Pass Turn</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <p id="word-validation-note" class="validation-note">
+                    <div id="exchange-controls" class="exchange-controls rack-exchange-controls" hidden>
+                        <div class="exchange-selection-summary">
+                            <strong data-i18n="player.exchange.select">Select tiles to exchange</strong>
+                            <span id="exchange-count" class="status">0 tiles selected</span>
+                        </div>
+
+                        <div class="exchange-actions">
+                            <button id="cancel-exchange" class="button button--secondary" type="button">
+                                <span data-i18n="common.cancel">Cancel</span>
+                            </button>
+
+                            <button id="confirm-exchange" class="button button--primary" type="button" disabled>
+                                <span data-i18n="player.exchange.confirm">Confirm Exchange</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <p id="word-validation-note" class="validation-note compact-validation-note">
                         <span data-i18n="player.validation.loading">Word validation status is loading.</span>
                     </p>
-
                     <p id="move-feedback" class="move-feedback" aria-live="polite"></p>
                 </section>
-
             </div>
-
 
             <section id="challenge-section" class="player-panel challenge-panel" hidden>
                 <div class="row row--between">
@@ -213,50 +214,6 @@
                 </div>
             </section>
 
-            <section id="turn-actions-section" class="player-panel" hidden>
-                <div class="row row--between">
-                    <div>
-                        <h3 class="card__title" data-i18n="player.actions.title">Turn actions</h3>
-                        <p id="turn-action-help" class="muted panel-help">
-                            <span data-i18n="player.actions.help">Play a word, exchange one or more tiles, or pass your turn.</span>
-                        </p>
-                    </div>
-
-                    <span id="bag-status" class="status">Bag: --</span>
-                </div>
-
-                <div class="turn-action-buttons">
-                    <button id="exchange-mode" class="button button--secondary" type="button" disabled>
-                        <span data-i18n="player.exchange.button">Exchange Tiles</span>
-                    </button>
-
-                    <button id="pass-turn" class="button button--secondary" type="button" disabled>
-                        <span data-i18n="player.pass.button">Pass Turn</span>
-                    </button>
-                </div>
-
-                <div id="exchange-controls" class="exchange-controls" hidden>
-                    <div>
-                        <strong data-i18n="player.exchange.select">Select tiles to exchange</strong>
-                        <p class="muted panel-help">
-                            <span data-i18n="player.exchange.help">Tap one or more rack tiles. The exchange consumes your turn.</span>
-                        </p>
-                    </div>
-
-                    <span id="exchange-count" class="status">0 tiles selected</span>
-
-                    <div class="exchange-actions">
-                        <button id="cancel-exchange" class="button button--secondary" type="button">
-                            <span data-i18n="common.cancel">Cancel</span>
-                        </button>
-
-                        <button id="confirm-exchange" class="button button--primary" type="button" disabled>
-                            <span data-i18n="player.exchange.confirm">Confirm Exchange</span>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
             <section id="final-result-section" class="player-panel final-result" hidden>
                 <h3 class="card__title" data-i18n="player.finalResult">Final result</h3>
                 <p id="final-winner" class="final-winner"></p>
@@ -280,7 +237,7 @@
          * authoritative game server.
          *
          * @author Electronic Scrabble Project
-         * @version 1.3.0
+         * @version 1.4.0
          */
 
         const I18n = window.ElectronicScrabbleI18n;
@@ -319,7 +276,6 @@
         const wordValidationNote = document.getElementById('word-validation-note');
         const turnStatus = document.getElementById('turn-status');
         const startingDrawSection = document.getElementById('starting-draw-section');
-        const startingDrawRounds = document.getElementById('starting-draw-rounds');
         const startingPlayerWinner = document.getElementById('starting-player-winner');
         const rackSection = document.getElementById('rack-section');
         const rackElement = document.getElementById('rack');
@@ -332,13 +288,10 @@
         const moveSection = document.getElementById('move-section');
         const playerBoard = document.getElementById('player-board');
         const playerBoardViewport = document.getElementById('player-board-viewport');
-        const coordinateForm = document.getElementById('coordinate-form');
-        const coordinateColumn = document.getElementById('coordinate-column');
-        const coordinateRow = document.getElementById('coordinate-row');
-        const coordinatePlace = document.getElementById('coordinate-place');
         const clearMoveButton = document.getElementById('clear-move');
         const submitMoveButton = document.getElementById('submit-move');
         const pendingCount = document.getElementById('pending-count');
+        const moveScorePreview = document.getElementById('move-score-preview');
         const moveFeedback = document.getElementById('move-feedback');
         const challengeSection = document.getElementById('challenge-section');
         const challengeSummary = document.getElementById('challenge-summary');
@@ -346,7 +299,6 @@
         const challengeMoveButton = document.getElementById('challenge-move');
         const acceptPendingMoveButton = document.getElementById('accept-pending-move');
         const turnActionsSection = document.getElementById('turn-actions-section');
-        const turnActionHelp = document.getElementById('turn-action-help');
         const bagStatus = document.getElementById('bag-status');
         const exchangeModeButton = document.getElementById('exchange-mode');
         const passTurnButton = document.getElementById('pass-turn');
@@ -383,6 +335,8 @@
         let suppressRackClickUntil = 0;
         let lastGameState = null;
         let connectionStatusKey = 'common.connecting';
+        let movePreviewRevision = 0;
+        let movePreviewTimer = null;
 
         /**
          * Returns the local storage key for a player's rack order.
@@ -534,7 +488,7 @@
         }
 
         /**
-         * Initializes letter and coordinate selectors.
+         * Initializes the blank-tile letter selector.
          *
          * @returns {void}
          */
@@ -545,23 +499,6 @@
                 option.textContent = letter;
                 blankLetterSelect.appendChild(option);
             });
-
-            COLUMN_LABELS.forEach((column, index) => {
-                const option = document.createElement('option');
-                option.value = String(index);
-                option.textContent = column;
-                coordinateColumn.appendChild(option);
-            });
-
-            for (let row = 0; row < BOARD_SIZE; row += 1) {
-                const option = document.createElement('option');
-                option.value = String(row);
-                option.textContent = String(row + 1);
-                coordinateRow.appendChild(option);
-            }
-
-            coordinateColumn.value = '7';
-            coordinateRow.value = '7';
         }
 
         /**
@@ -604,48 +541,20 @@
 
 
         /**
-         * Renders the public starting-player draw for the local player.
+         * Renders the compact starting-player result for the local player.
+         *
+         * Full draw details remain available on the shared screen and admin
+         * interface; the player view only needs to know who starts.
          *
          * @param {Object|null} startingPlayerDraw Starting-player draw result.
          *
          * @returns {void}
          */
         function renderStartingPlayerDraw(startingPlayerDraw) {
-            startingDrawRounds.replaceChildren();
-
             if (startingPlayerDraw === null) {
                 startingDrawSection.hidden = true;
                 return;
             }
-
-            startingPlayerDraw.rounds.forEach((round) => {
-                const roundElement = document.createElement('div');
-                const title = document.createElement('strong');
-
-                roundElement.className = 'starting-draw-round';
-                title.textContent = I18n.t('common.round', { round: round.round });
-                roundElement.appendChild(title);
-
-                round.draws.forEach((draw) => {
-                    const item = document.createElement('div');
-                    const letter = document.createElement('span');
-                    const note = draw.blankRedraws > 0
-                        ? I18n.tp('player.blankRedraw', draw.blankRedraws)
-                        : '';
-
-                    item.className = 'starting-draw-item';
-                    letter.className = 'starting-draw-letter';
-                    letter.textContent = draw.letter;
-                    item.append(
-                        document.createTextNode(`${draw.playerName}: `),
-                        letter,
-                        document.createTextNode(note)
-                    );
-                    roundElement.appendChild(item);
-                });
-
-                startingDrawRounds.appendChild(roundElement);
-            });
 
             const isLocalStarter = startingPlayerDraw.startingPlayerId === currentPlayerId;
 
@@ -1784,6 +1693,66 @@
         }
 
         /**
+         * Resets the live move-score preview.
+         *
+         * Incrementing the revision invalidates any delayed server response
+         * that belongs to an older local placement layout.
+         *
+         * @returns {void}
+         */
+        function resetMoveScorePreview() {
+            movePreviewRevision += 1;
+
+            if (movePreviewTimer !== null) {
+                window.clearTimeout(movePreviewTimer);
+                movePreviewTimer = null;
+            }
+
+            moveScorePreview.textContent = I18n.t('player.move.previewUnavailable');
+            moveScorePreview.removeAttribute('title');
+            moveScorePreview.dataset.valid = 'false';
+        }
+
+        /**
+         * Requests an authoritative structural score preview for the local move.
+         *
+         * The request is intentionally debounced because a drag gesture can
+         * update placements in quick succession. Dictionary validation is not
+         * performed here; only the deterministic Scrabble score is previewed.
+         *
+         * @returns {void}
+         */
+        function scheduleMoveScorePreview() {
+            if (movePreviewTimer !== null) {
+                window.clearTimeout(movePreviewTimer);
+                movePreviewTimer = null;
+            }
+
+            if (
+                pendingPlacements.size === 0 ||
+                !canPlay() ||
+                exchangeMode ||
+                socket.readyState !== WebSocket.OPEN
+            ) {
+                resetMoveScorePreview();
+                return;
+            }
+
+            const revision = ++movePreviewRevision;
+            moveScorePreview.textContent = I18n.t('player.move.previewCalculating');
+            moveScorePreview.dataset.valid = 'pending';
+
+            movePreviewTimer = window.setTimeout(() => {
+                movePreviewTimer = null;
+                socket.send(JSON.stringify({
+                    type: 'preview-move',
+                    revision,
+                    placements: Array.from(pendingPlacements.values())
+                }));
+            }, 60);
+        }
+
+        /**
          * Updates move counters and action buttons.
          *
          * @returns {void}
@@ -1794,11 +1763,7 @@
             pendingCount.textContent = I18n.tp('common.tile', count);
             clearMoveButton.disabled = count === 0 || exchangeMode;
             submitMoveButton.disabled = !canPlay() || exchangeMode || count === 0;
-            coordinatePlace.disabled = (
-                !canPlay() ||
-                exchangeMode ||
-                (selectedTileId === null && selectedPendingPlacementKey === null)
-            );
+            scheduleMoveScorePreview();
         }
 
         /**
@@ -1829,23 +1794,6 @@
             exchangeControls.hidden = !exchangeMode;
             exchangeCount.textContent = I18n.tp('player.exchange.selected', selectedCount);
             confirmExchangeButton.disabled = !canExchange || selectedCount === 0;
-
-            if (gameStatus !== 'playing') {
-                turnActionHelp.textContent = I18n.t('player.actions.notStarted');
-                return;
-            }
-
-            if (!isTurn) {
-                turnActionHelp.textContent = I18n.t('player.actions.wait');
-                return;
-            }
-
-            if (!canExchange) {
-                turnActionHelp.textContent = I18n.t('player.actions.exchangeUnavailable');
-                return;
-            }
-
-            turnActionHelp.textContent = I18n.t('player.actions.help');
         }
 
         /**
@@ -2103,19 +2051,6 @@
             }));
         });
 
-        coordinateForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-
-            const row = Number.parseInt(coordinateRow.value, 10);
-            const column = Number.parseInt(coordinateColumn.value, 10);
-
-            if (selectedPendingPlacementKey !== null) {
-                movePendingPlacement(row, column);
-                return;
-            }
-
-            placeSelectedTile(row, column);
-        });
 
         clearMoveButton.addEventListener('click', clearPendingMove);
         submitMoveButton.addEventListener('click', submitPendingMove);
@@ -2249,6 +2184,33 @@
                 return;
             }
 
+            if (data.type === 'move-preview') {
+                if (data.revision !== movePreviewRevision) {
+                    return;
+                }
+
+                if (!data.valid) {
+                    moveScorePreview.textContent = I18n.t('player.move.previewUnavailable');
+                    moveScorePreview.dataset.valid = 'false';
+
+                    const errorKey = `error.${data.code}`;
+                    const translatedError = I18n.t(errorKey);
+                    moveScorePreview.title = translatedError === errorKey
+                        ? String(data.code ?? '')
+                        : translatedError;
+                    return;
+                }
+
+                moveScorePreview.textContent = I18n.t('player.move.previewScore', {
+                    score: data.score
+                });
+                moveScorePreview.dataset.valid = 'true';
+                moveScorePreview.title = Array.isArray(data.words)
+                    ? data.words.map((word) => `${word.text}: ${word.score}`).join(' · ')
+                    : '';
+                return;
+            }
+
             if (data.type === 'move-pending-challenge') {
                 pendingPlacements.clear();
                 selectedPendingPlacementKey = null;
@@ -2312,6 +2274,7 @@
                 selectedTileId = null;
                 exchangeMode = false;
                 exchangeTileIds.clear();
+                updateMoveControls();
                 updateTurnActionControls();
 
                 showMoveFeedback(I18n.t('player.feedback.moveAccepted', {

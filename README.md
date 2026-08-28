@@ -406,6 +406,7 @@ join-game
 resume-game
 start-game
 begin-play
+preview-move
 submit-move
 accept-pending-move
 challenge-pending-move
@@ -418,6 +419,25 @@ purge-game
 console-system-action
 configure-console-wifi
 ```
+
+
+## Compact Player Workspace and Live Score Preview
+
+The player workflow keeps the complete board as the primary surface with the
+private rack immediately underneath it. Coordinate-based precise placement has
+been removed: tiles are placed by tapping or dragging them directly onto the
+board, and provisional board tiles can still be repositioned before submission.
+
+Exchange selection is integrated into the rack controls. Join, game identity,
+and starting-player information use compact strips so the board and rack remain
+visible together on typical phone screens.
+
+While a move is being prepared, the player client sends a non-mutating
+`preview-move` request after each placement change. The authoritative server
+uses the same structural move engine as final submission and returns the current
+Scrabble score, including premium squares, cross-words, and the seven-tile
+bonus. Dictionary validation is intentionally not performed until the normal
+submission/challenge flow.
 
 ## Security Principles
 

@@ -10,13 +10,13 @@ coordinate remains visible at all times.
 
 To place a tile:
 
-1. select a tile from the private rack;
-2. tap its destination square on the board;
-3. repeat for the remaining tiles;
+1. drag a tile from the private rack onto its destination square, or select it
+   and tap the destination square;
+2. reposition provisional tiles directly on the board when needed;
+3. compare the live server-calculated move score;
 4. submit the move.
 
-The coordinate form remains available as an alternative input method when a
-precise touch target is inconvenient on a very small display.
+Coordinate-form placement has been removed to keep the gameplay surface simple.
 
 ## Responsive Sizing
 
@@ -27,11 +27,22 @@ The page itself never needs horizontal scrolling for gameplay.
 
 ## Rack Proximity
 
-On portrait smartphones the private rack is placed immediately above the
-board so the player can select and place tiles without repeatedly scrolling
-between distant sections.
+The private rack is placed immediately below the board. The board and rack use
+a joined visual surface with no intermediate controls, which minimizes vertical
+scrolling on portrait phones.
+
+Tile exchange controls are integrated into the rack section instead of living
+in a separate turn-management card.
+
+## Live Score Preview
+
+After each provisional placement change, the player asks the authoritative
+server for a structural score preview. The returned score uses the same premium
+square, cross-word, and bingo calculations as final move submission. No board
+state is modified and dictionary validation remains part of the normal submit
+or challenge workflow.
 
 ## Server Independence
 
-Board sizing and rack ordering are local presentation state only. They are
-never sent to the authoritative game server and cannot change the game rules.
+Board sizing and rack ordering are local presentation state only. Move-score
+preview requests are read-only and cannot change authoritative game state.

@@ -798,3 +798,39 @@ console-wifi-configuration-failed
 `console-wifi-state` never contains the Wi-Fi password. The server validates
 the requested values and invokes only the fixed root-owned access-point helper;
 it does not accept arbitrary shell commands.
+
+
+## Live Move Score Preview
+
+A player who is currently allowed to play may ask the server to score the
+current local placements without modifying the game state:
+
+```json
+{
+  "type": "preview-move",
+  "revision": 12,
+  "placements": [
+    { "tileId": "PRIVATE-TILE-ID", "row": 7, "column": 7, "assignedLetter": null }
+  ]
+}
+```
+
+The server applies the same structural validation and scoring rules as
+`submit-move`, but does not perform dictionary validation and does not stage or
+commit tiles. A valid response is:
+
+```json
+{
+  "type": "move-preview",
+  "revision": 12,
+  "valid": true,
+  "score": 18,
+  "wordScore": 18,
+  "bingoBonus": 0,
+  "words": [{ "text": "CHAT", "score": 18 }]
+}
+```
+
+For a structurally incomplete or invalid provisional layout, `valid` is false
+and a stable move-validation `code` is returned. `revision` lets the browser
+discard stale responses after a fast drag or repositioning gesture.

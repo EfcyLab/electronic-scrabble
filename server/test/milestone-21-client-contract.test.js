@@ -34,12 +34,12 @@ test('administrator can choose the word provider and policy for a lobby game', (
     assert.match(adminHtml, /wordValidationPolicy:\s*wordValidationPolicy\.value/);
 });
 
-test('player keeps secondary controls in native disclosure panels', () => {
+test('player keeps optional settings and player list in native disclosure panels', () => {
     assert.match(playerHtml, /<details class="player-header-settings">/);
-    assert.match(playerHtml, /<details class="player-disclosure precise-placement">/);
     assert.match(playerHtml, /<details class="player-panel player-disclosure player-list-panel">/);
     assert.match(playerHtml, /data-i18n="player\.settings"/);
-    assert.match(playerHtml, /data-i18n="player\.precisePlacement"/);
+    assert.doesNotMatch(playerHtml, /id="coordinate-form"/);
+    assert.doesNotMatch(playerHtml, /player\.precisePlacement/);
 });
 
 test('shared screen prioritizes scoreboard, clock, overview, and last action before lobby join information', () => {

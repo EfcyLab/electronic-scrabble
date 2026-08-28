@@ -490,9 +490,8 @@ body {
 /*
  * Compact portrait gameplay layout.
  *
- * Keeps all seven rack tiles visible and places the board directly beneath
- * the rack so the primary play surface remains usable without horizontal
- * page scrolling or excessive vertical spacing.
+ * Keeps all seven rack tiles visible while preserving a compact portrait
+ * workspace without horizontal page scrolling or excessive vertical spacing.
  */
 
 .gameplay-workspace {
@@ -1110,5 +1109,406 @@ main {
 
     #move-section + #rack-section {
         margin-top: 0;
+    }
+}
+
+/*
+ * Milestone 24 compact play workspace.
+ *
+ * The board is the primary surface, the rack sits directly underneath it,
+ * and secondary game-management information consumes as little vertical
+ * space as possible on phones and small tablets.
+ */
+
+#join-form.join-form-compact {
+    display: grid;
+    grid-template-columns: minmax(90px, 0.7fr) minmax(140px, 1.2fr) auto;
+    gap: 0.4rem;
+    align-items: end;
+    padding: 0.55rem 0.65rem;
+}
+
+.join-field {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.join-field > span {
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+}
+
+#join-form.join-form-compact input,
+#join-form.join-form-compact #join-button {
+    min-height: 38px;
+    padding: 0.45rem 0.6rem;
+}
+
+#join-form.join-form-compact #join-button {
+    white-space: nowrap;
+}
+
+#game-information {
+    gap: 0.3rem;
+    margin-top: 0.3rem;
+}
+
+.player-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.45rem;
+    align-items: center;
+    min-height: 0;
+    padding: 0.38rem 0.55rem;
+    border-radius: 0.65rem;
+}
+
+.player-summary__identity {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.55rem;
+    align-items: baseline;
+    min-width: 0;
+}
+
+.player-summary__eyebrow {
+    font-size: 0.66rem;
+    white-space: nowrap;
+}
+
+#current-player-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1rem;
+}
+
+.player-summary #turn-status {
+    margin: 0;
+    white-space: nowrap;
+}
+
+.player-summary__score {
+    display: flex;
+    align-items: baseline;
+    gap: 0.2rem;
+}
+
+.player-summary__score .metric__value {
+    font-size: 1.4rem;
+}
+
+.player-summary__score .metric__label {
+    font-size: 0.66rem;
+}
+
+.starting-draw-section {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 0;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+    border-radius: 0.6rem;
+    background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface));
+}
+
+.starting-draw-section[hidden] {
+    display: none;
+}
+
+.starting-draw-section .starting-player-winner {
+    margin: 0;
+    font-size: 0.86rem;
+}
+
+.gameplay-workspace {
+    gap: 0;
+}
+
+.player-play-surface,
+.player-rack-surface {
+    padding: 0.25rem;
+    box-shadow: none;
+}
+
+.player-play-surface {
+    border-bottom: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    padding-bottom: 0;
+}
+
+.player-rack-surface {
+    border-top-right-radius: 0;
+    border-top-left-radius: 0;
+    padding-top: 0.2rem;
+}
+
+.player-board-viewport {
+    border-bottom-right-radius: 0.45rem;
+    border-bottom-left-radius: 0.45rem;
+}
+
+.board-live-status {
+    position: absolute;
+    z-index: 8;
+    inset: 0.35rem 0.35rem auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.35rem;
+    pointer-events: none;
+}
+
+.board-live-status .status,
+.move-score-badge {
+    min-height: 26px;
+    padding: 0.18rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+    box-shadow: 0 1px 5px color-mix(in srgb, #000 18%, transparent);
+    backdrop-filter: blur(4px);
+    font-size: 0.68rem;
+}
+
+.move-score-badge {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+}
+
+.move-score-badge__label {
+    color: var(--color-text-muted);
+    font-weight: 750;
+}
+
+#move-score-preview[data-valid="true"] {
+    color: var(--color-success);
+}
+
+#move-score-preview[data-valid="pending"] {
+    color: var(--color-text-muted);
+}
+
+.rack-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.rack-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.rack-heading .card__title {
+    margin: 0;
+}
+
+.rack-heading #bag-status {
+    min-height: 26px;
+    padding: 0.12rem 0.4rem;
+    font-size: 0.66rem;
+}
+
+.rack-arrangement-status {
+    min-height: 0;
+    margin: 0;
+    font-size: 0.7rem;
+}
+
+.rack {
+    padding: 0.08rem 0 0.2rem;
+}
+
+.rack-primary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 2fr);
+    gap: 0.3rem;
+}
+
+.rack-primary-actions > .button,
+.rack-turn-actions .button {
+    min-height: 38px;
+    padding: 0.35rem 0.45rem;
+    font-size: 0.76rem;
+}
+
+.rack-turn-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.3rem;
+}
+
+.rack-turn-actions[hidden] {
+    display: none;
+}
+
+.rack-exchange-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.35rem;
+    align-items: center;
+    padding: 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+    border-radius: 0.55rem;
+    background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface-elevated));
+}
+
+.rack-exchange-controls[hidden] {
+    display: none;
+}
+
+.exchange-selection-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.76rem;
+}
+
+.rack-exchange-controls .exchange-actions {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 0.25rem;
+}
+
+.rack-exchange-controls .button {
+    min-height: 36px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.72rem;
+}
+
+.compact-validation-note {
+    margin: 0;
+    padding: 0.28rem 0.45rem;
+    font-size: 0.68rem;
+}
+
+#move-feedback {
+    margin: 0;
+}
+
+#move-feedback:empty {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    #join-form.join-form-compact {
+        grid-template-columns: minmax(74px, 0.7fr) minmax(120px, 1.2fr) auto;
+        gap: 0.25rem;
+        padding: 0.35rem 0.3rem;
+    }
+
+    .join-field > span {
+        font-size: 0.6rem;
+    }
+
+    #join-form.join-form-compact input,
+    #join-form.join-form-compact #join-button {
+        min-height: 34px;
+        padding: 0.3rem 0.4rem;
+        font-size: 0.72rem;
+    }
+
+    .player-summary {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        min-height: 38px;
+        padding: 0.22rem 0.3rem;
+    }
+
+    #current-player-name {
+        font-size: 0.86rem;
+    }
+
+    .player-summary__eyebrow,
+    .player-summary__score .metric__label {
+        font-size: 0.58rem;
+    }
+
+    .player-summary__score .metric__value {
+        font-size: 1.15rem;
+    }
+
+    .player-summary #turn-status {
+        min-height: 24px;
+        padding: 0.1rem 0.35rem;
+        font-size: 0.62rem;
+    }
+
+    .starting-draw-section {
+        padding: 0.2rem 0.35rem;
+        font-size: 0.68rem;
+    }
+
+    .starting-draw-section .starting-player-winner {
+        font-size: 0.72rem;
+    }
+
+    .player-play-surface,
+    .player-rack-surface {
+        padding-inline: 0.12rem;
+    }
+
+    .board-live-status {
+        inset: 0.25rem 0.25rem auto;
+    }
+
+    .move-score-badge__label {
+        display: none;
+    }
+
+    .rack-toolbar {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .blank-letter-field:not([hidden]) {
+        grid-column: 1 / -1;
+    }
+
+    .rack-arrangement {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .rack-heading #bag-status {
+        font-size: 0.58rem;
+    }
+
+    .rack-arrangement-status {
+        display: none;
+    }
+
+    .rack-primary-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .rack-turn-actions {
+        grid-column: 1 / -1;
+    }
+
+    .rack-primary-actions > .button,
+    .rack-turn-actions .button {
+        min-height: 34px;
+        font-size: 0.7rem;
+    }
+
+    .rack-exchange-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .rack-exchange-controls .exchange-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .compact-validation-note {
+        font-size: 0.62rem;
     }
 }
