@@ -2,10 +2,10 @@
  * Electronic Scrabble Milestone 24 player workspace contract tests.
  *
  * Protects the compact board/rack workflow, rack-integrated exchange controls,
- * and authoritative live move-score preview.
+ * and live move-score preview.
  *
  * @author Electronic Scrabble Project
- * @version 0.24.0
+ * @version 0.25.0
  */
 
 const assert = require('node:assert/strict');
@@ -16,7 +16,6 @@ const test = require('node:test');
 const projectRoot = path.resolve(__dirname, '../..');
 const playerHtml = fs.readFileSync(path.join(projectRoot, 'player/index.html'), 'utf8');
 const playerCss = fs.readFileSync(path.join(projectRoot, 'player/css/player.css'), 'utf8');
-const serverSource = fs.readFileSync(path.join(projectRoot, 'server/server.js'), 'utf8');
 const english = require(path.join(projectRoot, 'shared/i18n/en.js'));
 const french = require(path.join(projectRoot, 'shared/i18n/fr.js'));
 
@@ -60,13 +59,12 @@ test('join, game summary, and starting-player information use compact structures
     assert.match(playerCss, /\.starting-draw-section\s*\{[^}]*display:\s*flex;/s);
 });
 
-test('player requests and renders authoritative live move score previews', () => {
+test('player renders a live move score preview without a WebSocket preview message', () => {
     assert.match(playerHtml, /id="move-score-preview"/);
-    assert.match(playerHtml, /type:\s*'preview-move'/);
-    assert.match(playerHtml, /data\.type === 'move-preview'/);
-    assert.match(serverSource, /function previewMove\(socket, message\)/);
-    assert.match(serverSource, /case 'preview-move':/);
-    assert.match(serverSource, /move = validateAndScoreMove|const move = validateAndScoreMove/);
+    assert.match(playerHtml, /move-score-preview\.js\?v=/);
+    assert.match(playerHtml, /MoveScorePreview\.validateAndScoreMove/);
+    assert.doesNotMatch(playerHtml, /type:\s*'preview-move'/);
+    assert.doesNotMatch(playerHtml, /data\.type === 'move-preview'/);
 });
 
 test('move score preview labels exist in English and French', () => {

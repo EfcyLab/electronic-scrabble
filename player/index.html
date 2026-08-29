@@ -10,16 +10,17 @@
     <link rel="stylesheet" href="../shared/css/themes/classic.css">
     <link rel="stylesheet" href="../shared/css/themes/midnight.css">
     <link rel="stylesheet" href="../shared/css/themes/forest.css">
-    <link rel="stylesheet" href="./css/player.css?v=24.0.0">
+    <link rel="stylesheet" href="./css/player.css?v=25.0.0">
 
-    <script src="../shared/i18n/en.js?v=24.0.0"></script>
-    <script src="../shared/i18n/fr.js?v=24.0.0"></script>
-    <script src="../shared/js/i18n-manager.js?v=24.0.0"></script>
+    <script src="../shared/i18n/en.js?v=25.0.0"></script>
+    <script src="../shared/i18n/fr.js?v=25.0.0"></script>
+    <script src="../shared/js/i18n-manager.js?v=25.0.0"></script>
     <script src="../shared/js/reconnecting-websocket.js"></script>
     <script src="../shared/js/theme-manager.js" defer></script>
-    <script src="./js/rack-order.js?v=24.0.0"></script>
-    <script src="./js/board-navigation.js?v=24.0.0"></script>
-    <script src="./js/mobile-layout.js?v=24.0.0"></script>
+    <script src="./js/rack-order.js?v=25.0.0"></script>
+    <script src="./js/board-navigation.js?v=25.0.0"></script>
+    <script src="./js/mobile-layout.js?v=25.0.0"></script>
+    <script src="./js/move-score-preview.js?v=25.0.0"></script>
 </head>
 <body data-i18n-page-title="player.pageTitle">
     <main class="app-shell">
@@ -115,11 +116,6 @@
                             <h3 class="card__title" data-i18n="player.rack.title">Your rack</h3>
                             <span id="bag-status" class="status">Bag: --</span>
                         </div>
-
-                        <label id="blank-letter-field" class="field blank-letter-field" hidden>
-                            <span class="field__label" data-i18n="player.rack.blankLetter">Blank letter</span>
-                            <select id="blank-letter" class="select" aria-label="Blank tile assigned letter" data-i18n-aria-label="player.rack.blankAria"></select>
-                        </label>
 
                         <div class="rack-arrangement" aria-label="Rack arrangement controls" data-i18n-aria-label="player.rack.arrangementAria">
                             <button id="move-rack-left" class="button button--secondary" type="button" disabled data-i18n-aria-label="player.rack.moveLeft">
@@ -253,6 +249,7 @@
         const RackOrder = window.ElectronicScrabbleRackOrder;
         const BoardNavigation = window.ElectronicScrabbleBoardNavigation;
         const MobileLayout = window.ElectronicScrabbleMobileLayout;
+        const MoveScorePreview = window.ElectronicScrabbleMoveScorePreview;
 
         const PREMIUM_LABELS = Object.freeze({
             DL: { key: 'premium.DL.short', longKey: 'premium.DL.long', className: 'player-board-cell--dl' },
@@ -283,8 +280,6 @@
         const shuffleRackButton = document.getElementById('shuffle-rack');
         const moveRackRightButton = document.getElementById('move-rack-right');
         const rackArrangementStatus = document.getElementById('rack-arrangement-status');
-        const blankLetterField = document.getElementById('blank-letter-field');
-        const blankLetterSelect = document.getElementById('blank-letter');
         const moveSection = document.getElementById('move-section');
         const playerBoard = document.getElementById('player-board');
         const playerBoardViewport = document.getElementById('player-board-viewport');
@@ -335,8 +330,6 @@
         let suppressRackClickUntil = 0;
         let lastGameState = null;
         let connectionStatusKey = 'common.connecting';
-        let movePreviewRevision = 0;
-        let movePreviewTimer = null;
 
         /**
          * Returns the local storage key for a player's rack order.
@@ -485,20 +478,6 @@
          */
         function getCoordinateKey(row, column) {
             return `${row}:${column}`;
-        }
-
-        /**
-         * Initializes the blank-tile letter selector.
-         *
-         * @returns {void}
-         */
-        function initializeSelectors() {
-            'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((letter) => {
-                const option = document.createElement('option');
-                option.value = letter;
-                option.textContent = letter;
-                blankLetterSelect.appendChild(option);
-            });
         }
 
         /**
@@ -979,6 +958,100 @@
         }
 
         /**
+         * Creates a floating visual copy of a rack tile for drag feedback.
+         *
+         * @param {HTMLElement} button Source rack tile button.
+         * @param {number} clientX Pointer viewport X coordinate.
+         * @param {number} clientY Pointer viewport Y coordinate.
+         *
+         * @returns {HTMLElement} Floating drag ghost.
+         */
+        function createRackDragGhost(button, clientX, clientY) {
+            const ghost = button.cloneNode(true);
+
+            ghost.classList.remove('rack-tile--selected');
+            ghost.classList.remove('rack-tile--exchange-selected');
+            ghost.classList.add('rack-drag-ghost');
+            ghost.disabled = true;
+
+            const rectangle = button.getBoundingClientRect();
+            ghost.style.width = `${rectangle.width}px`;
+            ghost.style.height = `${rectangle.height}px`;
+            ghost.removeAttribute('aria-label');
+            document.body.appendChild(ghost);
+            updateRackDragGhost(ghost, clientX, clientY);
+
+            return ghost;
+        }
+
+        /**
+         * Positions a floating rack drag ghost under the active pointer.
+         *
+         * @param {HTMLElement|null} ghost Floating drag ghost.
+         * @param {number} clientX Pointer viewport X coordinate.
+         * @param {number} clientY Pointer viewport Y coordinate.
+         *
+         * @returns {void}
+         */
+        function updateRackDragGhost(ghost, clientX, clientY) {
+            if (ghost === null) {
+                return;
+            }
+
+            ghost.style.left = `${clientX}px`;
+            ghost.style.top = `${clientY}px`;
+        }
+
+        /**
+         * Removes the floating drag ghost from the document.
+         *
+         * @param {HTMLElement|null} ghost Floating drag ghost.
+         *
+         * @returns {void}
+         */
+        function removeRackDragGhost(ghost) {
+            if (ghost?.isConnected) {
+                ghost.remove();
+            }
+        }
+
+        /**
+         * Returns whether a pointer is currently inside the board viewport.
+         *
+         * @param {number} clientX Pointer viewport X coordinate.
+         * @param {number} clientY Pointer viewport Y coordinate.
+         *
+         * @returns {boolean} True when the pointer is inside the board bounds.
+         */
+        function isPointerInsideBoard(clientX, clientY) {
+            const rectangle = playerBoardViewport.getBoundingClientRect();
+
+            return (
+                clientX >= rectangle.left &&
+                clientX <= rectangle.right &&
+                clientY >= rectangle.top &&
+                clientY <= rectangle.bottom
+            );
+        }
+
+        /**
+         * Returns whether the pointer is close enough to the rack to reorder it.
+         *
+         * This prevents vertical drags toward the board from unexpectedly
+         * shuffling the rack before the pointer reaches a board square.
+         *
+         * @param {number} clientY Pointer viewport Y coordinate.
+         *
+         * @returns {boolean} True when rack reordering should be considered.
+         */
+        function isPointerNearRack(clientY) {
+            const rectangle = rackElement.getBoundingClientRect();
+            const margin = 24;
+
+            return clientY >= rectangle.top - margin && clientY <= rectangle.bottom + margin;
+        }
+
+        /**
          * Starts a pointer-based rack drag operation.
          *
          * @param {PointerEvent} event Pointer event.
@@ -1000,15 +1073,13 @@
                 button,
                 dropTarget: null,
                 dropTargetElement: null,
+                ghost: null,
                 moved: false,
                 pointerId: event.pointerId,
                 startX: event.clientX,
                 startY: event.clientY,
                 tileId
             };
-
-            button.classList.add('rack-tile--dragging');
-            rackElement.classList.add('rack--dragging');
 
             if (typeof button.setPointerCapture === 'function') {
                 button.setPointerCapture(event.pointerId);
@@ -1043,24 +1114,47 @@
                 return;
             }
 
-            rackDragState.moved = true;
+            if (!rackDragState.moved) {
+                rackDragState.moved = true;
+                rackDragState.ghost = createRackDragGhost(
+                    rackDragState.button,
+                    event.clientX,
+                    event.clientY
+                );
+                rackDragState.button.classList.add('rack-tile--dragging');
+                rackElement.classList.add('rack--dragging');
+            }
+
             event.preventDefault();
+            updateRackDragGhost(
+                rackDragState.ghost,
+                event.clientX,
+                event.clientY
+            );
 
-            const boardTarget = canDragRackTileToBoard(rackDragState.tileId)
-                ? getRackBoardDropTarget(event.clientX, event.clientY)
-                : null;
+            if (
+                canDragRackTileToBoard(rackDragState.tileId) &&
+                isPointerInsideBoard(event.clientX, event.clientY)
+            ) {
+                const boardTarget = getRackBoardDropTarget(
+                    event.clientX,
+                    event.clientY
+                );
 
-            if (boardTarget !== null) {
-                if (rackDragState.dropTargetElement !== boardTarget.element) {
+                if (boardTarget !== null) {
+                    if (rackDragState.dropTargetElement !== boardTarget.element) {
+                        clearRackBoardDropTarget();
+                        rackDragState.dropTarget = {
+                            row: boardTarget.row,
+                            column: boardTarget.column
+                        };
+                        rackDragState.dropTargetElement = boardTarget.element;
+                        boardTarget.element.classList.add(
+                            'player-board-cell--rack-drop-target'
+                        );
+                    }
+                } else {
                     clearRackBoardDropTarget();
-                    rackDragState.dropTarget = {
-                        row: boardTarget.row,
-                        column: boardTarget.column
-                    };
-                    rackDragState.dropTargetElement = boardTarget.element;
-                    boardTarget.element.classList.add(
-                        'player-board-cell--rack-drop-target'
-                    );
                 }
 
                 return;
@@ -1068,7 +1162,7 @@
 
             clearRackBoardDropTarget();
 
-            if (!canReorderRack()) {
+            if (!canReorderRack() || !isPointerNearRack(event.clientY)) {
                 return;
             }
 
@@ -1117,22 +1211,28 @@
 
             const {
                 button,
+                ghost,
                 moved,
                 tileId
             } = rackDragState;
+            const storedDropTarget = rackDragState.dropTarget;
             const finalBoardTarget = (
-                moved
-                && event.type !== 'pointercancel'
-                && canDragRackTileToBoard(tileId)
+                moved &&
+                event.type !== 'pointercancel' &&
+                canDragRackTileToBoard(tileId) &&
+                isPointerInsideBoard(event.clientX, event.clientY)
             ) ? getRackBoardDropTarget(event.clientX, event.clientY) : null;
-            const dropTarget = finalBoardTarget === null
+            const dropTarget = event.type === 'pointercancel'
                 ? null
-                : {
-                    row: finalBoardTarget.row,
-                    column: finalBoardTarget.column
-                };
+                : (finalBoardTarget === null
+                    ? storedDropTarget
+                    : {
+                        row: finalBoardTarget.row,
+                        column: finalBoardTarget.column
+                    });
 
             clearRackBoardDropTarget();
+            removeRackDragGhost(ghost);
 
             if (
                 typeof button.hasPointerCapture === 'function' &&
@@ -1149,24 +1249,7 @@
             }
 
             if (moved && dropTarget !== null) {
-                const draggedTile = getRackTile(tileId);
-
                 selectedPendingPlacementKey = null;
-
-                if (
-                    draggedTile?.isBlank === true
-                    && selectedTileId !== tileId
-                ) {
-                    selectedTileId = tileId;
-                    rackDragState = null;
-                    renderRack();
-                    updateMoveControls();
-                    showMoveFeedback(
-                        I18n.t('player.feedback.blankDragNeedsLetter'),
-                        'warning'
-                    );
-                    return;
-                }
 
                 selectedTileId = tileId;
                 rackDragState = null;
@@ -1298,16 +1381,6 @@
 
             rackElement.replaceChildren(fragment);
             rackSection.hidden = currentRack.length === 0 && gameStatus !== 'playing';
-
-            const selectedTile = selectedTileId !== null
-                ? getRackTile(selectedTileId)
-                : null;
-
-            blankLetterField.hidden = (
-                exchangeMode ||
-                !canPlay() ||
-                !selectedTile?.isBlank
-            );
 
             updateRackArrangementControls();
 
@@ -1508,6 +1581,27 @@
         }
 
         /**
+         * Requests the letter represented by a blank tile at placement time.
+         *
+         * The rack no longer exposes a persistent blank-letter selector. The
+         * assignment is requested only when the blank is dropped or tapped onto
+         * a board square.
+         *
+         * @returns {string|null} Uppercase A-Z letter, or null when cancelled.
+         */
+        function requestBlankTileLetter() {
+            const value = window.prompt(I18n.t('player.rack.blankPlacementPrompt'), '');
+
+            if (value === null) {
+                return null;
+            }
+
+            const normalized = value.trim().toUpperCase();
+
+            return /^[A-Z]$/.test(normalized) ? normalized : null;
+        }
+
+        /**
          * Places the selected rack tile into the local move preview.
          *
          * @param {number} row Board row.
@@ -1551,8 +1645,16 @@
             }
 
             const assignedLetter = tile.isBlank
-                ? blankLetterSelect.value
+                ? requestBlankTileLetter()
                 : null;
+
+            if (tile.isBlank && assignedLetter === null) {
+                showMoveFeedback(
+                    I18n.t('error.BLANK_LETTER_REQUIRED'),
+                    'warning'
+                );
+                return;
+            }
 
             selectedPendingPlacementKey = null;
             pendingPlacements.set(coordinateKey, {
@@ -1695,61 +1797,60 @@
         /**
          * Resets the live move-score preview.
          *
-         * Incrementing the revision invalidates any delayed server response
-         * that belongs to an older local placement layout.
-         *
          * @returns {void}
          */
         function resetMoveScorePreview() {
-            movePreviewRevision += 1;
-
-            if (movePreviewTimer !== null) {
-                window.clearTimeout(movePreviewTimer);
-                movePreviewTimer = null;
-            }
-
             moveScorePreview.textContent = I18n.t('player.move.previewUnavailable');
             moveScorePreview.removeAttribute('title');
             moveScorePreview.dataset.valid = 'false';
         }
 
         /**
-         * Requests an authoritative structural score preview for the local move.
+         * Calculates the provisional move score locally.
          *
-         * The request is intentionally debounced because a drag gesture can
-         * update placements in quick succession. Dictionary validation is not
-         * performed here; only the deterministic Scrabble score is previewed.
+         * The browser module mirrors the authoritative server move engine and
+         * is covered by parity tests. Dictionary validation remains server-only
+         * when the player submits or challenges the move.
          *
          * @returns {void}
          */
-        function scheduleMoveScorePreview() {
-            if (movePreviewTimer !== null) {
-                window.clearTimeout(movePreviewTimer);
-                movePreviewTimer = null;
-            }
-
+        function updateMoveScorePreview() {
             if (
                 pendingPlacements.size === 0 ||
                 !canPlay() ||
                 exchangeMode ||
-                socket.readyState !== WebSocket.OPEN
+                !MoveScorePreview
             ) {
                 resetMoveScorePreview();
                 return;
             }
 
-            const revision = ++movePreviewRevision;
-            moveScorePreview.textContent = I18n.t('player.move.previewCalculating');
-            moveScorePreview.dataset.valid = 'pending';
+            try {
+                const move = MoveScorePreview.validateAndScoreMove(
+                    currentBoard,
+                    currentRack,
+                    Array.from(pendingPlacements.values())
+                );
 
-            movePreviewTimer = window.setTimeout(() => {
-                movePreviewTimer = null;
-                socket.send(JSON.stringify({
-                    type: 'preview-move',
-                    revision,
-                    placements: Array.from(pendingPlacements.values())
-                }));
-            }, 60);
+                moveScorePreview.textContent = I18n.t('player.move.previewScore', {
+                    score: move.score
+                });
+                moveScorePreview.dataset.valid = 'true';
+                moveScorePreview.title = move.words
+                    .map((word) => `${word.text}: ${word.score}`)
+                    .join(' · ');
+            } catch (error) {
+                resetMoveScorePreview();
+
+                if (typeof error?.code === 'string') {
+                    const errorKey = `error.${error.code}`;
+                    const translatedError = I18n.t(errorKey);
+
+                    moveScorePreview.title = translatedError === errorKey
+                        ? error.code
+                        : translatedError;
+                }
+            }
         }
 
         /**
@@ -1763,7 +1864,7 @@
             pendingCount.textContent = I18n.tp('common.tile', count);
             clearMoveButton.disabled = count === 0 || exchangeMode;
             submitMoveButton.disabled = !canPlay() || exchangeMode || count === 0;
-            scheduleMoveScorePreview();
+            updateMoveScorePreview();
         }
 
         /**
@@ -1997,7 +2098,6 @@
             }));
         }
 
-        initializeSelectors();
 
         socket.addEventListener('open', () => {
             connectionStatusKey = 'common.connected';
@@ -2181,33 +2281,6 @@
                 rackSection.hidden = false;
                 renderRack();
                 updateMoveControls();
-                return;
-            }
-
-            if (data.type === 'move-preview') {
-                if (data.revision !== movePreviewRevision) {
-                    return;
-                }
-
-                if (!data.valid) {
-                    moveScorePreview.textContent = I18n.t('player.move.previewUnavailable');
-                    moveScorePreview.dataset.valid = 'false';
-
-                    const errorKey = `error.${data.code}`;
-                    const translatedError = I18n.t(errorKey);
-                    moveScorePreview.title = translatedError === errorKey
-                        ? String(data.code ?? '')
-                        : translatedError;
-                    return;
-                }
-
-                moveScorePreview.textContent = I18n.t('player.move.previewScore', {
-                    score: data.score
-                });
-                moveScorePreview.dataset.valid = 'true';
-                moveScorePreview.title = Array.isArray(data.words)
-                    ? data.words.map((word) => `${word.text}: ${word.score}`).join(' · ')
-                    : '';
                 return;
             }
 

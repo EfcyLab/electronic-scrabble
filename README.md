@@ -85,7 +85,7 @@ The administration interface creates and resumes games, configures the turn cloc
 /player/?game=ABCD
 ```
 
-The smartphone interface provides the private rack, reliable touch-based tile rearrangement, direct drag-and-drop from rack to empty board squares, a complete fit-to-width board without gameplay zoom, provisional tile repositioning directly on the board, move preparation, exchange, pass, challenge, and final result views. Blank tiles still require a letter choice before their direct drag is committed.
+The smartphone interface provides the private rack, reliable touch-based tile rearrangement, direct drag-and-drop from rack to empty board squares, a complete fit-to-width board without gameplay zoom, provisional tile repositioning directly on the board, move preparation, exchange, pass, challenge, and final result views. A blank tile asks for its represented A-Z letter only when the player actually places it on a board square.
 
 ### Shared Screen
 
@@ -406,7 +406,6 @@ join-game
 resume-game
 start-game
 begin-play
-preview-move
 submit-move
 accept-pending-move
 challenge-pending-move
@@ -432,12 +431,28 @@ Exchange selection is integrated into the rack controls. Join, game identity,
 and starting-player information use compact strips so the board and rack remain
 visible together on typical phone screens.
 
-While a move is being prepared, the player client sends a non-mutating
-`preview-move` request after each placement change. The authoritative server
-uses the same structural move engine as final submission and returns the current
-Scrabble score, including premium squares, cross-words, and the seven-tile
-bonus. Dictionary validation is intentionally not performed until the normal
+While a move is being prepared, the player calculates the provisional score
+locally with a browser scoring module that mirrors the authoritative server
+move engine. Automated parity tests compare both implementations so premium
+squares, cross-words, blanks, and the seven-tile bonus remain aligned. This
+removes the WebSocket `preview-move` dependency and therefore also works when a
+new frontend is temporarily served beside an older WebSocket process. Final
+move validation and all authoritative state changes remain server-side.
+Dictionary validation is intentionally not performed until the normal
 submission/challenge flow.
+
+## Player Interaction Reliability
+
+The current player client does not send a dedicated WebSocket message for live
+score preview. Provisional scoring is calculated locally by
+`player/js/move-score-preview.js`, whose results are parity-tested against the
+authoritative server move engine. This avoids frontend/server version mismatch
+errors while preserving server authority for final submission.
+
+Rack drag-and-drop uses pointer capture plus a floating drag ghost. Vertical
+drags toward the board no longer reorder the rack while crossing the gap. Blank
+tiles request their represented A-Z letter only when dropped or tapped onto a
+board square; there is no persistent blank-letter selector in the rack.
 
 ## Security Principles
 

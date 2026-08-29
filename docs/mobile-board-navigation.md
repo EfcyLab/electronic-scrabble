@@ -13,7 +13,7 @@ To place a tile:
 1. drag a tile from the private rack onto its destination square, or select it
    and tap the destination square;
 2. reposition provisional tiles directly on the board when needed;
-3. compare the live server-calculated move score;
+3. compare the live provisional move score calculated in the browser;
 4. submit the move.
 
 Coordinate-form placement has been removed to keep the gameplay surface simple.
@@ -36,13 +36,20 @@ in a separate turn-management card.
 
 ## Live Score Preview
 
-After each provisional placement change, the player asks the authoritative
-server for a structural score preview. The returned score uses the same premium
-square, cross-word, and bingo calculations as final move submission. No board
-state is modified and dictionary validation remains part of the normal submit
-or challenge workflow.
+After each provisional placement change, the player recalculates the structural
+score locally. The browser preview module mirrors the authoritative server move
+engine and is covered by parity tests against it, including premium squares,
+cross-words, blanks, and the seven-tile bonus. No WebSocket preview request is
+required. Dictionary validation remains part of the normal submit or challenge
+workflow.
 
 ## Server Independence
 
-Board sizing and rack ordering are local presentation state only. Move-score
-preview requests are read-only and cannot change authoritative game state.
+Board sizing, rack ordering, and move-score preview are local presentation state only. Final move validation and authoritative game state remain server-side.
+
+
+## Blank Tiles
+
+The rack no longer contains a permanent blank-letter selector. When a blank is
+placed by tap or drag, the player is asked for the represented A-Z letter at
+that moment. Cancelling the prompt leaves the blank on the rack.

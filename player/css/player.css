@@ -86,9 +86,6 @@ body {
     margin: 0;
 }
 
-.blank-letter-field {
-    min-width: 135px;
-}
 
 .rack {
     display: flex;
@@ -665,11 +662,6 @@ body {
     #rack-section > .row > .rack-arrangement {
         grid-column: 2;
         grid-row: 1;
-    }
-
-    .blank-letter-field:not([hidden]) {
-        grid-column: 1 / -1;
-        grid-row: 2;
     }
 
     .rack-arrangement {
@@ -1469,10 +1461,6 @@ main {
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .blank-letter-field:not([hidden]) {
-        grid-column: 1 / -1;
-    }
-
     .rack-arrangement {
         grid-column: 2;
         grid-row: 1;
@@ -1510,5 +1498,49 @@ main {
 
     .compact-validation-note {
         font-size: 0.62rem;
+    }
+}
+
+/*
+ * Milestone 25 rack interaction fixes.
+ *
+ * Keeps selected tiles fully visible and provides a pointer-following drag
+ * ghost so rack reordering and rack-to-board placement have clear feedback.
+ */
+
+.rack {
+    padding-top: 0.55rem;
+    overflow: visible;
+}
+
+.rack-tile--selected {
+    transform: translateY(-2px);
+}
+
+.rack-drag-ghost {
+    position: fixed;
+    z-index: 10000;
+    margin: 0;
+    pointer-events: none;
+    opacity: 0.94;
+    transform: translate(-50%, -50%) scale(1.06);
+    box-shadow: 0 10px 22px color-mix(in srgb, #000 32%, transparent);
+}
+
+.rack-tile--dragging {
+    opacity: 0.38;
+    transform: none;
+}
+
+@media (max-width: 600px) {
+    .rack {
+        padding-top: 0.42rem;
+        padding-bottom: 0.28rem;
+        overflow: visible;
+    }
+
+    .rack-tile--selected,
+    .rack-tile--exchange-selected {
+        transform: translateY(-1px);
     }
 }
